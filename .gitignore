@@ -1,0 +1,10 @@
+# Khóa
+app/env.json
+**/.env
+**/.env.local
+supabase/functions/.env
+
+# Hệ điều hành / IDE
+Thumbs.db
+.DS_Store
+.idea/
