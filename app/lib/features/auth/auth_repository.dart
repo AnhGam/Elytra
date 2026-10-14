@@ -8,12 +8,22 @@ class AuthRepository {
   Future<void> signIn(String email, String password) =>
       supabase.auth.signInWithPassword(email: email.trim(), password: password);
 
-  // Lưu thời điểm đồng ý điều khoản vào user_metadata (ô tick ở màn Đăng ký)
-  Future<void> signUp(String email, String password) => supabase.auth.signUp(
-        email: email.trim(),
-        password: password,
-        data: {'terms_accepted_at': DateTime.now().toUtc().toIso8601String()},
-      );
+  /// Tạo tài khoản. Trả về `true` nếu người dùng phải xác nhận email trước
+  /// khi đăng nhập (khi bật "Confirm email" trên Supabase).
+  /// Lưu thời điểm đồng ý điều khoản vào user_metadata (ô tick ở màn Đăng ký).
+  Future<bool> signUp(String email, String password) async {
+    final res = await supabase.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: {'terms_accepted_at': DateTime.now().toUtc().toIso8601String()},
+    );
+    // Khi bật xác nhận email, Supabase không báo "email đã tồn tại" mà trả về
+    // một user có danh sách identities rỗng
+    if (res.user?.identities?.isEmpty ?? false) {
+      throw AuthException('User already registered');
+    }
+    return res.session == null;
+  }
 
   Future<void> signOut() => supabase.auth.signOut();
 

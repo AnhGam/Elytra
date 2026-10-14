@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:elytra/features/auth/auth_repository.dart';
 import 'package:elytra/main.dart';
 
 /// Home tạm, có nút đăng xuất. Sprint sau thay bằng Dashboard.
@@ -17,7 +18,7 @@ class HomePlaceholder extends StatelessWidget {
             const SizedBox(height: 16),
             // Đăng xuất → router thấy mất phiên → tự đưa về /welcome
             OutlinedButton(
-              onPressed: () => supabase.auth.signOut(),
+              onPressed: () => authRepo.signOut(),
               child: const Text('Đăng xuất'),
             ),
           ],

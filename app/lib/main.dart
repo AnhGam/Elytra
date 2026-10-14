@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:elytra/core/router.dart';
+import 'package:elytra/core/theme.dart';
 
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
@@ -21,6 +22,8 @@ class ElytraApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Elytra',
+      debugShowCheckedModeBanner: false,
+      theme: buildAppTheme(),
       routerConfig: router,
     );
   }
