@@ -8,12 +8,20 @@ final emailRegExp = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 /// Thanh trên: nút Quay lại (40x40) + tiêu đề 20 Bold
 class AuthHeader extends StatelessWidget {
-  const AuthHeader({super.key, required this.title, required this.fallbackRoute});
+  const AuthHeader({
+    super.key,
+    required this.title,
+    required this.fallbackRoute,
+    this.onBack,
+  });
 
   final String title;
 
   /// Nơi quay về khi không có màn trước trong ngăn xếp (vd. mở thẳng bằng go)
   final String fallbackRoute;
+
+  /// Nếu có: bấm Quay lại sẽ chạy hàm này thay cho việc về màn trước
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +32,8 @@ class AuthHeader extends StatelessWidget {
           IconButton(
             tooltip: 'Quay lại',
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go(fallbackRoute),
+            onPressed: onBack ??
+                () => context.canPop() ? context.pop() : context.go(fallbackRoute),
           ),
           const SizedBox(width: 4),
           Text(title,

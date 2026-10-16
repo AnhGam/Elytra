@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:elytra/core/pending_onboarding.dart';
 import 'package:elytra/core/theme.dart';
 import 'package:elytra/features/auth/auth_repository.dart';
+import 'package:elytra/features/auth/forgot_password_sheet.dart';
 import 'package:elytra/features/auth/widgets/auth_widgets.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 
@@ -60,12 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _forgotPassword() {
-    // TODO(4.6): showForgotPasswordSheet(context, _email.text);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng quên mật khẩu sắp có.')),
-    );
-  }
+  void _forgotPassword() => showForgotPasswordSheet(context, _email.text);
 
   @override
   Widget build(BuildContext context) {
