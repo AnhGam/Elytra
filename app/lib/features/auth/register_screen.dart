@@ -204,7 +204,7 @@ class _PlanSummaryPill extends StatelessWidget {
 
   static String _text(BodyInfo info) => switch (info.goal) {
         Goal.loseWeight => 'Giảm về ${_kg.format(info.targetWeightKg ?? info.weightKg)} kg',
-        Goal.gainMuscle => 'Tăng lên ${_kg.format(info.targetWeightKg ?? info.weightKg)} kg',
+        Goal.gainWeight => 'Tăng lên ${_kg.format(info.targetWeightKg ?? info.weightKg)} kg',
         // TODO(Bước 6): đổi thành "Duy trì … kcal/ngày" khi có NutritionCalculator
         Goal.maintain => 'Duy trì ${_kg.format(info.weightKg)} kg',
       };

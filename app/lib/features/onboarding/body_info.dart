@@ -1,7 +1,9 @@
 /// Model thể trạng (mục 5.2 của hướng dẫn). Bước 5 sẽ dùng đầy đủ.
 enum Gender { male, female }
 enum ActivityLevel { sedentary, light, moderate, active, veryActive }
-enum Goal { loseWeight, maintain, gainMuscle }
+/// Giảm cân · Duy trì · Tăng cân (khớp cột `goal` của bảng `profiles`:
+/// lose_weight / maintain / gain_weight)
+enum Goal { loseWeight, maintain, gainWeight }
 
 class BodyInfo {
   final Gender gender;
@@ -47,8 +49,10 @@ class BodyInfo {
         }[activity],
         'goal': const {
           Goal.loseWeight: 'lose_weight', Goal.maintain: 'maintain',
-          Goal.gainMuscle: 'gain_muscle',
+          Goal.gainWeight: 'gain_weight',
         }[goal],
+        // 4 trường dưới chưa có cột trong bảng `profiles` (DB sẽ bổ sung sau).
+        // App vẫn thu thập ở bước 5–6; Bước 6 chỉ lưu khi DB đã có cột.
         'target_weight_kg': hasGoalPlan ? targetWeightKg : null,
         'workout_hours_per_day': hasGoalPlan ? workoutHoursPerDay : null,
         'prefer_gym_cutting': hasGoalPlan && preferGymCutting,
