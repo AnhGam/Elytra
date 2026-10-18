@@ -233,7 +233,7 @@ class _PlanCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             losing
-                ? 'Dựa trên mức thâm hụt khoảng 400 kcal mỗi ngày.'
+                ? 'Dựa trên mức thâm hụt khoảng 500 kcal mỗi ngày.'
                 : 'Dựa trên tốc độ tăng khoảng 0,3 kg mỗi tuần.',
             style: TextStyle(fontSize: 12, color: fg),
           ),

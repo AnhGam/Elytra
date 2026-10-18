@@ -17,9 +17,9 @@ class Step4Goal extends StatelessWidget {
     _GoalOption(
       goal: Goal.loseWeight,
       title: 'Giảm cân',
-      subtitle: 'Bớt khoảng 400 kcal mỗi ngày',
+      subtitle: 'Bớt khoảng 500 kcal mỗi ngày',
       hint: 'Giảm mỡ, giữ cơ · Ưu tiên đạm',
-      macro: 'Protein 1,8 g/kg · Chất béo 25%',
+      macro: 'Protein 2,0 g/kg · Chất béo 25%',
       icon: Icons.trending_down,
       theme: _GoalTheme(
         background: Color(0xFFFEF3C7),
@@ -33,7 +33,7 @@ class Step4Goal extends StatelessWidget {
       title: 'Duy trì cân nặng',
       subtitle: 'Ăn bằng đúng TDEE của bạn',
       hint: 'Giữ cân nặng · Ăn uống cân bằng',
-      macro: 'Protein 1,4 g/kg · Chất béo 25%',
+      macro: 'Protein 1,6 g/kg · Chất béo 25%',
       icon: Icons.favorite_border,
       theme: _GoalTheme(
         background: Color(0xFFE0F2FE),
@@ -47,7 +47,7 @@ class Step4Goal extends StatelessWidget {
       title: 'Tăng cân',
       subtitle: 'Thêm khoảng 400 kcal mỗi ngày',
       hint: 'Tăng cân, tập luyện · Bổ sung đạm',
-      macro: 'Protein 1,6 g/kg · Chất béo 25%',
+      macro: 'Protein 1,8 g/kg · Chất béo 25%',
       icon: Icons.trending_up,
       theme: _GoalTheme(
         background: AppColors.primaryContainer,

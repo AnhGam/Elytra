@@ -7,6 +7,7 @@ import 'package:elytra/core/pending_onboarding.dart';
 import 'package:elytra/core/theme.dart';
 import 'package:elytra/features/auth/auth_repository.dart';
 import 'package:elytra/features/auth/widgets/auth_widgets.dart';
+import 'package:elytra/features/nutrition/nutrition_calculator.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 
 /// Màn Tạo tài khoản (frame RegisterScreen trong Elytra.fig)
@@ -201,12 +202,13 @@ class _PlanSummaryPill extends StatelessWidget {
   const _PlanSummaryPill();
 
   static final _kg = NumberFormat('#,##0.#', 'vi');
+  static final _kcal = NumberFormat('#,##0', 'vi');
 
   static String _text(BodyInfo info) => switch (info.goal) {
         Goal.loseWeight => 'Giảm về ${_kg.format(info.targetWeightKg ?? info.weightKg)} kg',
         Goal.gainWeight => 'Tăng lên ${_kg.format(info.targetWeightKg ?? info.weightKg)} kg',
-        // TODO(Bước 6): đổi thành "Duy trì … kcal/ngày" khi có NutritionCalculator
-        Goal.maintain => 'Duy trì ${_kg.format(info.weightKg)} kg',
+        Goal.maintain =>
+          'Duy trì ${_kcal.format(NutritionCalculator.compute(info).targetKcal.round())} kcal/ngày',
       };
 
   @override
