@@ -62,11 +62,10 @@ class BodyInfoDraft extends ChangeNotifier {
 
   double get bmiValue => bmi(_heightCm, _weightKg);
 
-  /// Số tuần ước tính để đạt cân nặng mục tiêu (giảm 0,4 kg/tuần, tăng 0,3 kg/tuần)
+  /// Số tuần ước tính để đạt cân nặng mục tiêu (giảm 0,45 kg/tuần, tăng 0,3 kg/tuần)
   int? get weeksToTarget {
     if (!hasGoalPlan || _targetWeightKg == null) return null;
-    final rate = _goal == Goal.loseWeight ? 0.4 : 0.3;
-    return ((_targetWeightKg! - _weightKg).abs() / rate).ceil();
+    return estimateWeeks(_goal!, _weightKg, _targetWeightKg!);
   }
 
   /// Khoảng cân nặng mục tiêu hiện tại (null khi không có bước 5)

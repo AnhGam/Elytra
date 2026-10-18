@@ -6,6 +6,18 @@ enum ActivityLevel { sedentary, light, moderate, active, veryActive }
 /// lose_weight / maintain / gain_weight)
 enum Goal { loseWeight, maintain, gainWeight }
 
+/// Số tuần ước tính để đi từ cân nặng hiện tại tới mục tiêu, làm tròn lên.
+/// Giảm 0,45 kg/tuần (≈ thâm hụt 500 kcal/ngày × 7 ÷ 7.700 kcal mỗi kg mỡ),
+/// tăng 0,3 kg/tuần. Tính bằng số nguyên (đơn vị 0,1 kg) để tránh sai số
+/// số thực, vd. 4,5 ÷ 0,45 phải ra đúng 10 tuần.
+int estimateWeeks(Goal goal, double currentKg, double targetKg) {
+  final diff10 = ((targetKg - currentKg).abs() * 10).round(); // chênh lệch × 10
+  return goal == Goal.loseWeight
+      ? (diff10 * 10 + 44) ~/
+            45 // ⌈diff ÷ 0,45⌉
+      : (diff10 + 2) ~/ 3; // ⌈diff ÷ 0,3⌉
+}
+
 class BodyInfo {
   final Gender gender;
   final int age;
@@ -37,8 +49,7 @@ class BodyInfo {
 
   int? get weeksToTarget {
     if (!hasGoalPlan || targetWeightKg == null) return null;
-    final rate = goal == Goal.loseWeight ? 0.4 : 0.3; // kg/tuần
-    return ((targetWeightKg! - weightKg).abs() / rate).ceil();
+    return estimateWeeks(goal, weightKg, targetWeightKg!);
   }
 
   Map<String, dynamic> toJson({bool save = false}) => {

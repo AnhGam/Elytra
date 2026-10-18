@@ -32,12 +32,17 @@ void main() {
     );
 
     test(
-      'Giảm 5 kg → 13 tuần',
-      () => expect(info(Goal.loseWeight, 60).weeksToTarget, 13),
+      'Giảm 5 kg → 12 tuần (5 ÷ 0,45 = 11,1 → làm tròn lên)',
+      () => expect(info(Goal.loseWeight, 60).weeksToTarget, 12),
     );
     test(
       'Tăng 5 kg → 17 tuần',
       () => expect(info(Goal.gainWeight, 70).weeksToTarget, 17),
+    );
+
+    test(
+      'Giảm 4,5 kg → đúng 10 tuần (không bị sai số số thực thành 11)',
+      () => expect(estimateWeeks(Goal.loseWeight, 65, 60.5), 10),
     );
     test(
       'Duy trì → không có lộ trình',

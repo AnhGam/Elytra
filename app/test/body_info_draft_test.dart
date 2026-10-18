@@ -60,7 +60,7 @@ void main() {
     final info = d.toBodyInfo();
     expect(info.targetWeightKg, 60);
     expect(info.workoutHoursPerDay, 1);
-    expect(info.weeksToTarget, 13);
+    expect(info.weeksToTarget, 12); // 5 kg ÷ 0,45 kg/tuần
   });
 
   test('Tăng cân: sửa cân nặng → mục tiêu luôn = cân nặng mới + 5', () {
