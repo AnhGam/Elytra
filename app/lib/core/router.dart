@@ -59,16 +59,16 @@ final router = GoRouter(
     return null;
   },
   routes: [
-    GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
-    GoRoute(path: '/onboarding', builder: (_, __) => const BodyInfoScreen()),
+    GoRoute(path: '/welcome', builder: (_, _) => const WelcomeScreen()),
+    GoRoute(path: '/onboarding', builder: (_, _) => const BodyInfoScreen()),
     GoRoute(
       path: '/result',
       builder: (_, state) => ResultScreen(input: state.extra as BodyInfo),
     ),
-    GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-    GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-    GoRoute(path: '/reset-password', builder: (_, __) => const ResetPasswordScreen()),
-    GoRoute(path: '/gate', builder: (_, __) => const ProfileGate()),
-    GoRoute(path: '/home', builder: (_, __) => const HomePlaceholder()),
+    GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+    GoRoute(path: '/reset-password', builder: (_, _) => const ResetPasswordScreen()),
+    GoRoute(path: '/gate', builder: (_, _) => const ProfileGate()),
+    GoRoute(path: '/home', builder: (_, _) => const HomePlaceholder()),
   ],
 );
