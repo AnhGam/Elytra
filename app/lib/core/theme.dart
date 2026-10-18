@@ -12,6 +12,7 @@ class AppColors {
   static const background = Color(0xFFF5F7FA);
   static const surface = Color(0xFFFFFFFF);
   static const outline = Color(0xFFE8EEF4);
+  static const sliderInactive = Color(0xFFE2E8F0); // phần chưa chọn của thanh trượt
   static const outlineStrong = Color(0xFFCBD5E1);
   static const textPrimary = Color(0xFF0F172A);
   static const textSecondary = Color(0xFF334155);

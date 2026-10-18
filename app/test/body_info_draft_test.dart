@@ -62,4 +62,18 @@ void main() {
     expect(info.workoutHoursPerDay, 1);
     expect(info.weeksToTarget, 13);
   });
+
+  test('Tăng cân: sửa cân nặng → mục tiêu luôn = cân nặng mới + 5', () {
+    final d = BodyInfoDraft()
+      ..setGoal(Goal.gainWeight)
+      ..setWeight(58);
+    expect(d.targetWeightKg, 63);
+  });
+
+  test('Giảm cân: tăng cân nặng → mục tiêu = cân nặng mới − 5', () {
+    final d = BodyInfoDraft()
+      ..setGoal(Goal.loseWeight)
+      ..setWeight(80);
+    expect(d.targetWeightKg, 75);
+  });
 }

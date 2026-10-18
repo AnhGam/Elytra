@@ -22,13 +22,27 @@ void main() {
 
   group('weeksToTarget', () {
     BodyInfo info(Goal goal, double? target) => BodyInfo(
-          gender: Gender.male, age: 25, heightCm: 170, weightKg: 65,
-          activity: ActivityLevel.moderate, goal: goal, targetWeightKg: target,
-        );
+      gender: Gender.male,
+      age: 25,
+      heightCm: 170,
+      weightKg: 65,
+      activity: ActivityLevel.moderate,
+      goal: goal,
+      targetWeightKg: target,
+    );
 
-    test('Giảm 5 kg → 13 tuần', () => expect(info(Goal.loseWeight, 60).weeksToTarget, 13));
-    test('Tăng 5 kg → 17 tuần', () => expect(info(Goal.gainWeight, 70).weeksToTarget, 17));
-    test('Duy trì → không có lộ trình', () => expect(info(Goal.maintain, null).weeksToTarget, isNull));
+    test(
+      'Giảm 5 kg → 13 tuần',
+      () => expect(info(Goal.loseWeight, 60).weeksToTarget, 13),
+    );
+    test(
+      'Tăng 5 kg → 17 tuần',
+      () => expect(info(Goal.gainWeight, 70).weeksToTarget, 17),
+    );
+    test(
+      'Duy trì → không có lộ trình',
+      () => expect(info(Goal.maintain, null).weeksToTarget, isNull),
+    );
   });
 
   test('BMI người mẫu = 22,5, Bình thường', () {
@@ -36,4 +50,13 @@ void main() {
     expect(v, closeTo(22.5, 0.05));
     expect(bmiCategory(v), 'Bình thường');
   });
+
+  test(
+    'Cảnh báo BMI thấp: 170 cm, mục tiêu 48 kg → BMI 16,6; nên từ 54 kg',
+    () {
+      expect(bmi(170, 48), lessThan(healthyBmiMin));
+      expect(minHealthyWeightKg(170), 54);
+      expect(bmi(170, 54), greaterThanOrEqualTo(healthyBmiMin));
+    },
+  );
 }

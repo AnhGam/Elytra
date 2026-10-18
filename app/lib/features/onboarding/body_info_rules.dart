@@ -56,3 +56,12 @@ String bmiCategory(double value) {
   if (value < 25) return 'Thừa cân';
   return 'Béo phì';
 }
+
+/// Ngưỡng BMI thấp nhất của mức "Bình thường" (người châu Á)
+const healthyBmiMin = 18.5;
+
+/// Cân nặng thấp nhất còn ở mức BMI bình thường, làm tròn lên (170 cm → 54 kg)
+double minHealthyWeightKg(double heightCm) {
+  final h = heightCm / 100;
+  return (healthyBmiMin * h * h).ceilToDouble();
+}

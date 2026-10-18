@@ -62,6 +62,13 @@ class BodyInfoDraft extends ChangeNotifier {
 
   double get bmiValue => bmi(_heightCm, _weightKg);
 
+  /// Số tuần ước tính để đạt cân nặng mục tiêu (giảm 0,4 kg/tuần, tăng 0,3 kg/tuần)
+  int? get weeksToTarget {
+    if (!hasGoalPlan || _targetWeightKg == null) return null;
+    final rate = _goal == Goal.loseWeight ? 0.4 : 0.3;
+    return ((_targetWeightKg! - _weightKg).abs() / rate).ceil();
+  }
+
   /// Khoảng cân nặng mục tiêu hiện tại (null khi không có bước 5)
   ({double min, double max, double initial})? get targetRange =>
       hasGoalPlan ? targetWeightRange(_goal!, _heightCm, _weightKg) : null;
@@ -79,7 +86,7 @@ class BodyInfoDraft extends ChangeNotifier {
       BodyInfoLimits.minHeightCm,
       BodyInfoLimits.maxHeightCm,
     );
-    _fitTargetIntoRange(); // chiều cao đổi → khoảng mục tiêu đổi
+    _fitTargetIntoRange(); // chiều cao đổi → mục tiêu tính lại
   });
 
   void setWeight(double value) => _update(() {
@@ -87,7 +94,7 @@ class BodyInfoDraft extends ChangeNotifier {
       BodyInfoLimits.minWeightKg,
       BodyInfoLimits.maxWeightKg,
     );
-    _fitTargetIntoRange(); // cân nặng đổi → khoảng mục tiêu đổi
+    _fitTargetIntoRange(); // cân nặng đổi → mục tiêu tính lại
   });
 
   void setActivity(ActivityLevel value) => _update(() => _activity = value);
@@ -125,13 +132,13 @@ class BodyInfoDraft extends ChangeNotifier {
   void setPreferHealthyEating(bool value) =>
       _update(() => _preferHealthyEating = value);
 
-  /// Cân nặng mục tiêu nằm ngoài khoảng mới thì lấy giá trị mặc định
+  /// Chiều cao / cân nặng đổi → đặt lại cân nặng mục tiêu theo số mới
+  /// (giảm: cân nặng − 5 kg, tăng: cân nặng + 5 kg, rồi kẹp vào khoảng hợp lệ).
+  /// Áp dụng như nhau cho Giảm cân và Tăng cân.
   void _fitTargetIntoRange() {
     final r = targetRange;
     if (r == null || _targetWeightKg == null) return;
-    if (_targetWeightKg! < r.min || _targetWeightKg! > r.max) {
-      _targetWeightKg = r.initial;
-    }
+    _targetWeightKg = r.initial;
   }
 
   void _update(VoidCallback change) {
