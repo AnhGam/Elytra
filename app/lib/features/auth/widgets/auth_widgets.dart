@@ -150,11 +150,15 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.trailing,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
+
+  /// Icon nhỏ sau chữ (vd. mũi tên →), cách chữ 8
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +184,12 @@ class PrimaryButton extends StatelessWidget {
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
               )
-            : Text(label),
+            : trailing == null
+                ? Text(label)
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [Text(label), const SizedBox(width: 8), trailing!],
+                  ),
       ),
     );
   }
