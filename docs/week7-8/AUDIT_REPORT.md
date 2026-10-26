@@ -107,3 +107,4 @@ Kiểm chứng sau khi sửa: `test_migrations_replay.mjs` (dựng lại DB từ
 - 85 dòng nguyên liệu cố ý không map (nước, sả, gia vị lượng nhỏ, rau ăn kèm, đồ chay giả mặn không rõ thành phần). Thiếu calo đáng kể: nước mía (500 g), nước cốt dừa (100 g), táo đỏ (900 g, nghi lỗi parse khối lượng) — FCT không có món tương đương.
 - Một số map là gần đúng về dinh dưỡng (vd `mắm cá linh` → Mắm tép chua, `bánh mì` → Bánh mì xíu mại) nhưng đúng nhóm dị ứng.
 - Đồ chay giả mặn (`sườn non chay`, `chả quế chay`) thường làm từ đậu nành/bột mì nhưng không rõ thành phần nên không gắn tag.
+- **Phần ăn được (`edible_portion_pct`) không được áp khi tính dinh dưỡng món** (đúng spec `DATA_SPECIFICATION.md` 2.2: khối lượng trong hệ thống là phần ăn được). Nhưng dữ liệu crawl lẫn hai kiểu: `gà 2000g`, `đuôi heo 1000g` là khối lượng mua cả xương (tính dư, vd Đuôi heo hầm 1365 kcal/khẩu), còn `tỏi băm 10g` là phần ăn được. Cần chốt quy ước và duyệt từng dòng trước khi áp tỉ lệ.

@@ -12,6 +12,8 @@
 | Đưa bucket Storage, cột `video_url`, link ảnh/video 45 món vào migration; xóa policy cho anon upload | `supabase/migrations/20261026100000_recipe_media_and_storage.sql` |
 | Dọn cảnh báo Supabase security advisor (search_path, thu quyền gọi `handle_new_user`) | `supabase/migrations/20261026093000_fix_security_advisor_warnings.sql` |
 | Kiểm thử E2E trên Supabase thật: mọi endpoint, format lỗi, RLS giữa 2 user, chặn insert/update thẳng. Tự tạo và xóa 2 user tạm | `supabase/scripts/test_meal_logs_e2e.mjs` |
+| Kiểm thử dựng lại DB từ toàn bộ migrations + kiểm từng lỗi trong AUDIT_REPORT | `supabase/scripts/test_migrations_replay.mjs` |
+| Kiểm thử từ điển map nguyên liệu và từ khóa dị ứng | `supabase/scripts/test_ingredient_parser.js` |
 | Kiểm thử SQL: vá quyền, tính kcal, chống ghi trùng, validation, tách dữ liệu 2 user, sửa khẩu phần, lịch sử + mục tiêu theo ngày | `supabase/scripts/test_meal_logs_sql.mjs` |
 
 ## Quyết định thiết kế
