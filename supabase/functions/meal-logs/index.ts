@@ -52,7 +52,8 @@ function fromDbError(err: any) {
   if (MESSAGES[err.message]) return fail(err.message, MESSAGES[err.message], err.hint ?? undefined);
   // 22P02 sai uuid/số, 22007/22008 sai ngày: lỗi do input chứ không phải server
   if (["22P02", "22007", "22008"].includes(err.code)) return fail("VALIDATION_ERROR", MESSAGES.VALIDATION_ERROR);
-  if (String(err.code).startsWith("PGRST3")) return fail("UNAUTHORIZED", MESSAGES.UNAUTHORIZED);
+  // PGRST3xx: JWT hỏng/hết hạn. 42501: token hợp lệ nhưng không phải user đăng nhập (vd anon key) nên không có quyền gọi RPC
+  if (String(err.code).startsWith("PGRST3") || err.code === "42501") return fail("UNAUTHORIZED", MESSAGES.UNAUTHORIZED);
   console.error(err);
   return fail("INTERNAL_ERROR", "Lỗi hệ thống, vui lòng thử lại");
 }
@@ -79,6 +80,9 @@ Deno.serve(async (req: Request) => {
         b = await req.json();
       } catch {
         return fail("VALIDATION_ERROR", "Body phải là JSON");
+      }
+      if (typeof b !== "object" || b === null || Array.isArray(b)) {
+        return fail("VALIDATION_ERROR", "Body phải là JSON object");
       }
     }
 

@@ -50,7 +50,7 @@ https://<project-ref>.supabase.co/functions/v1/<tên-function>
 
 ### Kiểu dữ liệu dùng chung
 
-**`Goal`**: `"lose_weight"` | `"maintain"` | `"gain_muscle"`
+**`Goal`**: `"lose_weight"` | `"maintain"` | `"gain_weight"` (khớp CHECK của `profiles.goal`)
 
 **`ActivityLevel`**
 
@@ -87,32 +87,29 @@ https://<project-ref>.supabase.co/functions/v1/<tên-function>
 
 ---
 
-## 1. `POST /calc-nutrition` – Ước tính dinh dưỡng
+## 1. `POST /calculate-bmr-tdee` – Ước tính dinh dưỡng
 
 **Dùng ở:** Onboarding (màn kết quả), Hồ sơ cá nhân (khi sửa thể trạng).
 **Luồng:** Activity diagram Luồng 1.
 
-Có 2 cách gọi:
+Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức duy nhất; `NutritionCalculator` trong app cho kết quả giống hệt). Hiện app tự tính và ghi thẳng vào `profiles`, chưa gọi endpoint này.
 
-- `save: false`: chỉ tính để hiện màn kết quả, chưa lưu.
-- `save: true`: tính và lưu vào `user_profiles`, cùng `user_allergens` nếu có phần tùy chỉnh. Dùng khi bấm "Dùng ngay" hoặc khi lưu xong nhánh "Tùy chỉnh".
+- Không cần đăng nhập nếu chỉ tính.
+- `save_to_profile: true`: tính và lưu vào `profiles` của người đang đăng nhập (bắt buộc có `Authorization`).
 
 ### Request
 
 | Trường | Kiểu | Bắt buộc | Ràng buộc |
 | --- | --- | --- | --- |
-| `gender` | `"male"` \| `"female"` | Có | |
-| `age` | số nguyên | Có | khoảng hợp lệ (đề xuất 18–80) |
-| `height_cm` | số | Có | (đề xuất 120–220) |
-| `weight_kg` | số | Có | (đề xuất 30–200) |
+| `gender` | `"male"` \| `"female"` \| `"other"` | Có | `other` dùng công thức nam |
+| `age` | số nguyên | Có | 10–100 (app giới hạn 18–80) |
+| `height_cm` | số | Có | 50–250 (app 120–220) |
+| `weight_kg` | số | Có | 20–300 (app 30–200) |
 | `activity_level` | `ActivityLevel` | Có | |
 | `goal` | `Goal` | Có | |
-| `save` | boolean | Không | Mặc định `false` |
-| `custom` | object | Không | Chỉ gửi khi đi nhánh "Tùy chỉnh" |
-| `custom.macro_pct` | `{protein, carbs, fat}` | Không | Tổng = 100 |
-| `custom.meal_split_pct` | `{breakfast, lunch, dinner, snack}` | Không | Tổng = 100 |
-| `custom.allergen_ids` | `uuid[]` | Không | Phải tồn tại trong bảng `allergens` |
-| `custom.diet_type` | chuỗi | Không | danh sách giá trị |
+| `save_to_profile` | boolean | Không | Mặc định `false` |
+
+> Chưa làm: nhánh "Tùy chỉnh" (macro %, chia bữa %, dị ứng, chế độ ăn).
 
 ### Ví dụ request
 
@@ -123,8 +120,7 @@ Có 2 cách gọi:
   "height_cm": 170,
   "weight_kg": 65,
   "activity_level": "moderate",
-  "goal": "lose_weight",
-  "save": false
+  "goal": "lose_weight"
 }
 ```
 
@@ -132,32 +128,31 @@ Có 2 cách gọi:
 
 ```json
 {
-  "bmr": 1608,
-  "tdee": 2492,
-  "target_kcal": 2092,
-  "floor_applied": false,
-  "macros": {
-    "protein_g": 156.9,
-    "carbs_g": 209.2,
-    "fat_g": 69.7,
-    "pct": { "protein": 30, "carbs": 40, "fat": 30 }
-  },
-  "meal_split_kcal": { "breakfast": 523, "lunch": 732, "dinner": 628, "snack": 209 },
-  "bmi": 22.5,
-  "saved": false
+  "success": true,
+  "saved": false,
+  "data": {
+    "bmi": 22.5,
+    "bmi_classification": "Bình thường",
+    "bmr": 1607.5,
+    "tdee": 2491.6,
+    "target_calories": 1991.6,
+    "calorie_difference": -500.0,
+    "macros": { "protein_g": 130.0, "fat_g": 55.3, "carbs_g": 243.4, "fiber_g": 27.9, "water_ml": 2275 },
+    "macro_percentages": { "protein_pct": 26.1, "fat_pct": 25.0, "carbs_pct": 48.9 },
+    "advice": "Mục tiêu giảm cân khoa học với mức thâm hụt 500 kcal/ngày. …"
+  }
 }
 ```
 
-- `floor_applied: true` nghĩa là calo mục tiêu đã được nâng lên mức sàn (1200 kcal với nữ, 1500 kcal với nam). App nên hiện một dòng giải thích.
+- Giảm cân: calo mục tiêu không thấp hơn mức sàn 1200 kcal (nữ) / 1500 kcal (nam); khi đó `calorie_difference` > −500.
 
 ### Lỗi riêng
 
 | HTTP | `code` | Khi nào |
 | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Trường thiếu hoặc ngoài khoảng (`field` cho biết trường nào) |
-| 400 | `MACRO_SUM_INVALID` | Tổng `custom.macro_pct` khác 100 |
-| 400 | `MEAL_SPLIT_INVALID` | Tổng `custom.meal_split_pct` khác 100 |
-| 400 | `ALLERGEN_NOT_FOUND` | Có `allergen_id` không tồn tại |
+| 400 | `VALIDATION_ERROR` | Body không phải JSON object; trường thiếu, sai kiểu, sai giá trị hoặc ngoài khoảng (`field` cho biết trường nào) |
+| 401 | `UNAUTHORIZED` | `save_to_profile: true` mà chưa đăng nhập |
+| 500 | `INTERNAL_ERROR` | Lỗi tính hoặc không lưu được hồ sơ |
 
 ---
 
@@ -445,13 +440,13 @@ Cho biểu đồ. Tối đa 31 ngày mỗi lần. Trả **đủ mọi ngày** tr
 }
 ```
 
-- `days[].target_kcal`: mục tiêu của **chính ngày đó** (lưu lúc ghi món đầu tiên của bữa). Đổi hồ sơ sau đó không làm đổi các ngày cũ. Ngày chưa ghi gì dùng mục tiêu hiện tại.
+- `days[].target_kcal`: mục tiêu của ngày đó (lưu lúc ghi). Đổi hồ sơ không làm đổi các ngày đã qua.
 - `target_kcal` ở ngoài: mục tiêu hiện tại.
-- `budget` của `GET /meal-logs?date=` luôn dùng mục tiêu **hiện tại** (kể cả khi xem ngày cũ).
+- Quy tắc chung cho `budget.target.kcal` của `GET /meal-logs?date=` và `days[].target_kcal`: **ngày đã qua** dùng mục tiêu lúc ghi (nếu ngày đó có ghi), **hôm nay** dùng mục tiêu hiện tại. Macro mục tiêu luôn lấy theo hồ sơ hiện tại.
 
 ### 4.4 `PATCH /meal-logs/items/:id` – Sửa khẩu phần / khối lượng
 
-Gửi `servings` nếu món là `recipe`, `amount_g` nếu là `ingredient` (cùng khoảng như 4.1). Dinh dưỡng được nhân theo tỉ lệ trên **snapshot cũ**, không đọc lại món gốc.
+Gửi `servings` nếu món là `recipe`, `amount_g` nếu là `ingredient` (cùng khoảng như 4.1), chỉ với món trong 30 ngày gần nhất. Dinh dưỡng được nhân theo tỉ lệ trên **snapshot cũ**, không đọc lại món gốc.
 
 ```json
 { "servings": 2 }
@@ -469,10 +464,12 @@ Response `204`, không có body. Idempotent: món không tồn tại hoặc đã
 
 | HTTP | `code` | `field` | Khi nào |
 | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | trường sai | Sai `meal_type`; gửi cả hai hoặc không gửi `recipe_id`/`ingredient_id` (`field = recipe_id`); `servings`/`amount_g`/`date` ngoài khoảng; `from`/`to` sai hoặc quá 31 ngày (`field = from`) |
+| 400 | `VALIDATION_ERROR` | trường sai | Body không phải JSON object; sai `meal_type`; gửi cả hai hoặc không gửi `recipe_id`/`ingredient_id` (`field = recipe_id`); `servings`/`amount_g`/`date` ngoài khoảng; `from`/`to` sai hoặc quá 31 ngày (`field = from`) |
 | 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Không tồn tại hoặc chưa duyệt |
 | 404 | `INGREDIENT_NOT_FOUND` | `ingredient_id` | Không tồn tại hoặc đã vô hiệu hóa |
 | 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo |
+| 400 | `VALIDATION_ERROR` | `date` | PATCH món cũ hơn 30 ngày |
+| 401 | `UNAUTHORIZED` | | Token không phải của user đã đăng nhập (vd gửi anon key) |
 | 404 | `ITEM_NOT_FOUND` | `id` | PATCH món không tồn tại hoặc của người khác |
 | 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Xem 4.1 |
 
