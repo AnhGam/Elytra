@@ -268,7 +268,7 @@ Có 2 cách gọi:
 | --- | --- | --- |
 | `open` | Mở màn Chat | Nạp ngữ cảnh, gọi `recommend` (quick), chào kèm top 3 món |
 | `message` | Người dùng gõ tự do | Kiểm tra phạm vi → nếu có nhắc nguyên liệu thì gọi `recommend` (advanced), nếu không thì xác định ý định |
-| `accept` | Chip "Ăn món này" | Tạo `meal_logs` / `meal_log_items` (snapshot), ghi log `accepted` |
+| `accept` | Chip "Ăn món này" | Gọi RPC `log_meal` (cùng logic với `POST /meal-logs`, mục 4), ghi log `accepted` |
 | `swap` | Chip "Đổi món khác" | Ghi log `rejected`, gọi `recommend` với món đó bị loại |
 | `how_to_cook` | Chip "Nấu thế nào?" | Đọc `cooking_steps` từ database |
 | `why_fit` | Chip "Vì sao hợp với tôi?" | Dùng `reasons` của engine và ngân sách còn lại |
@@ -339,10 +339,159 @@ Có 2 cách gọi:
 
 ---
 
-## 4. Cần xác định
+## 4. `/meal-logs` – Nhật ký bữa ăn
+
+**Dùng ở:** Dashboard (đã nạp / còn lại), màn Ghi bữa ăn, Chi tiết món (nút "Ăn món này"), màn Lịch sử + biểu đồ.
+
+- Mọi nơi ghi bữa ăn đều đi qua endpoint này (hoặc RPC `log_meal` mà nó gọi). App **không** insert thẳng vào bảng: RLS chỉ cho đọc và xóa.
+- Dinh dưỡng được **chụp lại lúc ghi** (snapshot). Sau này sửa món/nguyên liệu thì lịch sử cũ không đổi.
+- "Hôm nay" tính theo giờ Việt Nam (UTC+7). `date` có dạng `YYYY-MM-DD`.
+
+**`Budget`** – cùng dạng với `budget` của `recommend`. `remaining` có thể **âm** khi đã ăn vượt mục tiêu.
+
+```json
+{
+  "target":    { "kcal": 2092, "protein_g": 156.9, "carbs_g": 209.2, "fat_g": 69.7 },
+  "consumed":  { "kcal": 874,  "protein_g": 55.3,  "carbs_g": 90.6,  "fat_g": 28.9 },
+  "remaining": { "kcal": 1218, "protein_g": 101.6, "carbs_g": 118.6, "fat_g": 40.8 }
+}
+```
+
+**`MealLogItem`**
+
+```json
+{
+  "id": "c2b4…",
+  "source": "recipe",
+  "recipe_id": "8f1c…",
+  "ingredient_id": null,
+  "name": "Phở bò",
+  "image_url": "https://…/pho-bo.jpg",
+  "servings": 1.5,
+  "amount_g": null,
+  "kcal": 675,
+  "protein_g": 37.5,
+  "carbs_g": 90.0,
+  "fat_g": 15.0,
+  "created_at": "2026-10-26T05:12:00Z"
+}
+```
+
+- `source = "recipe"` → có `servings`, `amount_g = null`. `source = "ingredient"` → có `amount_g`, `servings = null`.
+- `recipe_id` / `ingredient_id` có thể thành `null` nếu món gốc bị xóa; `name` và số liệu vẫn giữ.
+
+### 4.1 `POST /meal-logs` – Ghi 1 món
+
+| Trường | Kiểu | Bắt buộc | Ràng buộc |
+| --- | --- | --- | --- |
+| `meal_type` | `MealType` | Có | |
+| `recipe_id` | `uuid` | Một trong hai | Món đã duyệt |
+| `servings` | số | Không | Chỉ đi với `recipe_id`. 0.25–10, mặc định 1 |
+| `ingredient_id` | `uuid` | Một trong hai | Nguyên liệu đang hoạt động |
+| `amount_g` | số | Khi có `ingredient_id` | 1–2000 (gam phần ăn được) |
+| `date` | `YYYY-MM-DD` | Không | Mặc định hôm nay. Không ở tương lai, lùi tối đa 30 ngày |
+| `client_request_id` | `uuid` | Không (nên gửi) | Chống ghi trùng khi mạng chập chờn, xem dưới |
+
+```json
+{ "meal_type": "lunch", "recipe_id": "8f1c…", "servings": 1.5, "client_request_id": "5e0a…" }
+```
+
+**Response `201`** (ghi mới) hoặc **`200`** (retry trùng, không ghi thêm):
+
+```json
+{ "item": { /* MealLogItem */ "meal_type": "lunch", "date": "2026-10-26" }, "replayed": false, "budget": { /* Budget */ } }
+```
+
+App dùng luôn `budget` để cập nhật Dashboard, không cần gọi lại `GET`.
+
+**`client_request_id`:** app sinh UUID **một lần** khi người dùng bấm "Thêm", lưu lại và gửi **y nguyên** khi retry. Không sinh lại mỗi lần gửi.
+
+- Cùng key + cùng nội dung → trả món đã ghi, `replayed: true`.
+- Cùng key + khác nội dung → `422 IDEMPOTENCY_CONFLICT` (lỗi lập trình phía app).
+- Không gửi key → mỗi request là một lần ghi mới (retry có thể ghi trùng).
+
+### 4.2 `GET /meal-logs?date=YYYY-MM-DD` – Tổng hợp 1 ngày
+
+Bỏ `date` = hôm nay.
+
+```json
+{
+  "date": "2026-10-26",
+  "budget": { /* Budget */ },
+  "meals": {
+    "breakfast": { "kcal": 199, "items": [ /* MealLogItem[] */ ] },
+    "lunch":     { "kcal": 675, "items": [ … ] },
+    "dinner":    { "kcal": 0,   "items": [] },
+    "snack":     { "kcal": 0,   "items": [] }
+  }
+}
+```
+
+Luôn có đủ 4 bữa; bữa chưa ăn có `items` rỗng.
+
+### 4.3 `GET /meal-logs/history?from=YYYY-MM-DD&to=YYYY-MM-DD` – Lịch sử theo ngày
+
+Cho biểu đồ. Tối đa 31 ngày mỗi lần. Trả **đủ mọi ngày** trong khoảng, ngày không ghi có giá trị 0. Xem chi tiết từng ngày bằng `GET /meal-logs?date=`.
+
+```json
+{
+  "from": "2026-10-20",
+  "to": "2026-10-26",
+  "target_kcal": 2092,
+  "days": [
+    { "date": "2026-10-20", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, "item_count": 0, "target_kcal": 2092 },
+    { "date": "2026-10-26", "kcal": 874, "protein_g": 55.3, "carbs_g": 90.6, "fat_g": 28.9, "item_count": 2, "target_kcal": 2200 }
+  ]
+}
+```
+
+- `days[].target_kcal`: mục tiêu của **chính ngày đó** (lưu lúc ghi món đầu tiên của bữa). Đổi hồ sơ sau đó không làm đổi các ngày cũ. Ngày chưa ghi gì dùng mục tiêu hiện tại.
+- `target_kcal` ở ngoài: mục tiêu hiện tại.
+- `budget` của `GET /meal-logs?date=` luôn dùng mục tiêu **hiện tại** (kể cả khi xem ngày cũ).
+
+### 4.4 `PATCH /meal-logs/items/:id` – Sửa khẩu phần / khối lượng
+
+Gửi `servings` nếu món là `recipe`, `amount_g` nếu là `ingredient` (cùng khoảng như 4.1). Dinh dưỡng được nhân theo tỉ lệ trên **snapshot cũ**, không đọc lại món gốc.
+
+```json
+{ "servings": 2 }
+```
+
+Response `200`: `{ "item": { /* MealLogItem */ "meal_type": "lunch", "date": "2026-10-26" }, "budget": { /* Budget */ } }`.
+
+Đặt giá trị tuyệt đối nên retry an toàn. Không đổi được bữa/ngày: muốn chuyển bữa thì xóa rồi ghi lại.
+
+### 4.5 `DELETE /meal-logs/items/:id` – Xóa 1 món
+
+Response `204`, không có body. Idempotent: món không tồn tại hoặc đã xóa vẫn trả `204`. Gọi lại `GET /meal-logs?date=` để cập nhật Dashboard.
+
+### Lỗi riêng
+
+| HTTP | `code` | `field` | Khi nào |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | trường sai | Sai `meal_type`; gửi cả hai hoặc không gửi `recipe_id`/`ingredient_id` (`field = recipe_id`); `servings`/`amount_g`/`date` ngoài khoảng; `from`/`to` sai hoặc quá 31 ngày (`field = from`) |
+| 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Không tồn tại hoặc chưa duyệt |
+| 404 | `INGREDIENT_NOT_FOUND` | `ingredient_id` | Không tồn tại hoặc đã vô hiệu hóa |
+| 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo |
+| 404 | `ITEM_NOT_FOUND` | `id` | PATCH món không tồn tại hoặc của người khác |
+| 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Xem 4.1 |
+
+### Gọi từ Flutter
+
+```dart
+await supabase.functions.invoke('meal-logs', body: {...});                       // POST
+await supabase.functions.invoke('meal-logs', method: HttpMethod.get, queryParameters: {'date': '2026-10-26'});
+await supabase.functions.invoke('meal-logs/history', method: HttpMethod.get, queryParameters: {'from': '…', 'to': '…'});
+await supabase.functions.invoke('meal-logs/items/$id', method: HttpMethod.patch, body: {'servings': 2});
+await supabase.functions.invoke('meal-logs/items/$id', method: HttpMethod.delete);
+```
+
+---
+
+## 5. Cần xác định
 
 1. Khoảng hợp lệ của tuổi, chiều cao, cân nặng.
 2. Thời gian chờ Gemini trước khi chuyển fallback.
 3. `exclude_ids` do app giữ hay lưu ở server theo phiên chat.
-4. Ghi bữa ăn từ ngoài màn Chatbot (thông qua Dashboard hay Chi tiết món): gọi thẳng Supabase insert vào `meal_logs`, hay cần thêm Edge Function `log-meal` riêng, hay thông qua cách nào (trong API contract này ko chỉ ra)?
+4. ~~Ghi bữa ăn từ ngoài màn Chatbot~~ → Đã chốt: mục 4 `/meal-logs`.
 5. Danh sách giá trị của `diet_type` và `difficulty`.
