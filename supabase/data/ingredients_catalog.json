@@ -9298,5 +9298,20 @@
     "sodium_mg": null,
     "edible_portion_pct": 100,
     "density_g_per_ml": 1
+  },
+  {
+    "id": "5f0c7a3e-2b1d-4c6e-9a8f-0d1e2f3a4b5c",
+    "code": "X01004",
+    "name_vi": "Cơm tẻ (gạo tẻ máy nấu chín)",
+    "name_unaccented": "com te (gao te may nau chin)",
+    "category_id": 1,
+    "calories_per_100g": 133.1,
+    "protein_per_100g": 3,
+    "fat_per_100g": 0.4,
+    "carbs_per_100g": 29.3,
+    "fiber_per_100g": 0.2,
+    "sodium_mg": 1.9,
+    "edible_portion_pct": 100,
+    "density_g_per_ml": 1
   }
 ]

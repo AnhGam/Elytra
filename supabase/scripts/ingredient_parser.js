@@ -21,314 +21,178 @@ for (const link of ingrAllergens) {
   allergensByIngrId.get(link.ingredient_id).push(link.allergen_id);
 }
 
-// 2. Comprehensive Vietnamese culinary synonym dictionary mapped to ingredient codes
+// 2. Từ điển đồng nghĩa: tên thường gặp trong công thức -> TÊN nguyên liệu trong bảng FCT (name_vi).
+// Dùng tên thay vì mã: bản cũ dùng mã đoán tay, 116/285 mục trỏ sai (vd 'gà' -> Thịt cừu, 'lạc' -> Quả đại).
+// null = cố ý không map (gia vị không đáng kể, hoặc FCT không có món tương đương).
+// So khớp theo TỪ (không theo chuỗi con), cụm dài hơn được thử trước.
 const RAW_SYNONYMS = [
-  // Eggs (Priority over chicken)
-  ['lòng đỏ trứng gà', '09002'],
-  ['lòng đỏ trứng vịt', '09005'],
-  ['lòng đỏ trứng', '09002'],
-  ['lòng đỏ', '09002'],
-  ['lòng trắng trứng gà', '09003'],
-  ['lòng trắng trứng', '09003'],
-  ['lòng trắng', '09003'],
-  ['trứng gà ta', '09001'],
-  ['trứng gà công nghiệp', '09012'],
-  ['trứng gà', '09001'],
-  ['hột gà', '09001'],
-  ['trứng vịt', '09004'],
-  ['hột vịt', '09004'],
-  ['trứng cút', '09009'],
-  ['trứng', '09001'],
-
-  // Pork
-  ['thịt ba rọi rút sườn', '07018'],
-  ['thịt ba chỉ', '07018'],
-  ['thịt ba rọi', '07018'],
-  ['thịt lợn ba chỉ', '07018'],
-  ['ba rọi heo', '07018'],
-  ['ba chỉ heo', '07018'],
-  ['ba rọi', '07018'],
-  ['ba chỉ', '07018'],
-  ['thịt nạc dăm', '07083'],
-  ['thịt nạc vai', '07083'],
-  ['nạc dăm', '07083'],
-  ['nạc vai', '07083'],
-  ['thịt nạc đùi', '07084'],
-  ['thịt nạc thăn', '07085'],
-  ['thịt thăn heo', '07085'],
-  ['thịt thăn', '07085'],
-  ['sườn cốt lết', '07083'],
-  ['sườn non', '07053'],
-  ['sườn que', '07053'],
-  ['sườn heo', '07053'],
-  ['sườn lợn', '07053'],
-  ['sườn cọng', '07053'],
-  ['sườn', '07053'],
-  ['thịt heo xay', '07017'],
-  ['thịt heo bằm', '07017'],
-  ['thịt lợn nạc', '07017'],
-  ['thịt nạc heo', '07017'],
-  ['thịt xay', '07017'],
-  ['thịt bằm', '07017'],
-  ['thịt nạc', '07017'],
-  ['thịt heo', '07017'],
-  ['thịt lợn', '07017'],
-  ['chân giò heo', '07032'],
-  ['chân giò', '07032'],
-  ['móng giò', '07032'],
-  ['da heo', '07031'],
-  ['bì heo', '07031'],
-  ['mỡ heo', '06003'],
-  ['mỡ lợn', '06003'],
-  ['tai heo', '07054'],
-  ['tai lợn', '07054'],
-  ['dạ dày heo', '07034'],
-  ['gan heo', '07041'],
-  ['gan lợn', '07041'],
-  ['lòng non', '07047'],
-  ['chả lụa', '07064'],
-  ['giò lụa', '07064'],
-
-  // Beef
-  ['thịt bò phi lê', '07003'],
-  ['thịt bò xay', '07003'],
-  ['thịt bò bằm', '07003'],
-  ['thịt bò nạc', '07003'],
-  ['thịt bò', '07003'],
-  ['thăn bò', '07003'],
-  ['bắp bò', '07002'],
-  ['gân bò', '07002'],
-  ['nạm bò', '07002'],
-  ['dẻ sườn bò', '07002'],
-  ['bò phi lê', '07003'],
-  ['thịt bò', '07003'],
-  ['bò', '07003'],
-
-  // Chicken & Poultry
-  ['thịt gà ta', '07010'],
-  ['lòng gà', '07082'],
-  ['mề gà', '07082'],
-  ['ức gà', '07010'],
-  ['đùi gà', '07010'],
-  ['cánh gà', '07010'],
-  ['chân gà', '07010'],
-  ['thịt gà', '07010'],
-  ['gà ta', '07010'],
-  ['gà', '07010'],
-  ['thịt vịt', '07022'],
-  ['vịt', '07022'],
-
-  // Seafood & Fish
-  ['tôm sú tươi', '08051'],
-  ['tôm sú', '08051'],
-  ['tôm thẻ', '08051'],
-  ['tôm đồng', '08052'],
-  ['tôm tươi', '08052'],
-  ['tôm khô', '08053'],
-  ['tôm', '08052'],
-  ['tép', '08052'],
-  ['mực ống', '08040'],
-  ['mực lá', '08040'],
-  ['mực tươi', '08040'],
-  ['mực khô', '08039'],
-  ['mực', '08040'],
-  ['cua đồng', '08013'],
-  ['thịt cua', '08011'],
-  ['cua biển', '08011'],
-  ['cua', '08011'],
-  ['ghẹ', '08014'],
-  ['cá nục', '08020'],
-  ['cá lóc', '08030'],
-  ['cá quả', '08030'],
-  ['cá diêu hồng', '08037'],
-  ['cá điêu hồng', '08037'],
-  ['cá rô phi', '08037'],
-  ['cá bớp', '08001'],
-  ['cá basa', '08003'],
-  ['cá ba sa', '08003'],
-  ['cá hú', '08003'],
-  ['cá thu', '08044'],
-  ['cá trắm', '08029'],
-  ['cá chép', '08003'],
-  ['cá trê', '08030'],
-  ['cá bống', '08001'],
-  ['cá chốt', '08001'],
-  ['cá chim', '08001'],
-  ['cá kìm', '08001'],
-  ['lươn', '08026'],
-  ['nghêu', '08033'],
-  ['ngao', '08033'],
-  ['sò huyết', '08041'],
-  ['ốc', '08035'],
-
-  // Tofu & Soy
-  ['đậu hũ non', '03025'],
-  ['đậu hũ chiên', '03027'],
-  ['đậu hũ trắng', '03025'],
-  ['đậu hũ', '03025'],
-  ['đậu phụ', '03025'],
-  ['tàu hũ ky', '03026'],
-  ['tàu hũ', '03025'],
-  ['váng đậu', '03026'],
-
-  // Vegetables & Roots
-  ['cà chua', '04005'],
-  ['cà rốt', '04007'],
-  ['khoai tây', '02008'],
-  ['khoai lang', '02007'],
-  ['khoai môn', '02005'],
-  ['khoai sọ', '02006'],
-  ['bí đỏ', '04005'],
-  ['bí xanh', '04004'],
-  ['bí đao', '04004'],
-  ['khổ qua', '04055'],
-  ['mướp đắng', '04055'],
-  ['mướp', '04054'],
-  ['bầu', '04003'],
-  ['rau muống', '04083'],
-  ['rau ngót', '04086'],
-  ['rau mồng tơi', '04080'],
-  ['mồng tơi', '04080'],
-  ['rau dền', '04070'],
-  ['cải ngọt', '04018'],
-  ['cải thìa', '04018'],
-  ['cải bẹ xanh', '04018'],
-  ['cải xanh', '04018'],
-  ['cải thảo', '04019'],
-  ['bắp cải', '04001'],
-  ['giá đỗ', '04040'],
-  ['giá', '04040'],
-  ['dưa leo', '04036'],
-  ['dưa chuột', '04036'],
-  ['cà tím', '04014'],
-  ['đậu cô ve', '04029'],
-  ['đậu que', '04029'],
-  ['đậu hà lan', '04031'],
-  ['bông cải xanh', '04009'],
-  ['súp lơ', '04009'],
-  ['cần tây', '04021'],
-  ['cần nước', '04020'],
-  ['nấm rơm', '04129'],
-  ['nấm đông cô', '04057'],
-  ['nấm hương', '04057'],
-  ['nấm mèo', '04056'],
-  ['mộc nhĩ', '04056'],
-  ['nấm kim châm', '04129'],
-  ['nấm bào ngư', '04129'],
-  ['nấm đùi gà', '04129'],
-  ['nấm', '04129'],
-  ['hành tây', '04039'],
-  ['hành hoa', '04038'],
-  ['hành lá', '04038'],
-  ['hành tím', '04037'],
-  ['hành khô', '04037'],
-  ['hành củ', '04037'],
-  ['tỏi tây', '04104'],
-  ['tỏi băm', '04103'],
-  ['tỏi', '04103'],
-  ['gừng tươi', '13003'],
-  ['gừng', '13003'],
-  ['sả băm', '04038'],
-  ['sả cây', '04038'],
-  ['sả', '04038'],
-  ['ớt chuông', '04061'],
-  ['ớt hiểm', '04061'],
-  ['ớt sừng', '04061'],
-  ['ớt đỏ', '04061'],
-  ['ớt bột', '13008'],
-  ['ớt', '04061'],
-  ['ngò gai', '04071'],
-  ['ngò rí', '04071'],
-  ['rau mùi', '04071'],
-  ['rau ngổ', '04071'],
-  ['thì là', '04071'],
-  ['nước cốt chanh', '05004'],
-  ['chanh', '05004'],
-  ['quất', '05004'],
-  ['tắc', '05004'],
-  ['dứa', '05014'],
-  ['thơm', '05014'],
-  ['khóm', '05014'],
-  ['nước cốt me', '05028'],
-  ['me chua', '05028'],
-  ['me', '05028'],
-  ['chuối', '05007'],
-  ['bắp ngọt', '01011'],
-  ['bắp', '01011'],
-  ['ngô', '01011'],
-  ['măng chua', '04050'],
-  ['măng tươi', '04050'],
-  ['măng', '04050'],
-
-  // Condiments & Seasonings
-  ['dầu thực vật', '06002'],
-  ['dầu đậu phộng', '06002'],
-  ['dầu mè', '06002'],
-  ['dầu ăn', '06002'],
-  ['dầu hào', '13022'],
-  ['nước mắm cốt', '13014'],
-  ['nước mắm cá', '13014'],
-  ['nước mắm loại i', '13015'],
-  ['nước mắm', '13015'],
-  ['nước tương', '13022'],
-  ['xì dầu', '13022'],
-  ['đường thốt nốt', '12014'],
-  ['đường phèn', '12014'],
-  ['đường cát', '12013'],
-  ['đường kính', '12014'],
-  ['đường', '12014'],
-  ['muối ăn', '13005'],
-  ['muối', '13005'],
-  ['hạt tiêu', '13004'],
-  ['tiêu xay', '13004'],
-  ['tiêu đen', '13004'],
-  ['tiêu', '13004'],
-  ['hạt nêm', '13005'],
-  ['bột nêm', '13005'],
-  ['bột ngọt', '13005'],
-  ['mì chính', '13005'],
-  ['tương ớt', '13021'],
-  ['tương cà', '04005'],
-  ['nước màu thốt nốt', '12014'],
-  ['nước màu', '12014'],
-  ['mắm tôm đặc', '13011'],
-  ['mắm tôm', '13011'],
-  ['mắm tép', '13013'],
-  ['nước dừa tươi', '14002'],
-  ['nước dừa', '14002'],
-  ['nước mía', '12014'],
-  ['nước cốt dừa', '03004'],
-  ['hạt mè', '03023'],
-  ['mè rang', '03023'],
-  ['mè', '03023'],
-  ['vừng', '03023'],
-  ['đậu phộng', '03019'],
-  ['lạc', '03019'],
-  ['bột chiên giòn', '01010'],
-  ['bột bắp', '01010'],
-  ['bột năng', '01010'],
-
-  // Carbs / Staples
-  ['cơm nguội', '01003'],
-  ['cơm', '01003'],
-  ['gạo tẻ', '01003'],
-  ['gạo nếp', '01002'],
-  ['gạo', '01003'],
-  ['bún tươi', '01020'],
-  ['bún', '01020'],
-  ['bánh phở', '01013'],
-  ['phở', '01013'],
-  ['miến dong', '02015'],
-  ['miến', '02015'],
-  ['mì trứng', '01014'],
-  ['mì sợi', '01014'],
-  ['mì gói', '01014'],
-  ['mì', '01014'],
-  ['bánh mì', '01006']
+  // Trứng
+  ['lòng đỏ trứng gà', 'Lòng đỏ trứng gà'], ['lòng đỏ trứng vịt', 'Lòng đỏ trứng vịt'], ['lòng đỏ trứng', 'Lòng đỏ trứng gà'], ['lòng đỏ', 'Lòng đỏ trứng gà'],
+  ['lòng trắng trứng gà', 'Lòng trắng trứng gà'], ['lòng trắng trứng', 'Lòng trắng trứng gà'], ['lòng trắng', 'Lòng trắng trứng gà'],
+  ['trứng gà ta', 'Trứng gà ta'], ['trứng gà công nghiệp', 'Trứng gà công nghiệp'], ['trứng gà', 'Trứng gà ta'], ['hột gà', 'Trứng gà ta'],
+  ['trứng vịt lộn', 'Trứng vịt lộn'], ['hột vịt lộn', 'Trứng vịt lộn'], ['trứng vịt', 'Trứng vịt'], ['hột vịt', 'Trứng vịt'],
+  ['trứng cút', 'Trứng chim cút'], ['trứng chim cút', 'Trứng chim cút'], ['trứng', 'Trứng gà ta'],
+  // Heo
+  ['thịt ba rọi rút sườn', 'Thịt lợn nửa nạc, nửa mỡ'], ['thịt ba chỉ', 'Thịt lợn nửa nạc, nửa mỡ'], ['thịt ba rọi', 'Thịt lợn nửa nạc, nửa mỡ'],
+  ['thịt lợn ba chỉ', 'Thịt lợn nửa nạc, nửa mỡ'], ['ba rọi heo', 'Thịt lợn nửa nạc, nửa mỡ'], ['ba chỉ heo', 'Thịt lợn nửa nạc, nửa mỡ'],
+  ['ba rọi', 'Thịt lợn nửa nạc, nửa mỡ'], ['ba chỉ', 'Thịt lợn nửa nạc, nửa mỡ'],
+  ['thịt nạc dăm', 'Thịt lợn, nạc vai'], ['thịt nạc vai', 'Thịt lợn, nạc vai'], ['nạc dăm', 'Thịt lợn, nạc vai'], ['nạc vai', 'Thịt lợn, nạc vai'],
+  ['thịt nạc đùi', 'Thịt lợn, nạc mông'], ['thịt nạc thăn', 'Thịt lợn, nạc thăn'], ['thịt thăn heo', 'Thịt lợn, nạc thăn'], ['thịt thăn', 'Thịt lợn, nạc thăn'],
+  ['sườn cốt lết', 'Thịt lợn, nạc vai'], ['sườn non', 'Sườn lợn'], ['sườn que', 'Sườn lợn'], ['sườn heo', 'Sườn lợn'], ['sườn lợn', 'Sườn lợn'], ['sườn cọng', 'Sườn lợn'], ['sườn', 'Sườn lợn'],
+  ['thịt heo xay', 'Thịt lợn nạc'], ['thịt heo bằm', 'Thịt lợn nạc'], ['thịt lợn nạc', 'Thịt lợn nạc'], ['thịt nạc heo', 'Thịt lợn nạc'], ['thịt xay', 'Thịt lợn nạc'],
+  ['thịt bằm', 'Thịt lợn nạc'], ['thịt nạc', 'Thịt lợn nạc'], ['thịt heo', 'Thịt lợn nạc'], ['thịt lợn', 'Thịt lợn nạc'],
+  ['chân giò heo', 'Chân giò lợn'], ['chân giò', 'Chân giò lợn'], ['móng giò', 'Chân giò lợn'], ['da heo', 'Bì lợn'], ['bì heo', 'Bì lợn'],
+  ['mỡ heo', 'Mỡ lợn muối'], ['mỡ lợn', 'Mỡ lợn muối'], ['tóp mỡ', 'Mỡ lợn muối'], ['tai heo', 'Tai lợn'], ['tai lợn', 'Tai lợn'],
+  ['dạ dày heo', 'Dạ dày lợn'], ['bao tử heo', 'Dạ dày lợn'], ['gan heo', 'Gan lợn'], ['gan lợn', 'Gan lợn'], ['lòng non', 'Lòng lợn (ruột non)'],
+  ['đuôi heo', 'Đuôi lợn'], ['đuôi lợn', 'Đuôi lợn'], ['huyết heo', 'Tiết lợn luộc'], ['tiết heo', 'Tiết lợn luộc'], ['tiết lợn', 'Tiết lợn luộc'],
+  ['chả lụa', 'Giò lụa'], ['giò lụa', 'Giò lụa'], ['giò sống', 'Giò lụa'], ['lạp xưởng', 'Lạp xường'], ['lạp xường', 'Lạp xường'],
+  // Bò, dê
+  ['thịt bò phi lê', 'Thịt bò loại I'], ['thịt bò xay', 'Thịt bò loại I'], ['thịt bò bằm', 'Thịt bò loại I'], ['thịt bò nạc', 'Thịt bò loại I'], ['thịt bò', 'Thịt bò loại I'],
+  ['thăn bò', 'Thịt bò loại I'], ['bò phi lê', 'Thịt bò loại I'], ['bắp bò', 'Thịt bò loại II'], ['gân bò', 'Thịt bò loại II'], ['nạm bò', 'Thịt bò loại II'],
+  ['dẻ sườn bò', 'Thịt bò loại II'], ['đuôi bò', 'Đuôi bò'], ['bò', 'Thịt bò loại I'], ['bao tử dê', 'Dạ dày bò'], ['thịt dê', 'Thịt dê, nạc'],
+  // Gà, vịt
+  ['lòng gà', 'Lòng gà (cả bộ)'], ['mề gà', 'Mề gà'], ['gan gà', 'Gan gà'], ['cánh gà', 'Thịt gà công nghiệp, cánh'], ['nước luộc gà', null],
+  ['thịt gà', 'Thịt gà ta'], ['gà ta', 'Thịt gà ta'], ['gà tre', 'Thịt gà ta'], ['ức gà', 'Thịt gà ta'], ['đùi gà', 'Thịt gà ta'], ['chân gà', 'Thịt gà ta'], ['gà', 'Thịt gà ta'],
+  ['thịt vịt', 'Thịt vịt'], ['vịt', 'Thịt vịt'],
+  // Hải sản, cá
+  ['tôm sú tươi', 'Tôm biển'], ['tôm sú', 'Tôm biển'], ['tôm thẻ', 'Tôm biển'], ['tôm đồng', 'Tôm đồng'], ['tôm tươi', 'Tôm đồng'], ['tôm khô', 'Tôm khô'], ['tôm', 'Tôm đồng'], ['tép', 'Tôm đồng'],
+  ['ruốc khô', 'Ruốc tôm'], ['ruốc', 'Ruốc tôm'],
+  ['mực ống', 'Mực tươi'], ['mực lá', 'Mực tươi'], ['mực tươi', 'Mực tươi'], ['mực khô', 'Mực khô'], ['mực', 'Mực tươi'],
+  ['cua đồng', 'Cua đồng'], ['thịt cua', 'Cua bể'], ['cua biển', 'Cua bể'], ['cua', 'Cua bể'], ['ghẹ', 'Cua ghẹ'],
+  ['cá nục', 'Cá nục'], ['cá lóc', 'Cá quả'], ['cá quả', 'Cá quả'], ['cá diêu hồng', 'Cá rô phi'], ['cá điêu hồng', 'Cá rô phi'], ['cá rô phi', 'Cá rô phi'],
+  ['cá basa', 'Cá basa, phi lê'], ['cá ba sa', 'Cá basa, phi lê'], ['cá hú', 'Cá basa, phi lê'], ['cá bông lau', 'Cá basa, phi lê'],
+  ['cá thu', 'Cá thu'], ['cá trắm', 'Cá trắm cỏ'], ['cá chép', 'Cá chép'], ['cá trê', 'Cá trê'], ['cá chốt', 'Cá trê'], ['cá bống', 'Cá bống'],
+  ['cá chim', 'Cá chim'], ['cá bớp', 'Cá nục'], ['cá kìm', 'Cá nục'], ['cá ngân', 'Cá nục'], ['cá biển', 'Cá nục'],
+  ['lươn', 'Lươn'], ['nghêu', 'Ngao biển trắng'], ['ngao', 'Ngao biển trắng'], ['sò huyết', 'Sò'], ['sò', 'Sò'], ['hến', 'Hến'], ['ốc', 'Ốc bươu'],
+  // Đậu nành
+  ['đậu hũ non', 'Đậu phụ'], ['đậu hũ chiên', 'Đậu phụ nướng'], ['đậu hũ trắng', 'Đậu phụ'], ['đậu hũ', 'Đậu phụ'], ['đậu phụ', 'Đậu phụ'],
+  ['tàu hũ ky', 'Đậu phụ chúc'], ['tàu hủ ky', 'Đậu phụ chúc'], ['tàu hũ', 'Đậu phụ'], ['tàu hủ', 'Đậu phụ'], ['váng đậu', 'Đậu phụ chúc'],
+  // Rau, củ, nấm
+  ['cà chua', 'Cà chua'], ['cà rốt', 'Cà rốt(củ đỏ, vàng)'], ['khoai tây', 'Khoai tây'], ['khoai lang', 'Khoai lang'], ['khoai môn', 'Khoai môn'], ['khoai sọ', 'Khoai sọ'],
+  ['bí đỏ', 'Bí ngô'], ['bí xanh', 'Bí đao (bí xanh)'], ['bí đao', 'Bí đao (bí xanh)'], ['khổ qua', 'Mướp đắng'], ['mướp đắng', 'Mướp đắng'], ['mướp', 'Mướp'], ['bầu', 'Bầu'],
+  ['rau muống', 'Rau muống'], ['rau ngót', 'Rau ngót'], ['rau mồng tơi', 'Rau mồng tơi'], ['mồng tơi', 'Rau mồng tơi'], ['rau dền', 'Rau giền cơm'],
+  ['cải ngọt', 'Cải ngọt'], ['cải thìa', 'Cải thìa (cải trắng)'], ['cải bẹ xanh', 'Cải xanh'], ['cải xanh', 'Cải xanh'], ['cải thảo', 'Cải bắp'], ['bắp cải', 'Cải bắp'],
+  ['giá đỗ', 'Giá đậu xanh'], ['giá', 'Giá đậu xanh'], ['dưa leo', 'Dưa chuột'], ['dưa chuột', 'Dưa chuột'], ['cà tím', 'Cà tím'],
+  ['đậu cô ve', 'Đậu cô ve'], ['đậu que', 'Đậu cô ve'], ['đậu hà lan', 'Đậu Hà Lan'], ['đậu bắp', null],
+  ['bông cải xanh', 'Súp lơ xanh'], ['súp lơ xanh', 'Súp lơ xanh'], ['súp lơ', 'Súp lơ trắng'], ['cần tây', 'Cần tây'], ['cần nước', 'Cần ta'],
+  ['nấm rơm', 'Nấm rơm'], ['nấm đông cô khô', 'Nấm hương khô'], ['nấm hương khô', 'Nấm hương khô'], ['nấm đông cô', 'Nấm hương tươi'], ['nấm hương', 'Nấm hương tươi'],
+  ['nấm mèo', 'Mộc nhĩ'], ['mộc nhĩ', 'Mộc nhĩ'], ['nấm kim châm', 'Nấm thường tươi'], ['nấm bào ngư', 'Nấm thường tươi'], ['nấm đùi gà', 'Nấm thường tươi'], ['nấm', 'Nấm thường tươi'],
+  ['củ sen', 'Ngó sen'], ['ngó sen', 'Ngó sen'], ['hoa hẹ', 'Hẹ lá'], ['hẹ', 'Hẹ lá'],
+  ['hành tây', 'Hành tây'], ['hành hoa', 'Hành lá (hành hoa)'], ['hành lá', 'Hành lá (hành hoa)'], ['hành tím', 'Hành củ tươi'], ['hành khô', 'Hành củ tươi'], ['hành củ', 'Hành củ tươi'],
+  ['tỏi tây', 'Tỏi tây (cả lá)'], ['tỏi băm', 'Tỏi ta'], ['tỏi', 'Tỏi ta'], ['gừng tươi', 'Gừng tươi'], ['gừng', 'Gừng tươi'], ['riềng', 'Riềng'], ['nghệ bột', 'Nghệ khô, bột'],
+  ['sả', null], ['thì là', null], ['ngò gai', 'Rau mùi'], ['ngò rí', 'Rau mùi'], ['rau mùi', 'Rau mùi'], ['rau ngổ', 'Rau ngổ'],
+  ['ớt chuông', 'Ớt đỏ to'], ['ớt hiểm', 'Ớt đỏ to'], ['ớt sừng', 'Ớt đỏ to'], ['ớt đỏ', 'Ớt đỏ to'], ['ớt bột', 'ớt khô bột'], ['ớt', 'Ớt đỏ to'],
+  // Trái cây
+  ['nước cốt chanh', 'Chanh'], ['chanh', 'Chanh'], ['quất', 'Quất chín (cả vỏ)'], ['tắc', 'Quất chín (cả vỏ)'],
+  ['dứa', 'Dứa ta'], ['thơm', 'Dứa ta'], ['khóm', 'Dứa ta'], ['nước cốt me', 'Quả me chua'], ['me chua', 'Quả me chua'], ['me chín', 'Quả me chua'], ['me', 'Quả me chua'],
+  ['chuối', 'Chuối tiêu'], ['dừa nạo', 'Cùi dừa già'], ['cơm dừa', 'Cùi dừa già'], ['nước dừa tươi', 'Nước dừa non tươi'], ['nước dừa', 'Nước dừa non tươi'], ['nước cốt dừa', null],
+  ['bắp ngọt', 'Ngô bắp tươi'], ['bắp non', 'Ngô bao tử'], ['bắp', 'Ngô bắp tươi'], ['ngô', 'Ngô bắp tươi'], ['măng chua', 'Măng chua'], ['măng tươi', 'Măng chua'], ['măng', 'Măng chua'],
+  // Gia vị, dầu
+  ['dầu đậu phộng', 'Dầu lạc'], ['dầu lạc', 'Dầu lạc'], ['dầu mè', 'Dầu mè'], ['dầu vừng', 'Dầu mè'],
+  // dầu ăn ở VN thường là dầu tinh luyện pha trộn; map 'Dầu thảo mộc (Lạc, vừng...)' làm mọi món dính nhầm peanut + sesame
+  ['dầu thực vật', 'Dầu cọ'], ['dầu ăn', 'Dầu cọ'], ['dầu điều', 'Dầu cọ'], ['dầu màu điều', 'Dầu cọ'], ['dầu hành phi', 'Dầu cọ'], ['dầu hào', 'Xì dầu'],
+  ['nước mắm cốt', 'Nước mắm cá (loại đặc biệt)'], ['nước mắm cá', 'Nước mắm cá (loại đặc biệt)'], ['nước mắm loại i', 'Nước mắm loại I'], ['nước mắm', 'Nước mắm loại I'],
+  ['mắm tôm đặc', 'Mắm tôm đặc'], ['mắm tôm', 'Mắm tôm đặc'], ['mắm tép', 'Mắm tép chua'], ['mắm cá', 'Mắm tép chua'],
+  ['nước tương', 'Xì dầu'], ['xì dầu', 'Xì dầu'], ['tương ớt', 'Tương ớt'], ['tương cà', 'Cà chua'],
+  ['đường thốt nốt', 'Đường kính'], ['đường phèn', 'Đường kính'], ['đường cát', 'Đường cát'], ['đường kính', 'Đường kính'], ['đường', 'Đường kính'],
+  ['nước màu thốt nốt', 'Đường kính'], ['nước màu', 'Đường kính'], ['nước mía', null],
+  ['muối ăn', 'Muối'], ['muối', 'Muối'], ['hạt nêm', 'Muối'], ['bột nêm', 'Muối'], ['bột ngọt', null], ['mì chính', null],
+  ['hạt tiêu', 'Hạt tiêu'], ['tiêu xay', 'Hạt tiêu'], ['tiêu đen', 'Hạt tiêu'], ['tiêu', 'Hạt tiêu'],
+  ['hạt mè', 'Vừng(đen, trắng)'], ['mè rang', 'Vừng(đen, trắng)'], ['mè', 'Vừng(đen, trắng)'], ['vừng', 'Vừng(đen, trắng)'],
+  ['đậu phộng', 'Lạc hạt'], ['lạc', 'Lạc hạt'], ['hạt điều đỏ', null], ['hạt điều màu', null],
+  ['bột chiên giòn', 'Bột mì'], ['bột mì', 'Bột mì'], ['bột bắp', 'Bột ngô vàng'], ['bột năng', 'Bột sắn'],
+  // Tinh bột
+  ['cơm nguội', 'Cơm tẻ (gạo tẻ máy nấu chín)'], ['cơm trắng', 'Cơm tẻ (gạo tẻ máy nấu chín)'], ['cơm', 'Cơm tẻ (gạo tẻ máy nấu chín)'],
+  ['gạo tẻ', 'Gạo tẻ máy'], ['gạo nếp', 'Gạo nếp (loại thường)'], ['gạo', 'Gạo tẻ máy'],
+  ['bún tươi', 'Bún'], ['bún', 'Bún'], ['bánh phở', 'Bánh phở'], ['phở', 'Bánh phở'], ['hủ tiếu', 'Bánh phở'], ['miến dong', 'Miến dong'], ['miến', 'Miến dong'],
+  ['bia', 'Bia (cồn: 4,5 g)'], ['củ cải trắng', 'Củ cải trắng'], ['củ cải', 'Củ cải trắng'], ['nếp', 'Gạo nếp cái'], ['hạt sen', 'Hạt sen tươi'],
+  ['su su', 'Su su'], ['rau răm', 'Rau răm'], ['sắn', 'Củ sắn'], ['đậu trắng', 'Đậu trắng hạt (Đậu Tây)'], ['nước cam', 'Nước cam tươi'],
+  // 'bạc hà' trong canh chua là dọc mùng, không phải kẹo bạc hà
+  ['bạc hà', 'Dọc mùng'], ['dọc mùng', 'Dọc mùng'], ['lá chanh', null], ['nước', null],
+  ['thịt thăn bò', 'Thịt bò loại I'], ['bắp chuối', 'Hoa chuối'], ['hoa chuối', 'Hoa chuối'], ['lá dứa', null], ['gia vị', null], ['đậu bún', null],
+  // đồ chay giả mặn: không lấy dinh dưỡng/dị ứng của nguyên liệu động vật
+  ['nước mắm chay', null],
+  ['gói gia vị', null], ['mì trứng', 'Bột mì'], ['mì sợi', 'Bột mì'], ['mì gói', 'Bột mì'], ['mì', 'Bột mì'], ['nui', 'Bột mì'], ['bánh mì', 'Bánh mì xíu mại']
 ];
+
+const ingredientByName = new Map(catalog.map(i => [i.name_vi, i]));
+const unknownNames = RAW_SYNONYMS.filter(([, n]) => n !== null && !ingredientByName.has(n));
+if (unknownNames.length) throw new Error('Tên FCT không có trong catalog: ' + unknownNames.map(([s, n]) => s + ' -> ' + n).join(', '));
 
 // Sort synonyms strictly by phrase length descending (longest, most specific first)
 const SYNONYMS = RAW_SYNONYMS.sort((a, b) => b[0].length - a[0].length);
+
+// Món chay ('cá bống chay', 'sườn non chay') không được map sang thịt/cá/trứng thật
+const ANIMAL_CODE_PREFIXES = ['07', '08', '09'];
+
+// Lưới an toàn dị ứng theo từ khóa: áp cho MỌI dòng, kể cả dòng không map được
+const ALLERGEN_KEYWORDS = {
+  seafood: ['tôm', 'tép', 'cua', 'ghẹ', 'mực', 'bạch tuộc', 'ốc', 'nghêu', 'ngao', 'sò', 'hến', 'ruốc', 'cá'],
+  egg: ['trứng', 'hột gà', 'hột vịt'],
+  dairy: ['sữa', 'phô mai', 'bơ lạt', 'kem tươi', 'whipping cream'],
+  peanut: ['đậu phộng', 'lạc'],
+  tree_nut: ['hạt điều', 'óc chó', 'hạnh nhân', 'hạt dẻ', 'macca', 'hồ đào'],
+  soy: ['đậu nành', 'đậu hũ', 'đậu phụ', 'tàu hũ', 'tàu hủ', 'váng đậu', 'nước tương', 'xì dầu', 'tương', 'chao'],
+  gluten: ['bột mì', 'bánh mì', 'mì', 'nui', 'bột chiên giòn', 'bánh quy', 'mì căn'],
+  sesame: ['mè', 'vừng']
+};
+// Có từ này thì cả dòng không tính nhóm dị ứng đó (đồ chay giả mặn)
+const ALLERGEN_VETO = { seafood: ['chay'], egg: ['chay'] };
+// Cụm trông giống chất dị ứng nhưng không phải -> bỏ qua trước khi dò từ khóa
+const ALLERGEN_IGNORE = {
+  tree_nut: ['hạt điều đỏ', 'hạt điều màu', 'dầu điều', 'màu điều'],
+  gluten: ['mì chính'],
+  soy: ['tương ớt', 'tương cà']
+};
+// Gia vị chế biến từ chất dị ứng: VẪN gây dị ứng, nhưng không làm món thành "món hải sản".
+// Tách riêng để recipe_allergens.via_condiment phân biệt 2 trường hợp.
+const ALLERGEN_CONDIMENTS = {
+  seafood: [/(nước\s+)?mắm(\s+\p{L}+)*/gu, /dầu\s+hào(\s+\p{L}+)*/gu]
+};
+
+// \b của JS không nhận chữ có dấu tiếng Việt -> tự kiểm ranh giới từ bằng \p{L}
+function hasWord(text, phrase) {
+  const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('(?<![\\p{L}\\p{N}])' + esc + '(?![\\p{L}\\p{N}])', 'u').test(text);
+}
+
+const strip = (text, phrases) =>
+  phrases.reduce((acc, w) => (w instanceof RegExp ? acc.replace(w, ' ') : acc.split(w).join(' ')), text);
+
+// Chất dị ứng là nguyên liệu chính (không tính phần nằm trong gia vị)
+function keywordAllergenCodes(name) {
+  const t = name.toLowerCase();
+  return Object.keys(ALLERGEN_KEYWORDS).filter((code) => {
+    if ((ALLERGEN_VETO[code] || []).some((w) => hasWord(t, w))) return false;
+    const rest = strip(t, [...(ALLERGEN_IGNORE[code] || []), ...(ALLERGEN_CONDIMENTS[code] || [])]);
+    return ALLERGEN_KEYWORDS[code].some((w) => hasWord(rest, w));
+  });
+}
+
+// Chất dị ứng chỉ đến từ gia vị (nước mắm, mắm tôm/tép/cá, dầu hào); 'nước mắm chay' không tính
+function condimentAllergenCodes(name) {
+  const t = name.toLowerCase();
+  return Object.keys(ALLERGEN_CONDIMENTS).filter((code) =>
+    !(ALLERGEN_VETO[code] || []).some((w) => hasWord(t, w)) &&
+    ALLERGEN_CONDIMENTS[code].some((re) => new RegExp(re.source, 'u').test(t)));
+}
+
+function lookupIngredient(name) {
+  const t = name.toLowerCase().trim();
+  return matchIngredient(t) || catalog.find(i => i.name_vi.toLowerCase() === t) || null;
+}
+
+function matchIngredient(name) {
+  const t = name.toLowerCase().trim();
+  for (const [synonym, fctName] of SYNONYMS) {
+    if (!hasWord(t, synonym)) continue;
+    if (fctName === null) return null;
+    const ing = ingredientByName.get(fctName);
+    if (hasWord(t, 'chay') && ANIMAL_CODE_PREFIXES.includes(ing.code.slice(0, 2))) return null;
+    return ing;
+  }
+  return null;
+}
 
 function stripAccents(str) {
   return str
@@ -470,23 +334,9 @@ function parseIngredientLine(raw) {
   let matchedIngredient = null;
   const cleanNameLower = name.toLowerCase().trim();
 
-  // 1. Direct synonym lookup: match if cleanNameLower includes synonym (checked from longest to shortest)
-  for (const [synonym, code] of SYNONYMS) {
-    if (cleanNameLower.includes(synonym)) {
-      matchedIngredient = ingredientByCode.get(code);
-      if (matchedIngredient) break;
-    }
-  }
-
-  // 2. Unaccented match against catalog
-  if (!matchedIngredient) {
-    const unaccented = stripAccents(name);
-    if (unaccented.length > 2 && !['nuoc loc', 'nuoc soi', 'gia vi'].includes(unaccented)) {
-      matchedIngredient = catalog.find(i => i.name_unaccented === unaccented) ||
-                          catalog.find(i => i.name_unaccented.startsWith(unaccented)) ||
-                          catalog.find(i => i.name_unaccented.includes(unaccented));
-    }
-  }
+  // 1. Từ điển đồng nghĩa (theo từ). 2. Trùng đúng tên FCT có dấu.
+  // Bỏ so khớp mờ không dấu: 'ga' khớp cả 'gà', 'cà', 'gạ'... gây map sai loài.
+  matchedIngredient = lookupIngredient(cleanNameLower);
 
   return {
     raw_text: raw,
@@ -510,5 +360,8 @@ module.exports = {
   parseIngredientLine,
   stripAccents,
   catalog,
-  allergensByIngrId
+  allergensByIngrId,
+  lookupIngredient,
+  keywordAllergenCodes,
+  condimentAllergenCodes
 };
