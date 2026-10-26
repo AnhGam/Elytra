@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const SUPABASE_URL = "https://iwmnkygicqfesvbilmrw.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3bW5reWdpY3FmZXN2YmlsbXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNzE2OTAsImV4cCI6MjEwNjc0NzY5MH0.9jQ9PzlPLg0fH9MGj-vnkPf6qxRB9Ahp2Qw2aNsRrbQ";
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://iwmnkygicqfesvbilmrw.supabase.co';
+// Lấy anon key: supabase projects api-keys (key công khai, nhưng không gắn cứng để gitleaks không báo)
+const ANON_KEY = process.env.ANON_KEY;
+if (!ANON_KEY) throw new Error('Thiếu biến môi trường ANON_KEY');
 
 async function exportCatalog() {
   const url = `${SUPABASE_URL}/rest/v1/ingredients?select=id,code,name_vi,name_unaccented,category_id,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,sodium_mg,edible_portion_pct,density_g_per_ml&limit=1000`;
