@@ -9,6 +9,7 @@
 | Vá quyền RPC: xóa `exec_seed_sql`, khóa `create_recipe_with_nutrition` / `create_custom_ingredient` chỉ cho `service_role`, cố định `search_path` cho mọi hàm SECURITY DEFINER | `supabase/migrations/20261026085000_harden_rpc_permissions.sql` |
 | Bảng `meal_logs`, `meal_log_items` + RLS + RPC `log_meal`, `update_meal_log_item`, `get_daily_nutrition`, `get_nutrition_history` | `supabase/migrations/20261026090000_create_meal_logs.sql` |
 | Edge Function `meal-logs` (POST ghi món, GET tổng hợp ngày, GET lịch sử, PATCH sửa khẩu phần, DELETE món) | `supabase/functions/meal-logs/index.ts` |
+| Đưa bucket Storage, cột `video_url`, link ảnh/video 45 món vào migration; xóa policy cho anon upload | `supabase/migrations/20261026100000_recipe_media_and_storage.sql` |
 | Dọn cảnh báo Supabase security advisor (search_path, thu quyền gọi `handle_new_user`) | `supabase/migrations/20261026093000_fix_security_advisor_warnings.sql` |
 | Kiểm thử E2E trên Supabase thật: mọi endpoint, format lỗi, RLS giữa 2 user, chặn insert/update thẳng. Tự tạo và xóa 2 user tạm | `supabase/scripts/test_meal_logs_e2e.mjs` |
 | Kiểm thử SQL: vá quyền, tính kcal, chống ghi trùng, validation, tách dữ liệu 2 user, sửa khẩu phần, lịch sử + mục tiêu theo ngày | `supabase/scripts/test_meal_logs_sql.mjs` |
@@ -31,8 +32,9 @@ Anon key nằm trong APK nên ai cũng lấy được. Trước đây anon key g
 | `exec_seed_sql(query)` | Chạy SQL tùy ý: đọc/xóa toàn bộ dữ liệu, kể cả sức khỏe của mọi user | Xóa |
 | `create_recipe_with_nutrition` | Đăng món với `is_verified = true`, bỏ qua duyệt | Chỉ `service_role` |
 | `create_custom_ingredient` | Thêm nguyên liệu vào bảng gốc FCT | Chỉ `service_role` |
+| Policy Storage `Allow anon upload/update` | Upload hoặc ghi đè ảnh/video món ăn | Xóa; upload chỉ qua Dashboard / `supabase storage cp` |
 
-Các script `supabase/scripts/apply_*.js`, `setup_*_bucket.js`, `update_recipe_videos.js`, `upload_to_supabase_storage.js` dùng `exec_seed_sql` sẽ **không chạy được nữa**. Từ nay áp migration bằng `supabase db push`.
+Đã xóa 9 script dùng một lần (`apply_*.js`, `list_db_functions.js`, `setup_*_bucket.js`, `update_recipe_videos.js`, `upload_to_supabase_storage.js`, `upload_demo_video.js`): chúng dựa vào `exec_seed_sql` hoặc quyền upload của anon. Những gì chúng tạo ra (cột `video_url`, 2 bucket, link ảnh/video) nay nằm trong `20261026100000_recipe_media_and_storage.sql`. Từ nay áp migration bằng `supabase db push`.
 
 ## Triển khai
 

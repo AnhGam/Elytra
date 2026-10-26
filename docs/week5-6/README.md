@@ -56,7 +56,5 @@ Thư mục này chứa toàn bộ báo cáo kỹ thuật, tài liệu thiết k�
   - Động cơ tạo món ăn tự động: [`20261005000010_create_recipe_creation_engine.sql`](file:///d:/Antigravity/DA1/Elytra/supabase/migrations/20261005000010_create_recipe_creation_engine.sql)
   - API Quản lý & Tra cứu nguyên liệu: [`20261005000011_create_ingredient_management_functions.sql`](file:///d:/Antigravity/DA1/Elytra/supabase/migrations/20261005000011_create_ingredient_management_functions.sql)
 - **Kịch bản Tự động hóa & Kiểm thử:**
-  - Upload ảnh lên Supabase Storage: [`scripts/upload_to_supabase_storage.js`](file:///d:/Antigravity/DA1/Elytra/scripts/upload_to_supabase_storage.js)
-  - Cấu hình bucket video: [`scripts/setup_video_bucket.js`](file:///d:/Antigravity/DA1/Elytra/scripts/setup_video_bucket.js)
-  - Upload video kiểm thử: [`scripts/upload_demo_video.js`](file:///d:/Antigravity/DA1/Elytra/scripts/upload_demo_video.js)
+  - Bucket `recipe-images` / `recipe-videos`, cột `video_url` và link ảnh/video của 45 món: [`20261026100000_recipe_media_and_storage.sql`](../../supabase/migrations/20261026100000_recipe_media_and_storage.sql). Các script upload cũ đã xóa ở Sprint 5 vì dùng `exec_seed_sql` (lỗ hổng). Upload file lại: `supabase storage cp -r supabase/data/recipe_images ss:///recipe-images --linked --experimental`.
   - Kiểm thử RPC Tra cứu nguyên liệu: [`scripts/test_ingredient_management.js`](file:///d:/Antigravity/DA1/Elytra/scripts/test_ingredient_management.js)
