@@ -33,6 +33,8 @@ const allergensOf = async (slugLike) => (await one(`SELECT array_agg(a.code ORDE
 // V1: dị ứng và dinh dưỡng sau khi map lại
 assert.ok((await allergensOf("ca-bien-kho%")).includes("seafood"), "cá biển kho phải có seafood");
 assert.ok((await allergensOf("cach-nau-mam-kho%")).includes("seafood"), "mắm kho phải có seafood");
+assert.deepEqual(await allergensOf("ca-bien-kho%"), ["seafood"], "cá biển kho chỉ có seafood (không còn soy do chữ 'tương tự')");
+assert.ok((await one(`SELECT 1 AS x FROM ingredient_allergens ia JOIN ingredients i ON i.id = ia.ingredient_id JOIN allergens a ON a.id = ia.allergen_id WHERE i.code = '03020' AND a.code = 'sesame'`))?.x, "Vừng phải có tag sesame");
 assert.ok((await allergensOf("cach-nau-bun-bo-hue-chay%")).includes("soy"), "bún bò Huế chay phải có soy");
 const pho = await rows(`SELECT r.slug FROM recipes r WHERE EXISTS (SELECT 1 FROM recipe_ingredients x WHERE x.recipe_id = r.id AND x.ingredient_name_raw ~* '(^|[^[:alpha:]])(mè|vừng)([^[:alpha:]]|$)')`);
 for (const r of pho) assert.ok((await allergensOf(r.slug)).includes("sesame"), r.slug + " có mè phải có sesame");

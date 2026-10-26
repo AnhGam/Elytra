@@ -562,5 +562,9 @@
   {
     "ingredient_id": "d8d7d811-94e4-47e1-9aa3-894166375072",
     "allergen_id": 4
+  },
+  {
+    "ingredient_id": "322baf7c-4cb5-41e8-8158-90e5a73a3231",
+    "allergen_id": 8
   }
 ]

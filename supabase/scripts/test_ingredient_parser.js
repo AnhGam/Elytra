@@ -19,7 +19,7 @@ for (const [raw, want] of cases) assert.equal(name(raw), want, raw);
 const allergens = [
   // gia vị chế biến từ hải sản: không tính là nguyên liệu chính (đi qua condimentAllergenCodes)
   ['mắm cá linh', []], ['mắm tôm', []], ['nước mắm cá', []], ['dầu hào', []], ['nước mắm, tôm khô', ['seafood']],
-  ['tàu hủ ky non', ['soy']], ['nui', ['gluten']], ['hạt điều rang', ['tree_nut']],
+  ['tàu hủ ky non', ['soy']], ['Cá ngân (hoặc cá biển thịt chắc tương tự)', ['seafood']], ['tương xí muội', []], ['chao', ['soy']], ['nui', ['gluten']], ['hạt điều rang', ['tree_nut']],
   ['hạt điều đỏ DH Foods', []], ['dầu điều', []], ['cá bống chay', []], ['mì chính', []], ['tương ớt', []], ['Nấm mèo', []]
 ];
 for (const [raw, want] of allergens) assert.deepEqual(keywordAllergenCodes(raw), want, raw);

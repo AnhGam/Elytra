@@ -132,7 +132,9 @@ const ALLERGEN_KEYWORDS = {
   dairy: ['sữa', 'phô mai', 'bơ lạt', 'kem tươi', 'whipping cream'],
   peanut: ['đậu phộng', 'lạc'],
   tree_nut: ['hạt điều', 'óc chó', 'hạnh nhân', 'hạt dẻ', 'macca', 'hồ đào'],
-  soy: ['đậu nành', 'đậu hũ', 'đậu phụ', 'tàu hũ', 'tàu hủ', 'váng đậu', 'nước tương', 'xì dầu', 'tương', 'chao'],
+  // không dùng từ đơn 'tương': khớp nhầm 'tương tự', 'tương xí muội' (sốt mận)
+  soy: ['đậu nành', 'đậu hũ', 'đậu phụ', 'tàu hũ', 'tàu hủ', 'váng đậu', 'nước tương', 'xì dầu', 'chao',
+    'tương bần', 'tương hột', 'tương đen', 'tương đậu', 'tương nếp', 'tương ngô', 'hoisin', 'miso'],
   gluten: ['bột mì', 'bánh mì', 'mì', 'nui', 'bột chiên giòn', 'bánh quy', 'mì căn'],
   sesame: ['mè', 'vừng']
 };
