@@ -1,0 +1,22 @@
+INSERT INTO public.recipe_allergens (recipe_id, allergen_id) VALUES
+  ((SELECT id FROM public.recipes WHERE slug = 'dau-hu-nhoi-thit-sot-ca-chua'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'dau-hu-nhoi-thit-sot-ca-chua'), 8),
+  ((SELECT id FROM public.recipes WHERE slug = 'dau-hu-nhoi-thit-sot-ca-chua'), 4),
+  ((SELECT id FROM public.recipes WHERE slug = 'ca-nuc-kho-nuoc-mia-dam-da-ngot-thanh-an-com-hay-banh-mi-deu-cuon'), 1),
+  ((SELECT id FROM public.recipes WHERE slug = 'ca-nuc-kho-nuoc-mia-dam-da-ngot-thanh-an-com-hay-banh-mi-deu-cuon'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-mi-xao-bo-dam-da-soi-mi-dai-thit-bo-gion-beo'), 7),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-mi-xao-bo-dam-da-soi-mi-dai-thit-bo-gion-beo'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-mi-xao-bo-dam-da-soi-mi-dai-thit-bo-gion-beo'), 8),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-mi-xao-bo-dam-da-soi-mi-dai-thit-bo-gion-beo'), 4),
+  ((SELECT id FROM public.recipes WHERE slug = 'com-chien-thap-cam-toi-ngon-nhu-ngoai-tiem-cong-thuc-don-gian-ai-lam-cung-duoc'), 2),
+  ((SELECT id FROM public.recipes WHERE slug = 'com-chien-thap-cam-toi-ngon-nhu-ngoai-tiem-cong-thuc-don-gian-ai-lam-cung-duoc'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'ga-kho-sa-dam-da-thom-lung-mon-com-nha-ai-cung-ghien'), 8),
+  ((SELECT id FROM public.recipes WHERE slug = 'ga-kho-sa-dam-da-thom-lung-mon-com-nha-ai-cung-ghien'), 4),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-suon-non-chay-rim-nuoc-mia-xa-xiu-man-ngot-an-la-ghien'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon'), 1),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-suon-chay-rim-man-ngot-ngon-la-mieng'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-tom-rim-man-ngot-va-salad-tron-dau-giam-ngon-kho-cuong'), 1),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-tom-rim-man-ngot-va-salad-tron-dau-giam-ngon-kho-cuong'), 6),
+  ((SELECT id FROM public.recipes WHERE slug = 'cach-lam-tom-kho-xe-deo-thom-va-cong-thuc-mam-me-me-ly-an-tom-nuong'), 1)
+ON CONFLICT DO NOTHING;

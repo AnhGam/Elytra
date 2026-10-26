@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "code": "seafood",
+    "name_vi": "Hải sản (Tôm, Cua, Mực, Cá)",
+    "description": "Dị ứng các loại động vật thủy hải sản, giáp xác, nhuyễn thể"
+  },
+  {
+    "id": 2,
+    "code": "egg",
+    "name_vi": "Trứng",
+    "description": "Trứng gia cầm và các chế phẩm từ trứng"
+  },
+  {
+    "id": 3,
+    "code": "dairy",
+    "name_vi": "Sữa & Chế phẩm từ sữa",
+    "description": "Đường lactose hoặc protein trong sữa động vật (bò, dê)"
+  },
+  {
+    "id": 4,
+    "code": "peanut",
+    "name_vi": "Đậu phộng (Lạc)",
+    "description": "Đậu phộng và dầu đậu phộng ép thô"
+  },
+  {
+    "id": 5,
+    "code": "tree_nut",
+    "name_vi": "Hạt cây (Hạt điều, Hạnh nhân, Óc chó)",
+    "description": "Các loại hạt có vỏ cứng"
+  },
+  {
+    "id": 6,
+    "code": "soy",
+    "name_vi": "Đậu nành & Chế phẩm đậu nành",
+    "description": "Đậu nành, đậu phụ, tương bần, xì dầu"
+  },
+  {
+    "id": 7,
+    "code": "gluten",
+    "name_vi": "Gluten (Lúa mì, Lúa mạch)",
+    "description": "Protein gluten trong bột mì, bánh mì"
+  },
+  {
+    "id": 8,
+    "code": "sesame",
+    "name_vi": "Mè (Vừng)",
+    "description": "Hạt mè, dầu mè"
+  }
+]
