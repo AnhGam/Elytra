@@ -1,10 +1,10 @@
 // Sinh SQL map lại recipe_ingredients bằng ingredient_parser đã sửa, rồi tính lại dinh dưỡng + dị ứng của món.
 // Input: JSON xuất từ DB
-//   supabase db query --linked "select r.slug, x.order_index, x.ingredient_name_raw from recipe_ingredients x
+//   supabase db query --linked "select r.slug, x.order_index, x.ingredient_name_raw, x.unit from recipe_ingredients x
 //     join recipes r on r.id = x.recipe_id" -o json > rows.json
 // Chạy: node remap_recipe_ingredients.js rows.json > ../migrations/<timestamp>_remap_recipe_ingredients.sql
 const fs = require('fs');
-const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, catalog } = require('./ingredient_parser');
+const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, consumedPct, catalog } = require('./ingredient_parser');
 
 const raw = fs.readFileSync(process.argv[2], 'utf8');
 const rows = JSON.parse(raw.slice(raw.indexOf('{'))).rows;
@@ -15,7 +15,7 @@ const mapRows = [];
 const allergenRows = new Set();
 for (const r of rows) {
   const ing = lookupIngredient(r.ingredient_name_raw);
-  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'})`);
+  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${consumedPct(r.ingredient_name_raw, r.unit, ing)})`);
   for (const code of keywordAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, false)`);
   for (const code of condimentAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, true)`);
 }
@@ -31,7 +31,7 @@ VALUES (${q(rice.id)}, ${q(rice.code)}, ${q(rice.name_vi)}, ${q(rice.name_unacce
     ${rice.protein_per_100g}, ${rice.fat_per_100g}, ${rice.carbs_per_100g}, ${rice.fiber_per_100g}, ${rice.sodium_mg}, 100, 1)
 ON CONFLICT (code) DO NOTHING;
 
-CREATE TEMP TABLE remap (slug TEXT, order_index INT, code TEXT) ON COMMIT DROP;
+CREATE TEMP TABLE remap (slug TEXT, order_index INT, code TEXT, consumed_pct NUMERIC) ON COMMIT DROP;
 INSERT INTO remap VALUES
 ${mapRows.join(',\n')};
 
@@ -39,13 +39,14 @@ UPDATE public.recipe_ingredients x
    SET ingredient_id = i.id,
        calories_per_100g = COALESCE(i.calories_per_100g, 0), protein_per_100g = COALESCE(i.protein_per_100g, 0),
        fat_per_100g = COALESCE(i.fat_per_100g, 0), carbs_per_100g = COALESCE(i.carbs_per_100g, 0),
-       fiber_per_100g = COALESCE(i.fiber_per_100g, 0), sodium_mg_per_100g = COALESCE(i.sodium_mg, 0)
+       fiber_per_100g = COALESCE(i.fiber_per_100g, 0), sodium_mg_per_100g = COALESCE(i.sodium_mg, 0),
+       consumed_pct = m.consumed_pct
   FROM remap m
   JOIN public.recipes r ON r.slug = m.slug
   LEFT JOIN public.ingredients i ON i.code = m.code
  WHERE x.recipe_id = r.id AND x.order_index = m.order_index;
 
--- Tính lại dinh dưỡng món giống create_recipe_with_nutrition
+-- Tính lại dinh dưỡng món theo phần thực sự ăn vào (amount_g × consumed_pct)
 UPDATE public.recipes r
    SET total_calories = t.cal, total_protein_g = t.prot, total_fat_g = t.fat, total_carbs_g = t.carbs,
        total_fiber_g = t.fiber, total_sodium_mg = t.sod,
@@ -54,9 +55,9 @@ UPDATE public.recipes r
        fiber_g_per_serving = round(t.fiber / r.servings, 1), sodium_mg_per_serving = round(t.sod / r.servings, 1),
        updated_at = now()
   FROM (SELECT recipe_id,
-               round(sum(amount_g * calories_per_100g / 100), 1) AS cal, round(sum(amount_g * protein_per_100g / 100), 1) AS prot,
-               round(sum(amount_g * fat_per_100g / 100), 1) AS fat, round(sum(amount_g * carbs_per_100g / 100), 1) AS carbs,
-               round(sum(amount_g * fiber_per_100g / 100), 1) AS fiber, round(sum(amount_g * sodium_mg_per_100g / 100), 1) AS sod
+               round(sum(amount_g * consumed_pct / 100 * calories_per_100g / 100), 1) AS cal, round(sum(amount_g * consumed_pct / 100 * protein_per_100g / 100), 1) AS prot,
+               round(sum(amount_g * consumed_pct / 100 * fat_per_100g / 100), 1) AS fat, round(sum(amount_g * consumed_pct / 100 * carbs_per_100g / 100), 1) AS carbs,
+               round(sum(amount_g * consumed_pct / 100 * fiber_per_100g / 100), 1) AS fiber, round(sum(amount_g * consumed_pct / 100 * sodium_mg_per_100g / 100), 1) AS sod
           FROM public.recipe_ingredients GROUP BY recipe_id) t
  WHERE t.recipe_id = r.id;
 

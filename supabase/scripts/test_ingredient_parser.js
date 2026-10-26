@@ -27,4 +27,9 @@ const { condimentAllergenCodes } = require('./ingredient_parser');
 for (const [raw, want] of [['nước mắm', ['seafood']], ['mắm tôm', ['seafood']], ['dầu hào', ['seafood']], ['nước mắm chay', []], ['tôm khô', []]]) {
   assert.deepEqual(condimentAllergenCodes(raw), want, 'condiment ' + raw);
 }
+const { consumedPct } = require('./ingredient_parser');
+for (const [raw, unit, want] of [['gà (cắt miếng vừa ăn', 'kg', 48], ['Cá ngân (hoặc cá biển thịt chắc tương tự)', 'g', 73],
+  ['thịt ba chỉ', 'gram', 100], ['tỏi băm', 'g', 100], ['tỏi', 'g', 80], ['dừa nạo', 'gram', 100], ['tương cà', 'muỗng canh', 100], ['sả', 'g', 100]]) {
+  assert.equal(consumedPct(raw, unit, lookupIngredient(raw)), want, 'consumed ' + raw);
+}
 console.log('ingredient_parser: all checks passed');

@@ -179,6 +179,22 @@ function condimentAllergenCodes(name) {
     ALLERGEN_CONDIMENTS[code].some((re) => new RegExp(re.source, 'u').test(t)));
 }
 
+// Phần thực sự ăn vào (%), so với khối lượng ghi trong công thức. FCT tính trên 100 g phần ăn được,
+// nhưng công thức thường cân nguyên con/nguyên trái (gà 2 kg, sườn 1 kg, tôm 2 kg) -> trừ xương, vỏ theo edible_portion_pct.
+// Đong bằng muỗng/chén/ml hoặc tên đã ghi rõ sơ chế (băm, phi lê, bóc vỏ...) thì coi là ăn hết.
+const MEASURED_AFTER_PREP_UNITS = ['muỗng canh', 'muỗng cafe', 'muỗng cà phê', 'muỗng cà', 'muỗng', 'thìa', 'chén', 'bát', 'ml', 'lít', 'vá', 'gói', 'ống', 'túi'];
+const ALREADY_EDIBLE_WORDS = ['phi lê', 'fillet', 'xay', 'bằm', 'băm', 'bào', 'nạo', 'xắt', 'thái', 'lát', 'sợi', 'bột',
+  'bóc vỏ', 'lột vỏ', 'bỏ vỏ', 'bỏ xương', 'rút xương', 'lóc xương', 'nạc', 'thăn', 'ức', 'nõn', 'tim'];
+function consumedPct(name, unit, ing) {
+  if (!ing || !(Number(ing.edible_portion_pct) < 100)) return 100;
+  const u = (unit || '').toLowerCase().trim();
+  if (MEASURED_AFTER_PREP_UNITS.some((w) => u.startsWith(w))) return 100;
+  const t = name.toLowerCase();
+  // 'thịt' chỉ tính khi đứng đầu (thịt bò, thịt xay); 'cá biển thịt chắc' vẫn là cá nguyên con
+  if (t.trim().startsWith('thịt') || ALREADY_EDIBLE_WORDS.some((w) => hasWord(t, w))) return 100;
+  return Number(ing.edible_portion_pct);
+}
+
 function lookupIngredient(name) {
   const t = name.toLowerCase().trim();
   return matchIngredient(t) || catalog.find(i => i.name_vi.toLowerCase() === t) || null;
@@ -365,5 +381,6 @@ module.exports = {
   allergensByIngrId,
   lookupIngredient,
   keywordAllergenCodes,
-  condimentAllergenCodes
+  condimentAllergenCodes,
+  consumedPct
 };

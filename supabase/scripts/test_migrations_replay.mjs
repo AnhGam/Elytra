@@ -46,7 +46,15 @@ assert.equal(lamb.n, 0, "không còn map sang thịt cừu/thỏ/cô nhắc/kê/
 const fish = await one(`SELECT calories_per_serving::float AS k FROM recipes WHERE slug LIKE 'ca-bien-kho%'`);
 assert.ok(fish.k > 200, "cá biển kho phải tính cả 700 g cá, đang là " + fish.k);
 const consistent = await one(`SELECT count(*)::int AS n FROM recipes r WHERE abs(r.total_calories -
-  (SELECT coalesce(sum(amount_g * calories_per_100g / 100), 0) FROM recipe_ingredients WHERE recipe_id = r.id)) > 1`);
+  (SELECT coalesce(sum(amount_g * consumed_pct / 100 * calories_per_100g / 100), 0) FROM recipe_ingredients WHERE recipe_id = r.id)) > 1`);
+// Phần ăn vào: nguyên con/có xương thì trừ theo edible_portion_pct, đã sơ chế hoặc đong muỗng thì 100%
+const pct = async (slugLike, raw) => Number((await one(`SELECT x.consumed_pct AS p FROM recipe_ingredients x JOIN recipes r ON r.id = x.recipe_id
+  WHERE r.slug LIKE $1 AND x.ingredient_name_raw = $2`, [slugLike, raw])).p);
+assert.equal(await pct("cach-nau-duoi-heo%", "đuôi heo"), 70);
+assert.equal(await pct("ca-bien-kho%", "Cá ngân (hoặc cá biển thịt chắc tương tự)"), 73);
+assert.equal(await pct("ca-bien-kho%", "Tỏi băm"), 100);
+const duoi = Number((await one(`SELECT calories_per_serving AS k FROM recipes WHERE slug LIKE 'cach-nau-duoi-heo%'`)).k);
+assert.ok(duoi < 1100, "đuôi heo hầm phải trừ xương, đang là " + duoi);
 assert.equal(consistent.n, 0, "total_calories khớp tổng nguyên liệu");
 
 // Gia vị từ hải sản (nước mắm...) vẫn gây dị ứng nhưng không làm món thành "món hải sản" (via_condiment)
