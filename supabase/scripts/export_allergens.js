@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://iwmnkygicqfesvbilmrw.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL;
 // Lấy anon key: supabase projects api-keys (key công khai, nhưng không gắn cứng để gitleaks không báo)
 const ANON_KEY = process.env.ANON_KEY;
-if (!ANON_KEY) throw new Error('Thiếu biến môi trường ANON_KEY');
+if (!SUPABASE_URL || !ANON_KEY) throw new Error('Thiếu biến môi trường SUPABASE_URL hoặc ANON_KEY');
 
 async function exportAllergens() {
   const headers = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` };
