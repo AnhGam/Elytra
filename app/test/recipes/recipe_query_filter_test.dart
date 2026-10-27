@@ -5,6 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/recipe_fixtures.dart';
 
 void main() {
+  test('copyWith nhận số nguyên cho minKcal/maxKcal', () {
+    expect(const RecipeFilters().copyWith(maxKcal: 500).maxKcal, 500.0);
+    expect(const RecipeFilters().copyWith(minKcal: 200).minKcal, 200.0);
+  });
+
   group('matchTitle', () {
     test('không dấu khớp có dấu, theo đầu từ', () {
       expect(matchTitle('Cá basa kho tộ', 'ca kho'), MatchLevel.wholeWords);

@@ -60,8 +60,8 @@ class RecipeFilters {
     Object? category = _unset,
   }) {
     return RecipeFilters(
-      minKcal: identical(minKcal, _unset) ? this.minKcal : minKcal as double?,
-      maxKcal: identical(maxKcal, _unset) ? this.maxKcal : maxKcal as double?,
+      minKcal: identical(minKcal, _unset) ? this.minKcal : (minKcal as num?)?.toDouble(),
+      maxKcal: identical(maxKcal, _unset) ? this.maxKcal : (maxKcal as num?)?.toDouble(),
       maxTotalMinutes: identical(maxTotalMinutes, _unset)
           ? this.maxTotalMinutes
           : maxTotalMinutes as int?,
@@ -90,8 +90,17 @@ enum RecipeSort {
   const RecipeSort(this.labelVi);
 }
 
+// Phù hợp nhất: mức khớp, rồi ngân sách bữa (≤ ngân sách trước, gần ngân sách trước).
+int _bestMatch(Recipe a, Recipe b, MatchLevel? la, MatchLevel? lb, int? budget) {
+  if (la != null && lb != null && la != lb) return la.index - lb.index;
+  if (budget == null) return 0;
+  final aOver = a.kcal > budget, bOver = b.kcal > budget;
+  if (aOver != bOver) return aOver ? 1 : -1;
+  return (a.kcal - budget).abs().compareTo((b.kcal - budget).abs());
+}
+
 abstract final class RecipeQuery {
-  /// Lọc theo từ khóa, bộ lọc, dị ứng. Tạm thời luôn sắp A–Z theo tên (Task 5 hoàn thiện).
+  /// Lọc theo từ khóa, bộ lọc, dị ứng. Sắp xếp theo [sort]; hòa thì theo tên A–Z bỏ dấu.
   static List<Recipe> apply(
     List<Recipe> recipes, {
     String query = '',
@@ -122,8 +131,41 @@ abstract final class RecipeQuery {
       }
       return true;
     }).toList();
-    out.sort((a, b) =>
-        removeDiacritics(a.title).compareTo(removeDiacritics(b.title)));
+    // Tính trước khóa sắp xếp một lần mỗi món (tên bỏ dấu, mức khớp).
+    final keys = {
+      for (final r in out)
+        r: (
+          name: removeDiacritics(r.title),
+          level: hasQuery ? matchTitle(r.title, query) : null,
+        ),
+    };
+    int byName(Recipe a, Recipe b) => keys[a]!.name.compareTo(keys[b]!.name);
+    // Món kcal == 0 luôn cuối; còn lại so theo giá trị trên 100 kcal.
+    int per100(Recipe a, Recipe b, double Function(Recipe) v, {required bool desc}) {
+      if ((a.kcal == 0) != (b.kcal == 0)) return a.kcal == 0 ? 1 : -1;
+      if (a.kcal == 0) return 0;
+      final c = v(a).compareTo(v(b));
+      return desc ? -c : c;
+    }
+
+    int compare(Recipe a, Recipe b) {
+      final c = switch (sort) {
+        RecipeSort.bestMatch => _bestMatch(a, b, keys[a]!.level, keys[b]!.level,
+            mealBudgetKcal),
+        RecipeSort.kcalAsc => a.kcal.compareTo(b.kcal),
+        RecipeSort.kcalDesc => b.kcal.compareTo(a.kcal),
+        RecipeSort.proteinPer100Desc =>
+          per100(a, b, (r) => r.proteinG / r.kcal * 100, desc: true),
+        RecipeSort.carbsPer100Asc =>
+          per100(a, b, (r) => r.carbsG / r.kcal * 100, desc: false),
+        RecipeSort.fatPer100Asc =>
+          per100(a, b, (r) => r.fatG / r.kcal * 100, desc: false),
+        RecipeSort.quickest => a.totalMinutes.compareTo(b.totalMinutes),
+      };
+      return c != 0 ? c : byName(a, b);
+    }
+
+    out.sort(compare);
     return out;
   }
 }
