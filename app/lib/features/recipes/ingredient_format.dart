@@ -38,11 +38,21 @@ String formatAmount(double v) {
   return NumberFormat('#,##0.#', 'vi').format(r);
 }
 
+// Chuẩn hóa đơn vị: so khớp không phân biệt hoa thường; đơn vị lạ giữ nguyên chữ.
 String _normalizeUnit(String unit) {
-  final u = unit.trim();
-  if (u == 'muỗng cà') return 'muỗng cà phê';
+  final u = unit.trim().toLowerCase();
+  if (u == 'muỗng cà' || u == 'muỗng cafe') return 'muỗng cà phê';
   if (u == 'gram') return 'g';
-  return u;
+  if (_countableUnits.contains(u) ||
+      _noteOnlyUnits.contains(u) ||
+      u == 'g' ||
+      u == 'kg' ||
+      u == 'ml' ||
+      u == 'lít' ||
+      u.startsWith('muỗng')) {
+    return u;
+  }
+  return unit.trim();
 }
 
 String _capitalize(String s) =>

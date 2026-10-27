@@ -37,4 +37,14 @@ void main() {
     expect(formatIngredient(ing('Ớt (lượng tùy thích)', 'Ớt (lượng tùy thích)', 1, 'ít', 2), 1).note, 'Tùy thích');
     expect(formatIngredient(ing('Muối:', 'Muối', null, null, 0), 1).note, 'Tùy thích');
   });
+  test('đơn vị: muỗng cafe và không phân biệt hoa thường', () {
+    final c = formatIngredient(ing('x', 'Đường', 2, 'muỗng cafe', 10), 1);
+    expect([c.amountText, c.gramText], ['2 muỗng cà phê', null]);
+    expect(formatIngredient(ing('x', 'Đường', 2, 'Gram', 2), 1).amountText, '2 g');
+    expect(formatIngredient(ing('x', 'Hạt nêm', 1, 'Muỗng cà', 5), 1).amountText, '1 muỗng cà phê');
+    final cu = formatIngredient(ing('x', 'Hành', 1, ' Củ ', 60), 1);
+    expect([cu.amountText, cu.gramText], ['1 củ', '60 g']);
+    final ph = formatIngredient(ing('Hành lá: xắt nhỏ', 'Hành lá', 1, 'PHẦN', 30), 3);
+    expect([ph.amountText, ph.gramText, ph.note], [null, null, 'xắt nhỏ']);
+  });
 }
