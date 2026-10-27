@@ -38,7 +38,7 @@ class RecipeCatalog extends ChangeNotifier {
   /// Chỉ tải khi `idle` hoặc `error`; gọi đồng thời chỉ tải một lần.
   Future<void> ensureLoaded() {
     final running = _inFlight;
-    if (running != null) return running;
+    if (running != null) return running.catchError((Object _) {});
     if (_status != CatalogStatus.idle && _status != CatalogStatus.error) {
       return Future.value();
     }

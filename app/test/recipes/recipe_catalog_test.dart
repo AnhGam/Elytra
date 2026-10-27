@@ -67,4 +67,21 @@ void main() {
     expect(c.userAllergenIds, isEmpty);
     c.dispose();
   });
+
+  test('ensureLoaded song song khi lỗi lần đầu không ném', () async {
+    final repo = FakeRecipeRepository()..failWith = Exception('mạng');
+    final c = RecipeCatalog(repo: repo);
+    await Future.wait([c.ensureLoaded(), c.ensureLoaded()]);
+    expect(c.status, CatalogStatus.error);
+  });
+  test('ensureLoaded khi refresh lỗi đang chạy không ném, refresh vẫn ném', () async {
+    final repo = FakeRecipeRepository()..recipes = [recipe()];
+    final c = RecipeCatalog(repo: repo);
+    await c.ensureLoaded();
+    repo.failWith = Exception('mạng');
+    final r = c.refresh();
+    final e = c.ensureLoaded();
+    await e;
+    await expectLater(r, throwsException);
+  });
 }
