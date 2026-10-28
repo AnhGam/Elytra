@@ -26,7 +26,10 @@ jobs:
       - name: Verify Sensitive Files Not Committed
         run: |
           echo "Verifying environment and sensitive files are not tracked..."
-          if git ls-files | grep -E "app/env\.json|\.env|\.env\.local|service_role"; then
+          # Mọi file .env* (kể cả .env.production) đều bị chặn, trừ file mẫu .env.example/.sample/.template
+          bad=$(git ls-files | grep -E '(^|/)\.env(\.[^/]+)?$|(^|/)app/env\.json$|service_role' | grep -vE '\.env\.(example|sample|template)$' || true)
+          if [ -n "$bad" ]; then
+            echo "$bad"
             echo "::error::Detected sensitive environment file tracked in git repository!"
             exit 1
           fi
