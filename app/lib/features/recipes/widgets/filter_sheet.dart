@@ -98,52 +98,51 @@ class _FilterSheetState extends State<_FilterSheet> {
         return SheetFrame(
           title: 'Bộ lọc',
           body: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            padding: const EdgeInsets.only(bottom: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SheetSectionTitle('Calo mỗi khẩu phần'),
-                const SizedBox(height: 12),
-                _buildKcalRow(),
-                const SizedBox(height: 8),
-                Text(
-                  error ?? 'Nhập số nguyên từ 0 đến 1.500 · để trống nếu không giới hạn',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: error == null
-                        ? AppColors.textMuted
-                        : AppColors.error,
+                _section([
+                  const SheetSectionTitle('Calo mỗi khẩu phần'),
+                  const SizedBox(height: 8),
+                  _buildKcalRow(),
+                  const SizedBox(height: 8),
+                  Text(
+                    error ?? 'Số nguyên 0–1.500 · để trống nếu không giới hạn',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: error == null
+                          ? AppColors.textMuted
+                          : AppColors.error,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const SheetSectionTitle('Thời gian nấu'),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  children: [
+                ]),
+                _section([
+                  const SheetSectionTitle('Thời gian nấu'),
+                  _chipWrap([
                     QuickFilterChip(
+                      compact: true,
                       label: 'Bất kỳ',
                       selected: _maxMinutes == null,
                       onTap: () => setState(() => _maxMinutes = null),
                     ),
                     for (final m in _timeOptions)
                       QuickFilterChip(
+                        compact: true,
                         label: '≤ $m phút',
                         selected: _maxMinutes == m,
                         onTap: () => setState(
                           () => _maxMinutes = _maxMinutes == m ? null : m,
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const SheetSectionTitle('Độ khó'),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  children: [
+                  ]),
+                ]),
+                _section([
+                  const SheetSectionTitle('Độ khó'),
+                  _chipWrap([
                     for (final d in Difficulty.values)
                       QuickFilterChip(
+                        compact: true,
                         label: d.labelVi,
                         selected: _difficulties.contains(d),
                         onTap: () => setState(() {
@@ -151,17 +150,17 @@ class _FilterSheetState extends State<_FilterSheet> {
                           if (!_difficulties.remove(d)) _difficulties.add(d);
                         }),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const SheetSectionTitle('Nguyên liệu trong tủ lạnh'),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ưu tiên món dùng nhiều nguyên liệu bạn đang có · Sắp có',
-                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: 24),
-                _buildAllergenRow(),
+                  ]),
+                ]),
+                _section(const [
+                  SheetSectionTitle('Nguyên liệu trong tủ lạnh'),
+                  SizedBox(height: 4),
+                  Text(
+                    'Ưu tiên món dùng nhiều nguyên liệu bạn đang có · Sắp có',
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ]),
+                _section([_buildAllergenRow()]),
               ],
             ),
           ),
@@ -173,7 +172,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   foregroundColor: AppColors.primaryDark,
                   minimumSize: const Size(96, 56),
                   textStyle: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -194,6 +193,19 @@ class _FilterSheetState extends State<_FilterSheet> {
     );
   }
 
+  /// Một mục của sheet: đệm dọc 12, ngang 24
+  Widget _section(List<Widget> children) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
+
+  /// Chip cách nhau 8 cả hai chiều; vùng chạm 48 của hai hàng chồng lên nhau 8
+  Widget _chipWrap(List<Widget> chips) =>
+      Wrap(spacing: 8, runSpacing: -8, children: chips);
+
   Widget _buildKcalRow() {
     Widget field(String label, Key key, TextEditingController ctl) {
       return Expanded(
@@ -202,49 +214,63 @@ class _FilterSheetState extends State<_FilterSheet> {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 6),
-            TextField(
-              key: key,
-              controller: ctl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4),
-              ],
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            SizedBox(
+              height: 48,
+              child: TextField(
+                key: key,
+                controller: ctl,
+                // Chạm ra ngoài ô → bỏ focus, ẩn con trỏ và bàn phím
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                textAlignVertical: TextAlignVertical.center,
+                // Ô cao đúng 48: giãn hết SizedBox bọc ngoài
+                expands: true,
+                maxLines: null,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
-                // suffixIcon thay suffixText để "kcal" hiện cả khi ô trống, chưa focus
-                suffixIcon: const Padding(
-                  padding: EdgeInsets.only(right: 16),
-                  child: Text(
-                    'kcal',
-                    style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: AppColors.background,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                  // suffixIcon thay suffixText để "kcal" hiện cả khi ô trống, chưa focus
+                  suffixIcon: const Padding(
+                    padding: EdgeInsets.only(right: 14),
+                    child: Text(
+                      'kcal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                   ),
-                ),
-                suffixIconConstraints: const BoxConstraints(),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.outline),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 2,
+                  suffixIconConstraints: const BoxConstraints(),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.outline),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -258,11 +284,15 @@ class _FilterSheetState extends State<_FilterSheet> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         field('Tối thiểu', const Key('minKcal'), _min),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(12, 0, 12, 14),
-          child: Text(
-            '–',
-            style: TextStyle(fontSize: 18, color: AppColors.textMuted),
+        // 2 ô cách 12, gạch nối ở giữa
+        const SizedBox(
+          width: 12,
+          height: 48,
+          child: Center(
+            child: Text(
+              '–',
+              style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+            ),
           ),
         ),
         field('Tối đa', const Key('maxKcal'), _max),
@@ -292,7 +322,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: AppColors.textMuted,
                       ),
                     ),
@@ -307,7 +337,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                         child: Text(
                           declared ? 'sửa' : 'khai báo',
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColors.primaryDark,
                           ),

@@ -56,6 +56,7 @@ class QuickFilterChip extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.icon,
+    this.compact = false,
   });
 
   final String label;
@@ -65,9 +66,14 @@ class QuickFilterChip extends StatelessWidget {
   /// Icon đầu chip khi chưa bật (vd. dấu + của "Khai báo dị ứng")
   final IconData? icon;
 
+  /// Kiểu trong sheet Bộ lọc: chữ 13, chip thường màu textSecondary
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primaryDark : AppColors.textPrimary;
+    final color = selected
+        ? AppColors.primaryDark
+        : (compact ? AppColors.textSecondary : AppColors.textPrimary);
     final leading = selected ? Icons.check : icon;
     return _Pill(
       selected: selected,
@@ -84,7 +90,7 @@ class QuickFilterChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: compact ? 13 : 14,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               color: color,
             ),

@@ -47,10 +47,10 @@ class SheetFrame extends StatelessWidget {
           Center(
             child: Container(
               margin: const EdgeInsets.only(top: 8),
-              width: 40,
+              width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.sliderInactive,
+                color: AppColors.outlineStrong,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -63,7 +63,7 @@ class SheetFrame extends StatelessWidget {
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
@@ -73,7 +73,7 @@ class SheetFrame extends StatelessWidget {
                   tooltip: 'Đóng',
                   onPressed: () => Navigator.of(context).pop(),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surfaceVariant,
+                    backgroundColor: AppColors.background,
                     fixedSize: const Size(40, 40),
                   ),
                   icon: const Icon(
@@ -118,7 +118,7 @@ class SheetSectionTitle extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),

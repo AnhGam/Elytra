@@ -48,7 +48,7 @@ class _SortRow extends StatelessWidget {
                     selected
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
-                    size: 22,
+                    size: 24,
                     color: selected ? AppColors.primary : AppColors.textMuted,
                   ),
                   const SizedBox(width: 16),
@@ -56,7 +56,7 @@ class _SortRow extends StatelessWidget {
                     child: Text(
                       sort.labelVi,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: selected
                             ? FontWeight.w600
                             : FontWeight.w400,

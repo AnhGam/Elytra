@@ -74,6 +74,28 @@ void main() {
       // Chip ôm nội dung, nằm cùng hàng trong Wrap
       expect(t.getCenter(find.text('≤ 15 phút')).dy, t.getCenter(find.text('Bất kỳ')).dy);
       expect(find.descendant(of: sheet, matching: find.text('kcal')), findsNWidgets(2));
+      // Nền và viền ô calo cao đúng 48
+      expect(
+          t.getSize(find.descendant(
+              of: find.byKey(const Key('maxKcal')), matching: find.byType(InputDecorator))).height,
+          48);
+    });
+
+    testWidgets('chạm ra ngoài ô calo → ô mất focus', (t) async {
+      await pumpSearch(t);
+      await openFilter(t);
+      await t.tap(find.byKey(const Key('maxKcal')));
+      await t.pump();
+      bool focused() => t
+          .widget<EditableText>(find.descendant(
+              of: find.byKey(const Key('maxKcal')),
+              matching: find.byType(EditableText)))
+          .focusNode
+          .hasFocus;
+      expect(focused(), isTrue);
+      await t.tap(find.text('Calo mỗi khẩu phần'));
+      await t.pump();
+      expect(focused(), isFalse);
     });
 
     testWidgets('min > max: báo lỗi, vô hiệu nút', (t) async {
@@ -181,6 +203,28 @@ void main() {
       final a = t.getTopLeft(find.text('A')).dy;
       final b = t.getTopLeft(find.text('B')).dy;
       expect(b, lessThan(a));
+    });
+  });
+
+  group('Điều hướng sau khi đóng sheet', () {
+    testWidgets('chọn sắp xếp → vẫn ở tab Món ăn, mở lại được sheet', (t) async {
+      t.view.physicalSize = const Size(1170, 2532);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      final router = await pumpTestApp(t,
+          auth: FakeAuth(isLoggedIn: true), catalog: RecipeCatalog(repo: repo));
+      await t.pumpAndSettle();
+      String path() => router.routerDelegate.currentConfiguration.uri.path;
+
+      for (var i = 0; i < 2; i++) {
+        await t.tap(find.byIcon(Icons.swap_vert));
+        await t.pumpAndSettle();
+        expect(find.text('Sắp xếp theo'), findsOneWidget);
+        await t.tap(find.text(i == 0 ? 'Calo: thấp → cao' : 'Nấu nhanh nhất'));
+        await t.pumpAndSettle();
+        expect(find.text('Sắp xếp theo'), findsNothing);
+        expect(path(), '/recipes');
+      }
     });
   });
 
