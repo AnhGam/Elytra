@@ -1,0 +1,14 @@
+# Anon key của Supabase (role=anon) trong commit 4620299: key công khai theo thiết kế (app cũng nhúng),
+# không phải bí mật. Script hiện đọc key từ biến môi trường; các dòng dưới chỉ bỏ qua lịch sử cũ.
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/apply_ingredient_management.js:jwt:5
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/apply_search_migration.js:jwt:4
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/export_catalog.js:jwt:5
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/upload_demo_video.js:jwt:5
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/test_ingredient_management.js:jwt:2
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/apply_recipe_creation_engine.js:jwt:4
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/list_db_functions.js:jwt:2
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/setup_video_bucket.js:jwt:2
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/setup_storage_bucket.js:jwt:2
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/export_allergens.js:jwt:5
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/update_recipe_videos.js:jwt:4
+46202998744bbba1b8ee491a03983a6eab75a2a5:supabase/scripts/upload_to_supabase_storage.js:jwt:5

@@ -1,0 +1,44 @@
+// Kiểm từ điển map nguyên liệu (các ca từng sai trong AUDIT_REPORT V1). Chạy: node test_ingredient_parser.js
+const assert = require('assert/strict');
+const { lookupIngredient, keywordAllergenCodes } = require('./ingredient_parser');
+
+const name = (raw) => lookupIngredient(raw)?.name_vi ?? null;
+const cases = [
+  ['gà (cắt miếng vừa ăn', 'Thịt gà ta'], ['nước dừa tươi', 'Nước dừa non tươi'], ['mè rang', 'Vừng(đen, trắng)'],
+  ['đậu phộng rang', 'Lạc hạt'], ['dầu ăn', 'Dầu cọ'], ['cơm nguội', 'Cơm tẻ (gạo tẻ máy nấu chín)'],
+  ['Cá ngân (hoặc cá biển thịt chắc tương tự)', 'Cá nục'], ['tàu hủ ky lá', 'Đậu phụ chúc'], ['cua đồng', 'Cua đồng'],
+  ['cá diêu hồng', 'Cá rô phi'], ['thịt thăn bò', 'Thịt bò loại I'], ['bắp chuối', 'Hoa chuối'], ['bạc hà', 'Dọc mùng'],
+  // theo từ, không theo chuỗi con
+  ['bớt muối', 'Muối'], ['nấm đùi gà', 'Nấm thường tươi'], ['Nấm mèo', 'Mộc nhĩ'],
+  // cố ý không map
+  ['cá bống chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['sườn non chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['tôm chay', null], ['đậu bắp', null], ['hạt điều đỏ DH Foods', null], ['lá dứa', null],
+  ['gói gia vị mì (có sẵn trong gói mì)', null], ['nước mắm chay', null]
+];
+for (const [raw, want] of cases) assert.equal(name(raw), want, raw);
+
+const allergens = [
+  // gia vị chế biến từ hải sản: không tính là nguyên liệu chính (đi qua condimentAllergenCodes)
+  ['mắm cá linh', []], ['mắm tôm', []], ['nước mắm cá', []], ['dầu hào', []], ['nước mắm, tôm khô', ['seafood']],
+  ['tàu hủ ky non', ['soy']], ['Cá ngân (hoặc cá biển thịt chắc tương tự)', ['seafood']], ['tương xí muội', []], ['chao', ['soy']], ['nui', ['gluten']], ['hạt điều rang', ['tree_nut']],
+  ['hạt điều đỏ DH Foods', []], ['dầu điều', []], ['cá bống chay', []], ['mì chính', []], ['tương ớt', []], ['Nấm mèo', []]
+];
+for (const [raw, want] of allergens) assert.deepEqual(keywordAllergenCodes(raw), want, raw);
+const { condimentAllergenCodes } = require('./ingredient_parser');
+for (const [raw, want] of [['nước mắm', ['seafood']], ['mắm tôm', ['seafood']], ['dầu hào', ['seafood']], ['nước mắm chay', []], ['tôm khô', []]]) {
+  assert.deepEqual(condimentAllergenCodes(raw), want, 'condiment ' + raw);
+}
+const { consumedPct } = require('./ingredient_parser');
+for (const [raw, unit, want] of [['gà (cắt miếng vừa ăn', 'kg', 48], ['Cá ngân (hoặc cá biển thịt chắc tương tự)', 'g', 73],
+  ['thịt ba chỉ', 'gram', 100], ['tỏi băm', 'g', 100], ['tỏi', 'g', 80], ['dừa nạo', 'gram', 100], ['tương cà', 'muỗng canh', 100], ['sả', 'g', 100]]) {
+  assert.equal(consumedPct(raw, unit, lookupIngredient(raw)), want, 'consumed ' + raw);
+}
+// Đọc số lượng: các ca parser cũ đọc sai (calo lệch vài lần)
+const { parseIngredientLine } = require('./ingredient_parser');
+for (const [line, grams] of [
+  ['gà: 1,5 kg', 1500], ['Cá chim biển (1 con vừa ăn)', 500], ['nghệ bột: ⅓ muỗng cafe', 1.7], ['đường: 3-4 muỗng canh', 52.5],
+  ['Dầu mè: 1 muỗng cà phê', 4.6], ['Muối: 1 muỗng cà phê', 5], ['bắp chuối: 1', 400], ['Nước luộc gà: 1 vá (khoảng 150ml)', 150],
+  ['2 quả trứng gà', 100], ['3 lòng đỏ trứng gà (lòng trắng để riêng dùng sau)', 51], ['Tiêu xay: 1 ít', 2], ['Tiêu xay', 2],
+  ['nước dừa tươi: 2,5 lit', 2500], ['đậu bắp: 8 trái', 120], ['Ớt, rau ăn kèm( cải thảo, tần ô&#8230;.), mì gói(mì trứng)', 2],
+  ['500g thịt bò', 500], ['đường phèn: 2,5 muỗng canh', 37.5], ['Tiêu xay: 1/2 muỗng cà phê', 2.5],
+]) assert.equal(parseIngredientLine(line).amount_g, grams, line);
+console.log('ingredient_parser: all checks passed');

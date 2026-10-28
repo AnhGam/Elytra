@@ -1,0 +1,570 @@
+[
+  {
+    "ingredient_id": "57d9eb86-d858-4552-a01d-1dc64b6c4619",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "9cbc4faa-317f-4b4a-999c-080d1721bb40",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "5b441af9-af33-48c9-b6b2-127992c9884a",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "a282ef9d-c7ae-453b-ac3e-5df39585c6ee",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "fb561182-ee33-455e-874b-184e90ace73a",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "1a151e6c-b651-4b88-9adb-533697bea1ff",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "7e437e54-999d-414c-8ee6-a2aea1ef6c4c",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "1a632c76-d1a3-49da-9c42-204ea2f53c0f",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "ffb61fc0-40f2-4996-a891-4b7292e2b0e3",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "f76eedd0-e3a4-47bc-8b95-0d6fb0b31033",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a6f33f1d-e75e-4b41-8a0d-a1105c6a3150",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "7f209b67-0158-4dd5-b738-03b4ddc471bb",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "693ed1b3-2a4d-4bb7-b7e1-4183b87284f0",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "60e671ef-2d22-48db-baed-7184da56ee4b",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "fb880930-832a-4b7d-b5b3-e5f480ec933b",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "a39649a0-f45b-4627-9fa6-19fea591b63f",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "8d2c82c4-7d84-4c5f-8c76-c4bf7e8466fb",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "204ea1bb-b7c9-4279-aa4d-bbe5121c93f2",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "f9eea876-fbd1-4ffd-80f5-83347834cd72",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "d2e7ee3b-720d-4894-b149-62f91bdd5e62",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "07f268e7-cee7-4ac1-9836-ae5d66187341",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "37de735b-01e9-456e-91f1-999660fa3d69",
+    "allergen_id": 8
+  },
+  {
+    "ingredient_id": "7d3c4827-dc9c-40c4-ad3a-2bdccf27c568",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "79e48021-daa2-43d9-b07c-161cb80afa0a",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "ad060137-8bb1-48e6-b24a-a917a91cc6a1",
+    "allergen_id": 5
+  },
+  {
+    "ingredient_id": "63d82b32-f852-4cef-aca3-13f69f3fcc1d",
+    "allergen_id": 5
+  },
+  {
+    "ingredient_id": "995df4ac-ef43-406f-9302-1613186ad6ab",
+    "allergen_id": 5
+  },
+  {
+    "ingredient_id": "f4257dac-21db-4603-a778-12fd0f99a7b0",
+    "allergen_id": 5
+  },
+  {
+    "ingredient_id": "9f6200a7-1d95-4599-a8ce-bfaeb7cad0de",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "28abf314-f738-4293-8186-fee56e92d3d3",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "6f64f9c4-8f72-49e2-9865-acac2f4cf00b",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "153866ec-078b-4bad-ac86-338e3c96d8c0",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "d9ce50a4-4865-4c7e-9a1c-20a8146f3c33",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "e48359bf-2097-42f0-ae31-6b230e855c4d",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "98198989-d90b-4c46-84ac-5f53fce56f01",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "331ab499-3f87-4ddc-8fbd-416b9a0b7bc5",
+    "allergen_id": 5
+  },
+  {
+    "ingredient_id": "4d231249-f235-452c-a4b0-3a4cd3cb0eac",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "4d231249-f235-452c-a4b0-3a4cd3cb0eac",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "51385b99-3915-487a-9fd6-6d7271ac6602",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "525f3f59-3ec7-4c97-a269-73846950cd39",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "9d03c402-978f-4aed-8cce-cc3a507eb815",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "deaeb2f5-c97b-456f-9b83-c0fc735218ba",
+    "allergen_id": 8
+  },
+  {
+    "ingredient_id": "deaeb2f5-c97b-456f-9b83-c0fc735218ba",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "c70d3694-3704-4d94-beb2-5c28d317f9fb",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "677c466e-eb7f-40cd-9046-2be04e8458d4",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "fc9bca2a-e52a-4b71-90d0-58e284ade734",
+    "allergen_id": 8
+  },
+  {
+    "ingredient_id": "8686ff4c-79de-4f30-9164-810747de4e30",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "27e0bd02-8555-4acd-a8a4-e850b8b2d506",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "0dfdb7a3-701a-4e98-9141-6ed045d4c2f1",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "51bc6462-b500-44d8-ae57-73fec62cb009",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "3cec4773-f5f5-4974-89aa-e324e1187883",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c721494d-257a-4509-8f85-92e0b9c96238",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "3e80a210-d508-42eb-aa67-703ab9cf78d0",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c98412c0-29a7-421b-a8d0-3dd923dab257",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "8a994f44-a23f-4c3a-b2be-6a86d80f1093",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "966b6e97-4da5-4956-867e-f957a5a8ba39",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "6e0ae1fe-7b00-4f9f-864b-4b52496514ad",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "49d83b9c-5ede-475f-988b-77d0ee2ae794",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "f1a36b9e-2f62-4b7c-925d-51ac03e3bd6e",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "d2e02b4c-9913-4284-afe6-c0e2fdf5d0f9",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "8751d304-cd6f-454a-9e9a-e45777183913",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "9bc70f69-b195-4687-acdb-a1c71beff724",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a7a00082-7fb9-4db8-884f-1ffa9479c764",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "b60594f9-ee2a-493f-a809-04ba5fd5443c",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "18e56621-8e8a-4e67-b24d-67a97de4fe52",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "e4f5f6ab-2f28-467b-b2ec-16f889e30e67",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "efa48ec3-aaa9-45c2-a508-1a1b9d09fc10",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "d682282c-16f8-472d-a796-cb783497998e",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "d089cdf0-a074-486f-9cd5-d25b314eeb45",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "bd3f6961-12b7-4eea-a6a8-1182b179cb27",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "35c6edc2-2962-4b0e-8bc8-879964ce4d24",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "5effbbb6-59e2-4d50-82bd-8d5bb97bd533",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "2e428cca-3e72-437e-801c-db7a4cbd53b3",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "9d9b2818-078c-44fb-aa73-00a5ee601a54",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c5d9ff6a-165e-4832-8ff6-e469c436e7f9",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "e7757c3e-c653-4979-a504-0c5652a807b0",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "5ce8efc8-2e01-42fe-923c-c5c91f42d353",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "21d95091-1451-4b50-9d96-d3d59f29a223",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "b3e91883-2604-4be7-ab68-2b7253f35757",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "ceb6585e-95a7-433c-b621-051b80aa11d4",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "803d89e0-2695-4a82-b1b8-fb9a80b19976",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "d833a27a-dd64-4f56-a724-e8167238e3f7",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "dbc88150-9781-4c86-9b04-a36f1f9ca3a8",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a4615c7a-5fe9-458a-aec3-be85913dbae2",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "e70a4903-8ac7-4a10-8a31-e4714d3f5f76",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c28dca56-e587-429d-bd43-bbe60c12da5f",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "276b5e36-7a0b-47cf-a753-d53711121b41",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "29a58981-d040-484d-b66e-d6a915be617d",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "132077ce-8443-49ac-8199-01992e808f1f",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "02975e3c-00a3-42e8-8fb5-6b9d1d671379",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "0c42c761-b80a-4b38-b4c5-43c1e207b6d9",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "4e797932-118f-45f4-91f2-b3903fca9990",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "0d1a6e91-55f5-4088-b1b8-1068ba5f13ef",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "1ac2142d-4fa0-4e2e-ab86-8f4bd3f40377",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "f9207256-9740-423e-a26d-412069b0d50b",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "185e35e7-8ec5-4290-8f7b-d1442378d3b7",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "df22d25a-beba-45a7-a010-e47f942d3a01",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "10220441-f517-41c1-bc6c-b2d6ab42f9cc",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "972278f7-3876-46ba-88a4-bfd6a7d936ae",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a8ed6e12-6654-4678-981f-509ea65cf744",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "13139e20-bb33-414e-ae89-85d241e08039",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "f7638c1b-e775-42ca-96a4-8db721bba2dd",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "cb950683-c082-4d02-9488-10446af04ae9",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "79f16305-58e4-4fbf-986c-abf651ca1169",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "361c8795-8f17-472c-8370-1774bce233ba",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "f83ca0a5-8fa3-43c1-b1fc-0ca11430526b",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "336ae6ec-56b0-43f2-bf6f-851916419ff2",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "4618c9de-6604-4a3c-9734-40b7f5339be5",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "86b15d82-1c09-4925-941d-d845f8953cc0",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "931795b1-3ff3-467e-9aca-086fe2f03cdb",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "b6156dd8-2d1c-4399-a7c7-115f7d612f39",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "777aa1d7-056e-46f6-b21f-e56331998e65",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "c120ec3e-8448-4172-b375-9d18d727b49d",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a624f6a2-c215-4b01-adcf-10e77f1794f9",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "039b9474-4f7c-42d4-991c-eb2b5660206f",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "53d9d79a-b7fb-49e0-aefc-2b786f0e7b94",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "d7b122b3-06f9-49d3-a629-1101f83ad5e6",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "ca1741a8-f2df-4ab7-9cc7-45abbae84e45",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "84b67c3c-22bc-4db0-aae1-e5676f05ee27",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "2bd198a1-4ae3-492e-ac99-15534057420b",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "5e44b8ff-1b92-41fe-b6b4-6141b370d053",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "baf59da4-7b89-41b0-86d6-aafbff50bae9",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "97fcf4ff-c100-402a-a167-2e27fdca6502",
+    "allergen_id": 3
+  },
+  {
+    "ingredient_id": "2f66865c-8e90-4140-9ca7-e52a83eb368b",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "aa70e7df-4ccc-42a0-a501-fbe0abdb5e35",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c21fb0f5-5753-465d-9a96-f7f5261b585f",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "caee50e2-aa56-48b7-a88d-b1a343ccb0da",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "ada699a1-d964-4625-a316-2de949509fc2",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "317dab5b-9a19-44d6-b27c-157b5edf40c4",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "ba13b3f2-ed61-474f-98c5-d454c8c74a34",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "f4640bc8-ba64-421c-9999-bdcc3085f958",
+    "allergen_id": 6
+  },
+  {
+    "ingredient_id": "ddac81df-96db-47a3-a781-9db2c5d8ee89",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "e0c0dffb-b1c9-43fc-aeb3-94c8a5aa3690",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "f8a8ec4f-7b70-407a-bbba-ebe44ccfc3d2",
+    "allergen_id": 8
+  },
+  {
+    "ingredient_id": "8f415e92-6473-4be5-a3f2-4af7dc27b516",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "4515169e-cff4-4970-8acf-27357487bc4d",
+    "allergen_id": 7
+  },
+  {
+    "ingredient_id": "91f7295a-12f7-422f-825a-a0fea1df0a54",
+    "allergen_id": 2
+  },
+  {
+    "ingredient_id": "d95439c7-dac6-4410-9103-0b69930feb46",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "c56c0da1-0941-45ce-a73d-b5cbea6f31ba",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "a4a467d9-c9a5-4bf5-93e9-c7809a89edbe",
+    "allergen_id": 1
+  },
+  {
+    "ingredient_id": "d8d7d811-94e4-47e1-9aa3-894166375072",
+    "allergen_id": 4
+  },
+  {
+    "ingredient_id": "322baf7c-4cb5-41e8-8158-90e5a73a3231",
+    "allergen_id": 8
+  }
+]

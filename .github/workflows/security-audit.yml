@@ -1,0 +1,68 @@
+name: Security Audit & Compliance
+
+on:
+  push:
+    branches: [ main, feat/*, fix/*, sprint-* ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  secret-scan:
+    name: Secret & Credential Leak Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: false
+
+      - name: Verify Sensitive Files Not Committed
+        run: |
+          echo "Verifying environment and sensitive files are not tracked..."
+          # Mọi file .env* (kể cả .env.production) đều bị chặn, trừ file mẫu .env.example/.sample/.template
+          bad=$(git ls-files | grep -E '(^|/)\.env(\.[^/]+)?$|(^|/)app/env\.json$|service_role' | grep -vE '\.env\.(example|sample|template)$' || true)
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::Detected sensitive environment file tracked in git repository!"
+            exit 1
+          fi
+          echo "No sensitive environment files found in tracking."
+
+  supabase-security-audit:
+    name: Supabase RLS & Schema Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Supabase Security Audit Script
+        run: |
+          node supabase/scripts/run_security_audit.js
+
+  app-security-lint:
+    name: Flutter & Mobile Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Static Analysis
+        working-directory: app
+        run: flutter analyze

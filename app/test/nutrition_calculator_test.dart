@@ -213,4 +213,34 @@ void main() {
     );
     expect(r.waterMl, 1400);
   });
+
+  // Review PR #4: TDEE < 800 khi duy trì; trước đây không có sàn nên lưu hồ sơ vi phạm CHECK
+  group('Nữ 80t, 140 cm, 35 kg, ít vận động (TDEE 796,8)', () {
+    BodyInfo tiny(Goal goal) =>
+        person(Gender.female, 80, 140, 35, ActivityLevel.sedentary, goal);
+
+    test('Duy trì chạm sàn 1.200', () {
+      final r = NutritionCalculator.compute(tiny(Goal.maintain));
+      expectResult(
+        r,
+        bmi: 17.9,
+        bmr: 664.0,
+        tdee: 796.8,
+        target: 1200,
+        protein: 56.0,
+        fat: 33.3,
+        carbs: 169.0,
+        pct: [18.7, 25.0, 56.3],
+        meals: [300, 420, 360, 120],
+        floor: true,
+      );
+      expect(r.calorieDifference, 403.2);
+    });
+
+    test('Tăng cân vẫn dưới sàn (1.196,8) -> 1.200', () {
+      final r = NutritionCalculator.compute(tiny(Goal.gainWeight));
+      expect(r.targetKcal, 1200);
+      expect(r.floorApplied, true);
+    });
+  });
 }

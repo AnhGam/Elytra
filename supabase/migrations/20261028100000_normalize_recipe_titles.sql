@@ -1,0 +1,54 @@
+-- Tên món: tiêu đề bài viết gốc trộn tên món với lời quảng cáo ("... thơm ngon ăn là ghiền").
+-- title = tên món đã duyệt tay (data/recipe_names.json), tiêu đề gốc giữ ở source_title. slug giữ nguyên (khóa của migrations khác).
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS source_title VARCHAR(255);
+UPDATE public.recipes SET source_title = title WHERE source_title IS NULL;
+
+UPDATE public.recipes r SET title = v.name, updated_at = now()
+  FROM (VALUES
+    ('-cong-thuc-sot-tron-hu-tieu-ga-dam-da-tron-la-ghien-lam-la-me', 'Hủ tiếu gà trộn'),
+    ('ca-bien-kho-ca-chua-mon-kho-dua-com-ca-nha-ai-cung-me', 'Cá biển kho cà chua'),
+    ('ca-nuc-kho-nuoc-mia-dam-da-ngot-thanh-an-com-hay-banh-mi-deu-cuon', 'Cá nục kho nước mía'),
+    ('cach-kho-ca-chot-kho-tieu-dam-da-thom-ngon-nhu-ngoai-hang', 'Cá chốt kho tiêu'),
+    ('cach-lam-bo-luc-lac-khoai-tay-nhanh-gon-sieu-ngon', 'Bò lúc lắc khoai tây'),
+    ('cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon', 'Cá bống chay chiên sả'),
+    ('cach-lam-ca-chim-kho-thom-dam-da-ca-mem-khong-tanh-hao-com-cuc', 'Cá chim kho thơm'),
+    ('cach-lam-canh-ga-om-bia-thom-ngon-hap-dan', 'Cánh gà om bia'),
+    ('cach-lam-com-chien-duong-chau-dam-da-ngon-so-dach', 'Cơm chiên Dương Châu'),
+    ('cach-lam-com-chien-trung-toi-thom-mem-ngon-mieng', 'Cơm chiên trứng tỏi'),
+    ('cach-lam-ga-nau-nam-dong-co-thap-cam-mau-dep-thom-nuc-ngon-vo-doi', 'Gà nấu nấm đông cô thập cẩm'),
+    ('cach-lam-mi-xao-bo-dam-da-soi-mi-dai-thit-bo-gion-beo', 'Mì xào bò'),
+    ('cach-lam-mi-xao-hai-san-sieu-ngon-kho-cuong', 'Mì xào hải sản'),
+    ('cach-lam-muoi-tom-kho-campuchia-tai-nha-an-la-ghien-cham-gi-cung-cuon', 'Muối tôm khô Campuchia'),
+    ('cach-lam-oc-nuong-tieu-xanh-sieu-thom-ngon-kho-quen', 'Ốc nướng tiêu xanh'),
+    ('cach-lam-suon-chay-rim-man-ngot-ngon-la-mieng', 'Sườn chay rim mặn ngọt'),
+    ('cach-lam-suon-chien-sa-ot-ngon-het-y', 'Sườn chiên sả ớt'),
+    ('cach-lam-suon-non-chay-rim-nuoc-mia-xa-xiu-man-ngot-an-la-ghien', 'Sườn non chay rim nước mía xá xíu'),
+    ('cach-lam-suon-non-kho-tieu-mem-ngon-man-ngot-hao-com', 'Sườn non kho tiêu'),
+    ('cach-lam-suon-non-rim-sa-ot-man-ngot-mem-mong-ngon-lanh', 'Sườn non rim sả ớt'),
+    ('cach-lam-suon-xao-chua-ngot-cuc-ngon-an-la-ghien', 'Sườn xào chua ngọt'),
+    ('cach-lam-thit-ba-chi-kho-tieu-nuoc-set-ngon-vo-doi', 'Thịt ba chỉ kho tiêu'),
+    ('cach-lam-toi-ngam-giam-chua-ngot-trang-gion', 'Tỏi ngâm giấm chua ngọt'),
+    ('cach-lam-tom-kho-xe-deo-thom-va-cong-thuc-mam-me-me-ly-an-tom-nuong', 'Tôm khô xẻ và mắm me'),
+    ('cach-lam-tom-rang-nuoc-cot-dua-ngon-ba-chay', 'Tôm rang nước cốt dừa'),
+    ('cach-lam-tom-rim-man-ngot-va-salad-tron-dau-giam-ngon-kho-cuong', 'Tôm rim mặn ngọt và salad trộn dầu giấm'),
+    ('cach-lam-trung-kho-quet-beo-ngon-an-la-ghien', 'Trứng kho quẹt'),
+    ('cach-moi-lam-ga-hap-muoi-tron-goi-bap-chuoi-hap-dan-ngon-me-ly', 'Gà hấp muối trộn gỏi bắp chuối'),
+    ('cach-nau-bun-bo-hue-chay-dam-vi-ngon-lanh', 'Bún bò Huế chay'),
+    ('cach-nau-bun-rieu-cua-dong-hai-san-ngon-dam-da', 'Bún riêu cua đồng hải sản'),
+    ('cach-nau-bun-rieu-cua-dong-thom-ngon-dam-da', 'Bún riêu cua đồng'),
+    ('cach-nau-canh-chua-ca-dieu-hong-ngot-thanh-dam-da', 'Canh chua cá diêu hồng'),
+    ('cach-nau-che-dau-trang-deo-thom-ngot-ngao', 'Chè đậu trắng'),
+    ('cach-nau-duoi-heo-ham-hat-sen-tao-do-thom-ngon-bo-duong', 'Đuôi heo hầm hạt sen táo đỏ'),
+    ('cach-nau-lau-bo-mong-co-thom-ngon-don-gian-tai-nha', 'Lẩu bò Mông Cổ'),
+    ('cach-nau-lau-ga-la-giang-thom-ngon-bo-duong-tru-danh', 'Lẩu gà lá giang'),
+    ('cach-nau-lau-rieu-tom-sieu-ngon-bat-bai', 'Lẩu riêu tôm'),
+    ('cach-nau-lau-thai-sieu-ngon-tai-nha-chua-cay-dam-da-ai-an-cung-ghien', 'Lẩu Thái'),
+    ('cach-nau-mam-kho-chuan-vi-dam-chat-dong-que', 'Mắm kho'),
+    ('cach-nau-sup-nui-ga-xe-dac-biet-thom-ngon-dinh-duong', 'Súp nui gà xé'),
+    ('cach-xao-mien-mem-toi-ngon-dam-bao-khong-dinh', 'Miến xào'),
+    ('com-chien-thap-cam-toi-ngon-nhu-ngoai-tiem-cong-thuc-don-gian-ai-lam-cung-duoc', 'Cơm chiên thập cẩm'),
+    ('dau-hu-nhoi-thit-sot-ca-chua', 'Đậu hũ nhồi thịt sốt cà chua'),
+    ('ga-kho-sa-dam-da-thom-lung-mon-com-nha-ai-cung-ghien', 'Gà kho sả'),
+    ('ga-rang-muoi-gion-rum-thom-lung-cong-thuc-don-gian-ai-cung-lam-duoc', 'Gà rang muối')
+  ) AS v(slug, name)
+ WHERE r.slug = v.slug;

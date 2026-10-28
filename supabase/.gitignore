@@ -6,3 +6,10 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Ảnh/video món đã nằm trên Supabase Storage (bucket recipe-images, recipe-videos); bản local không đưa vào git.
+data/recipe_images/
+data/recipe_videos/
+# Output trung gian của generate_batches.js / prepare_seed_sql_statements.js; seed thật nằm trong migrations/.
+data/seed_sql/
+data/batches/
