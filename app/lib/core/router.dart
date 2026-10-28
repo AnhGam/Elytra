@@ -14,6 +14,7 @@ import 'package:elytra/features/nutrition/result_screen.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 import 'package:elytra/features/onboarding/body_info_screen.dart';
 import 'package:elytra/features/onboarding/welcome_screen.dart';
+import 'package:elytra/features/recipes/recipe_search_screen.dart';
 import 'package:elytra/main.dart';
 
 /// Trạng thái đăng nhập mà router cần; tách ra để widget test dùng bản giả
@@ -107,7 +108,7 @@ GoRouter buildRouter({
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/recipes',
-              builder: (_, _) => const ComingSoonScreen(title: 'Món ăn'),
+              builder: (_, _) => const RecipeSearchScreen(),
               routes: [
                 // Chi tiết món nằm trên root navigator để che thanh điều hướng
                 GoRoute(
