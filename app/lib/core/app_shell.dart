@@ -9,6 +9,14 @@ class AppShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  // Tab thường: icon xám; tab đang chọn: icon xanh đậm
+  static NavigationDestination _tab(IconData icon, String label) =>
+      NavigationDestination(
+        icon: Icon(icon, color: AppColors.textMuted),
+        selectedIcon: Icon(icon, color: AppColors.primaryDark),
+        label: label,
+      );
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -18,20 +26,42 @@ class AppShell extends StatelessWidget {
       },
       child: Scaffold(
         body: navigationShell,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          indicatorColor: AppColors.primaryContainer,
-          onDestinationSelected: (i) => navigationShell.goBranch(
-            i,
-            // Bấm lại tab đang mở thì về màn gốc của tab
-            initialLocation: i == navigationShell.currentIndex,
+        bottomNavigationBar: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: AppColors.outline)),
           ),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Trang chủ'),
-            NavigationDestination(icon: Icon(Icons.menu_book_outlined), label: 'Nhật ký'),
-            NavigationDestination(icon: Icon(Icons.restaurant), label: 'Món ăn'),
-            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Cá nhân'),
-          ],
+          child: NavigationBar(
+            height: 80,
+            backgroundColor: AppColors.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            selectedIndex: navigationShell.currentIndex,
+            indicatorColor: AppColors.primaryContainer,
+            labelTextStyle: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.selected)
+                  ? const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    )
+                  : const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                    ),
+            ),
+            onDestinationSelected: (i) => navigationShell.goBranch(
+              i,
+              // Bấm lại tab đang mở thì về màn gốc của tab
+              initialLocation: i == navigationShell.currentIndex,
+            ),
+            destinations: [
+              _tab(Icons.home_outlined, 'Trang chủ'),
+              _tab(Icons.menu_book_outlined, 'Nhật ký'),
+              _tab(Icons.restaurant, 'Món ăn'),
+              _tab(Icons.person_outline, 'Cá nhân'),
+            ],
+          ),
         ),
       ),
     );

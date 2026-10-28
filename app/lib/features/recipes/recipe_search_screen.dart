@@ -171,18 +171,18 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(24, 16, 24, 16),
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 12),
               child: Text(
                 'Món ăn',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              padding: EdgeInsets.fromLTRB(24, 0, 24, showChips ? 4 : 12),
               child: Row(
                 children: [
                   Expanded(child: _buildSearchField()),
@@ -195,7 +195,8 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
               _chipRow(_quickChips()),
               _chipRow(_categoryChips()),
             ],
-            const SizedBox(height: 8),
+            // Đệm dưới 12 hiển thị = 4 + 8 phần thừa của vùng chạm 48
+            if (showChips) const SizedBox(height: 4),
           ],
         ),
       ),
@@ -222,7 +223,11 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
         filled: true,
         fillColor: AppColors.surfaceVariant,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 14, right: 10),
+          child: Icon(Icons.search, size: 20, color: AppColors.textMuted),
+        ),
+        prefixIconConstraints: const BoxConstraints(),
         suffixIcon: ValueListenableBuilder(
           valueListenable: _text,
           builder: (_, v, _) => v.text.isEmpty
@@ -261,7 +266,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
               child: Center(
                 child: SvgPicture.asset(
                   'assets/icons/ic_tune.svg',
-                  width: 18,
+                  width: 20,
                   semanticsLabel: 'Bộ lọc',
                 ),
               ),

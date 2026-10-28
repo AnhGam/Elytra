@@ -75,7 +75,7 @@ class RecipeCard extends StatelessWidget {
                         stops: const [0.4, 1],
                         colors: [
                           AppColors.textPrimary.withValues(alpha: 0),
-                          AppColors.textPrimary.withValues(alpha: 0.65),
+                          AppColors.textPrimary.withValues(alpha: 0.6),
                         ],
                       ),
                     ),
@@ -86,7 +86,7 @@ class RecipeCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 3,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.surface.withValues(alpha: 0.92),
@@ -96,6 +96,7 @@ class RecipeCard extends StatelessWidget {
                         categoryLabel(r.category),
                         style: const TextStyle(
                           fontSize: 12,
+                          fontWeight: FontWeight.w500,
                           color: AppColors.textPrimary,
                         ),
                       ),
@@ -110,8 +111,8 @@ class RecipeCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.surface,
                       ),
                     ),
@@ -135,7 +136,7 @@ class RecipeCard extends StatelessWidget {
                       Text(
                         _kcal.format(r.kcal),
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
@@ -180,7 +181,7 @@ class RecipeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Wrap(
-                    spacing: 16,
+                    spacing: 14,
                     runSpacing: 4,
                     children: [
                       _Meta(
@@ -226,7 +227,11 @@ class _Macro extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -244,11 +249,11 @@ class _Meta extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: AppColors.textSubtle),
+        Icon(icon, size: 14, color: AppColors.textSubtle),
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
       ],
     );
