@@ -196,10 +196,17 @@ void main() {
       await t.tap(find.text('Phù hợp nhất'));
       await t.pumpAndSettle();
       expect(find.text('Sắp xếp theo'), findsOneWidget);
-      await t.tap(find.text('Calo: thấp → cao'));
+      // "→" vẽ bằng icon (font Be Vietnam Pro không có ký tự này)
+      expect(
+          find.descendant(
+              of: find.byType(BottomSheet), matching: find.byIcon(Icons.arrow_forward)),
+          findsNWidgets(2));
+      expect(find.textContaining('→'), findsNothing);
+      await t.tap(find.textContaining('Calo: thấp'));
       await t.pumpAndSettle();
       expect(find.text('Sắp xếp theo'), findsNothing);
-      expect(find.text('Calo: thấp → cao'), findsOneWidget);
+      expect(find.textContaining('Calo: thấp'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_forward), findsOneWidget); // trên nút sắp xếp
       final a = t.getTopLeft(find.text('A')).dy;
       final b = t.getTopLeft(find.text('B')).dy;
       expect(b, lessThan(a));
@@ -220,7 +227,7 @@ void main() {
         await t.tap(find.byIcon(Icons.swap_vert));
         await t.pumpAndSettle();
         expect(find.text('Sắp xếp theo'), findsOneWidget);
-        await t.tap(find.text(i == 0 ? 'Calo: thấp → cao' : 'Nấu nhanh nhất'));
+        await t.tap(find.textContaining(i == 0 ? 'Calo: thấp' : 'Nấu nhanh nhất'));
         await t.pumpAndSettle();
         expect(find.text('Sắp xếp theo'), findsNothing);
         expect(path(), '/recipes');

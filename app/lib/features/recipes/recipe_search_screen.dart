@@ -427,7 +427,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(
-                      child: Text(
+                      child: SortLabel(
                         _c.sort.labelVi,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

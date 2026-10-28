@@ -53,7 +53,7 @@ class _SortRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Text(
+                    child: SortLabel(
                       sort.labelVi,
                       style: TextStyle(
                         fontSize: 15,
@@ -72,6 +72,55 @@ class _SortRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Nhãn tiêu chí sắp xếp; "→" vẽ bằng icon vì font Be Vietnam Pro không có ký tự này
+class SortLabel extends StatelessWidget {
+  const SortLabel(
+    this.label, {
+    super.key,
+    this.style,
+    this.maxLines,
+    this.overflow,
+  });
+
+  final String label;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = label.split('→');
+    if (parts.length == 1) {
+      return Text(label, style: style, maxLines: maxLines, overflow: overflow);
+    }
+    final size =
+        style?.fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14;
+    return Text.rich(
+      TextSpan(
+        children: [
+          for (var i = 0; i < parts.length; i++) ...[
+            if (i > 0)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                // Màu null → lấy theo IconTheme (vd. màu chữ của nút)
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: size,
+                  color: style?.color,
+                ),
+              ),
+            TextSpan(text: parts[i]),
+          ],
+        ],
+      ),
+      style: style,
+      maxLines: maxLines,
+      overflow: overflow,
+      semanticsLabel: label.replaceAll('→', 'đến'),
     );
   }
 }
