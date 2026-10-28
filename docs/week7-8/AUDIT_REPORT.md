@@ -110,3 +110,29 @@ Kiểm chứng sau khi sửa: `test_migrations_replay.mjs` (dựng lại DB từ
 - Một số map là gần đúng về dinh dưỡng (vd `mắm cá linh` → Mắm tép chua, `bánh mì` → Bánh mì xíu mại) nhưng đúng nhóm dị ứng.
 - Đồ chay giả mặn (`sườn non chay`, `chả quế chay`) thường làm từ đậu nành/bột mì nhưng không rõ thành phần nên không gắn tag.
 - `consumed_pct` dùng tỉ lệ phần ăn được của FCT cho nguyên con: "Đùi gà góc tư" lấy theo gà nguyên con (48%) nên có thể tính hơi thiếu. Xương ninh nước dùng, dầu chiên ngập không ăn hết chưa trừ.
+
+---
+
+## Review PR #4 (28/10/2026)
+
+Mỗi mục được **tái hiện trên production trước khi sửa**, sau đó kiểm lại trên production sau khi deploy.
+
+| Mục | Tái hiện | Nguyên nhân | Đã sửa |
+| --- | --- | --- | --- |
+| B1 Lưu hồ sơ khi target < 800 (NightMareScorn) | Nữ 80t, 140 cm, 35 kg, duy trì → 796,8 kcal, lưu lỗi 400 | Sàn calo chỉ áp cho giảm cân | Sàn 1200 nữ / 1500 nam cho mọi mục tiêu, giống nhau ở SQL và Dart. SQL ≡ Dart trên 1920 ca, target nhỏ nhất 1200 |
+| B2 Edge lưu hồ sơ trả 500 | Có | Như B1 | Hết nhờ B1 |
+| B3 Edge trả target âm | 100 tuổi, 50 cm, 20 kg → −178 kcal | Giới hạn input rộng hơn app | Giới hạn = app (18–80 tuổi, 120–220 cm, 30–200 kg) |
+| 1 Idempotency 422 nhầm | Cả 2 ca (sau PATCH; gửi lại qua 0h) | So với trạng thái hiện tại của món và ngày suy ra lúc gửi lại | So dấu vân tay (`request_hash`) của request gốc; gửi lại trả món hiện tại, không tạo bữa rỗng |
+| 2 Macro ngày cũ theo hồ sơ mới | kcal 2000 (cũ) nhưng protein 180 (mới) | Chỉ snapshot kcal | Snapshot cả 3 macro trong `meal_logs` |
+| 3 DELETE không có cửa sổ 30 ngày, để lại bữa rỗng | Có cả hai | Xóa thẳng qua RLS | RPC `delete_meal_log_item`: chặn > 30 ngày, dọn bữa rỗng; bỏ policy DELETE |
+| 4 `%` `_` là wildcard | Tìm `%` ra cả 45 món | Ghép thẳng vào `ILIKE` | Escape; `%` trong nguyên liệu giờ chỉ khớp 8 tên có `%` thật ("Cognac (32% alcohol)") |
+| Tìm không dấu | "bo luc lac", "dau hu" → 0 món | So khớp trên tên có dấu | `vn_unaccent` (không cần extension); khớp nguyên từ xếp trước ("Bánh phở" trước "Bánh phồng"). "pho" → 0 món vì **không có món phở** trong 45 món |
+| 5 Dọn repo | — | — | Xóa 22 script debug; ảnh/video (13,5 MB) và SQL trung gian bỏ khỏi git, giữ local + `.gitignore`. Nên **Squash and merge** để lịch sử `main` không chứa các file này |
+| CI mẫu `.env` | — | `\.env` khớp cả `.env.example` | Chặn mọi `.env*` (kể cả `.env.production`, mẫu đề xuất trong review bỏ lọt), chừa `.env.example/.sample/.template` |
+| Bonus | — | `create_custom_ingredient` gọi `f_unaccent` không tồn tại | Thêm `f_unaccent` |
+
+### Tên món
+Tiêu đề bài viết gốc trộn tên món với lời quảng cáo ở trước/giữa/sau ("Cách mới làm ... hấp dẫn ngon mê ly"). Không dùng được danh sách từ cố định vì có cụm trông như lời khen nhưng là tên món: "kho **thơm**" (= dứa), "xào **chua ngọt**", "rim **mặn ngọt**".
+- 45 tên chuẩn duyệt tay trong `supabase/data/recipe_names.json`; `recipes.title` = tên chuẩn, tiêu đề gốc giữ ở `recipes.source_title`.
+- `normalizeDishName` (cho lần crawl sau): bỏ tiền tố (cách làm, công thức, bí quyết...), cắt sau dấu phân cách, bỏ lời khen, giữ vị khi có động từ nấu trong 2 từ đứng trước, giữ hoa địa danh. Đúng 42/45 tên hiện có; 3 ngoại lệ cần hiểu nghĩa ghi trong `test_dish_name.js`.
+- Giới hạn: thứ tự từ kiểu thành ngữ ("Cách kho cá lóc tộ" → "Cá lóc tộ kho" thay vì "Cá lóc kho tộ") cần duyệt tay.

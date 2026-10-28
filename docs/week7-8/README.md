@@ -14,6 +14,7 @@
 | Kiểm thử E2E trên Supabase thật: mọi endpoint, format lỗi, RLS giữa 2 user, chặn insert/update thẳng. Tự tạo và xóa 2 user tạm | `supabase/scripts/test_meal_logs_e2e.mjs` |
 | Kiểm thử dựng lại DB từ toàn bộ migrations + kiểm từng lỗi trong AUDIT_REPORT | `supabase/scripts/test_migrations_replay.mjs` |
 | Kiểm thử từ điển map nguyên liệu và từ khóa dị ứng | `supabase/scripts/test_ingredient_parser.js` |
+| Kiểm thử bóc tên món khỏi tiêu đề bài viết | `supabase/scripts/test_dish_name.js` |
 | Kiểm thử SQL: vá quyền, tính kcal, chống ghi trùng, validation, tách dữ liệu 2 user, sửa khẩu phần, lịch sử + mục tiêu theo ngày | `supabase/scripts/test_meal_logs_sql.mjs` |
 
 ## Quyết định thiết kế
