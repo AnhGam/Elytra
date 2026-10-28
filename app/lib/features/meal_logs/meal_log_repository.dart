@@ -50,9 +50,11 @@ MealLogException mapMealLogError(Object e) {
   }
   if (e is FunctionException) {
     final err = _errorBody(e.details);
-    final code = err?['code'] as String?;
+    // Kiểm tra kiểu thay vì ép kiểu: body lỗi lạ không được làm văng TypeError
+    final code = err?['code'] is String ? err!['code'] as String : null;
+    final message = err?['message'] is String ? err!['message'] as String : null;
     if (code == 'PROFILE_NOT_FOUND') return const MealLogProfileMissing();
-    return MealLogFailed(code, err?['message'] as String?);
+    return MealLogFailed(code, message);
   }
   return const MealLogFailed();
 }

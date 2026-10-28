@@ -86,6 +86,19 @@ void main() {
     expect(d.steps, isEmpty);
   });
 
+  test('RecipeDetail.fromRow: allergen_id null/hỏng bị bỏ, không thành chất 0', () {
+    final d = RecipeDetail.fromRow({
+      ...searchRowMinimal,
+      'recipe_allergens': [
+        {'allergen_id': null, 'via_condiment': true},
+        {'allergen_id': 'x'},
+        {'allergen_id': 3, 'via_condiment': true},
+      ],
+    });
+    expect(d.recipe.allergenIds, {3});
+    expect(d.recipe.condimentAllergenIds, {3});
+  });
+
   test('Allergen và UserNutritionProfile fromRow', () {
     final a = Allergen.fromRow({'id': 1, 'name_vi': 'Hải sản', 'description': null});
     expect(a.nameVi, 'Hải sản');

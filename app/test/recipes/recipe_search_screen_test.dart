@@ -125,16 +125,33 @@ void main() {
     expect(find.text('2 món'), findsOneWidget);
   });
 
-  testWidgets('không có kết quả → Xóa bộ lọc đưa về đủ món', (t) async {
+  testWidgets('không có kết quả do từ khóa → không có nút Xóa bộ lọc', (t) async {
     await pumpSearch(t);
     await typeQuery(t, 'zzz');
     expect(find.text('Không tìm thấy món phù hợp'), findsOneWidget);
+    expect(find.text('Xóa bộ lọc'), findsNothing);
+  });
+
+  testWidgets('không có kết quả do bộ lọc → Xóa bộ lọc giữ từ khóa', (t) async {
+    repo.recipes = [
+      recipe(id: 'a', title: 'Cá basa kho tộ'),
+      recipe(id: 'b', title: 'Phở bò tái', kcal: 900),
+    ];
+    await pumpSearch(t);
+    await typeQuery(t, 'pho');
+    final chip = find.text('≤ 500 kcal', skipOffstage: false);
+    await t.ensureVisible(chip);
+    await t.pumpAndSettle();
+    await t.tap(chip);
+    await t.pump();
+    expect(find.text('Không tìm thấy món phù hợp'), findsOneWidget);
     await t.tap(find.text('Xóa bộ lọc'));
     await t.pump();
-    expect(find.text('2 món'), findsOneWidget);
+    expect(find.text('1 món'), findsOneWidget);
+    expect(find.text('Phở bò tái'), findsOneWidget);
     expect(
         t.widget<TextField>(find.byKey(const Key('recipeSearchField'))).controller!.text,
-        '');
+        'pho');
   });
 
   testWidgets('focus khi chưa nhập → Tìm gần đây và Món phổ biến', (t) async {

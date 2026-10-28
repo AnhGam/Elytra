@@ -4,23 +4,23 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('removeDiacritics bỏ dấu, đ→d, cả dạng NFD', () {
     expect(removeDiacritics('Phở Bò ĐẬU hũ'), 'pho bo dau hu');
-    expect(removeDiacritics('Phở'), 'pho');
+    expect(removeDiacritics('Pho\u031B\u0309'), 'pho');
   });
   test('wordsOf thường hóa, giữ dấu, tách theo ký tự không phải chữ/số', () {
     expect(wordsOf('  Cá basa, KHO-tộ! '), ['cá', 'basa', 'kho', 'tộ']);
     expect(wordsOf(' , . '), isEmpty);
     expect(wordsOf('Phở Bò'), ['phở', 'bò']);
-    expect(wordsOf('Phở Bò'), ['phở', 'bò']);
+    expect(wordsOf('Pho\u031B\u0309 Bo\u0300'), ['phở', 'bò']);
   });
   test('composeVietnamese: NFD và nửa tổ hợp → NFC', () {
-    expect(composeVietnamese('Phở'), 'Phở');
-    expect(composeVietnamese('ở'), 'ở');
-    expect(composeVietnamese('Tiếng Việt'),
+    expect(composeVietnamese('Pho\u031B\u0309'), 'Phở');
+    expect(composeVietnamese('ơ\u0309'), 'ở');
+    expect(composeVietnamese('Tie\u0302\u0301ng Vie\u0302\u0323t'),
         'Tiếng Việt');
-    expect(composeVietnamese('Tié̂ng'), 'Tiếng');
-    expect(composeVietnamese('Ằ'), 'Ằ');
+    expect(composeVietnamese('Tie\u0301\u0302ng'), 'Tiếng');
+    expect(composeVietnamese('A\u0306\u0300'), 'Ằ');
     expect(composeVietnamese('Phở bò'), 'Phở bò');
-    expect(composeVietnamese('x́'), 'x́');
+    expect(composeVietnamese('x\u0301'), 'x\u0301');
   });
   test('slugify', () {
     expect(slugify('  Phở  BÒ '), 'pho-bo');

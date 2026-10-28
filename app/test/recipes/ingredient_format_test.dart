@@ -63,4 +63,8 @@ void main() {
     final l = formatIngredient(ing('Tỏi: 3 tép', 'Tỏi', 3, 'tép', 15), 1.25);
     expect([l.amountText, l.gramText], ['3,8 tép', '19 g']);
   });
+  test('đơn vị rỗng không để khoảng trắng thừa; tên được cắt khoảng trắng', () {
+    final l = formatIngredient(ing('Trứng: 2', '  trứng gà ', 2, '  ', 100), 1);
+    expect([l.name, l.amountText], ['Trứng gà', '2']);
+  });
 }

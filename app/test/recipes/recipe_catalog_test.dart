@@ -2,12 +2,41 @@ import 'dart:async';
 
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fake_recipe_repository.dart';
 import '../helpers/recipe_fixtures.dart';
 
 void main() {
+  test('lưu dị ứng trong lúc refresh đang chạy → refresh không ghi đè', () async {
+    final repo = FakeRecipeRepository()..recipes = [recipe()];
+    final c = RecipeCatalog(repo: repo);
+    await c.ensureLoaded();
+    repo.userAllergenGate = Completer<void>();
+    final refreshing = c.refresh(); // đọc dị ứng lúc server còn {}
+    await Future<void>.delayed(Duration.zero);
+    await c.saveAllergens({2});
+    expect(c.userAllergenIds, {2});
+    repo.userAllergenGate!.complete();
+    await refreshing;
+    expect(c.userAllergenIds, {2});
+  });
+  test('đổi user trong lúc đang lưu dị ứng → không ghi vào cache của user mới', () async {
+    final users = StreamController<String?>();
+    final repo = FakeRecipeRepository()..recipes = [recipe()];
+    final c = RecipeCatalog(repo: repo, userIdChanges: users.stream);
+    users.add('u1');
+    await c.ensureLoaded();
+    repo.saveGate = Completer<void>();
+    final saving = c.saveAllergens({2});
+    users.add('u2'); // đổi tài khoản → clear()
+    await Future<void>.delayed(Duration.zero);
+    repo.saveGate!.complete();
+    await saving;
+    expect(c.userAllergenIds, isEmpty);
+    await users.close();
+  });
   test('ensureLoaded tải một lần dù gọi song song', () async {
     final repo = FakeRecipeRepository()..recipes = [recipe()];
     final c = RecipeCatalog(repo: repo);
@@ -83,5 +112,22 @@ void main() {
     final e = c.ensureLoaded();
     await e;
     await expectLater(r, throwsException);
+  });
+  testWidgets('RecipeScope.maybeOf: có scope → catalog, không có → null', (t) async {
+    final c = RecipeCatalog(repo: FakeRecipeRepository());
+    RecipeCatalog? found, missing;
+    await t.pumpWidget(RecipeScope(
+      catalog: c,
+      child: Builder(builder: (context) {
+        found = RecipeScope.maybeOf(context);
+        return const SizedBox();
+      }),
+    ));
+    await t.pumpWidget(Builder(builder: (context) {
+      missing = RecipeScope.maybeOf(context);
+      return const SizedBox();
+    }));
+    expect(found, same(c));
+    expect(missing, isNull);
   });
 }

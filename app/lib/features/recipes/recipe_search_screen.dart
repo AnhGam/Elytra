@@ -94,11 +94,8 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
     _focus.unfocus();
   }
 
-  void _clearFilters() {
-    _text.clear();
-    _setQueryNow('');
-    _c.applyFilters(const RecipeFilters());
-  }
+  // Chỉ xóa bộ lọc (kể cả nhóm món), giữ từ khóa người dùng đã gõ
+  void _clearFilters() => _c.applyFilters(const RecipeFilters());
 
   void _open(Recipe r) {
     _focus.unfocus();
@@ -497,22 +494,32 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
 
   Widget _buildEmpty() {
     final keepsAllergen = _c.excludeAllergens && _c.hasDeclaredAllergens;
+    final f = _c.filters;
+    final hasFilters = f.sheetBadgeCount > 0 || f.category != null;
     return _EmptyState(
       icon: Icons.search_off,
       title: 'Không tìm thấy món phù hợp',
-      message: 'Thử bỏ bớt bộ lọc\nhoặc đổi từ khóa.',
-      action: OutlinedButton.icon(
-        onPressed: _clearFilters,
-        icon: const Icon(Icons.close, size: 18),
-        label: const Text('Xóa bộ lọc'),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
-          foregroundColor: AppColors.primaryDark,
-          backgroundColor: AppColors.primaryContainer,
-          side: const BorderSide(color: AppColors.primaryOutline),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-      ),
+      message: hasFilters
+          ? 'Thử bỏ bớt bộ lọc\nhoặc đổi từ khóa.'
+          : 'Thử đổi từ khóa khác.',
+      // Không có bộ lọc nào để xóa thì ẩn nút
+      action: !hasFilters
+          ? null
+          : OutlinedButton.icon(
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text('Xóa bộ lọc'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                foregroundColor: AppColors.primaryDark,
+                backgroundColor: AppColors.primaryContainer,
+                side: const BorderSide(color: AppColors.primaryOutline),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
       footnote: keepsAllergen
           ? 'Lọc dị ứng luôn được giữ để đảm bảo an toàn'
           : null,
@@ -609,14 +616,14 @@ class _EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
-    required this.action,
+    this.action,
     this.footnote,
   });
 
   final IconData icon;
   final String title;
   final String message;
-  final Widget action;
+  final Widget? action;
   final String? footnote;
 
   @override
@@ -653,8 +660,7 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 15, color: AppColors.textMuted),
             ),
-            const SizedBox(height: 20),
-            action,
+            if (action != null) ...[const SizedBox(height: 20), action!],
             if (footnote != null) ...[
               const SizedBox(height: 16),
               Text(

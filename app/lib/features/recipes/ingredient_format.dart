@@ -77,9 +77,11 @@ String _noteOf(RecipeIngredient row) {
 
 /// Quyết định chữ hiển thị của một nguyên liệu theo số khẩu phần [factor].
 IngredientLine formatIngredient(RecipeIngredient row, double factor) {
-  final name = _capitalize(row.nameRaw);
+  final name = _capitalize(row.nameRaw.trim());
   final amount = row.amount;
-  final unit = row.unit == null ? null : _normalizeUnit(row.unit!);
+  // Đơn vị rỗng/chỉ khoảng trắng coi như không có đơn vị
+  final rawUnit = row.unit?.trim();
+  final unit = rawUnit == null || rawUnit.isEmpty ? null : _normalizeUnit(rawUnit);
 
   if (amount == null || (unit != null && _noteOnlyUnits.contains(unit))) {
     final note = _noteOf(row);

@@ -125,12 +125,12 @@ class AllergenUncheckedLine extends StatelessWidget {
         const Flexible(
           child: MutedText('Chưa kiểm tra được dị ứng của bạn · '),
         ),
-        // Vùng chạm cao 48 cho chữ liên kết nhỏ
+        // Vùng chạm tối thiểu 48×48 cho chữ liên kết nhỏ
         InkWell(
           onTap: onRetry,
-          child: const SizedBox(
-            height: 48,
-            child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: const Center(
               widthFactor: 1,
               child: Text(
                 'Thử lại',
@@ -711,7 +711,7 @@ class NutritionCard extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
-                'Natri cao – nên ăn kèm rau và giảm nước kho',
+                'Natri cao – nên ăn kèm rau và hạn chế nước chấm, gia vị mặn',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.onErrorContainer,

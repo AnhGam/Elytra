@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_repository.dart';
 
@@ -41,10 +43,21 @@ class FakeRecipeRepository implements RecipeRepository {
   @override
   Future<List<Allergen>> fetchAllergens() => _runCatalog(() => List.of(allergens));
 
-  @override
-  Future<Set<int>> fetchUserAllergenIds() => _runCatalog(() => Set.of(userAllergenIds));
+  // Khác null: chặn trả kết quả tới khi complete (dựng thứ tự thời gian trong test).
+  Completer<void>? userAllergenGate;
+  Completer<void>? saveGate;
 
   @override
-  Future<void> saveUserAllergenIds(Set<int> ids) =>
-      _run(() => userAllergenIds = Set.of(ids));
+  Future<Set<int>> fetchUserAllergenIds() async {
+    // Chụp giá trị lúc gọi, như server trả dữ liệu tại thời điểm đọc
+    final snapshot = await _runCatalog(() => Set.of(userAllergenIds));
+    if (userAllergenGate != null) await userAllergenGate!.future;
+    return snapshot;
+  }
+
+  @override
+  Future<void> saveUserAllergenIds(Set<int> ids) async {
+    if (saveGate != null) await saveGate!.future;
+    await _run(() => userAllergenIds = Set.of(ids));
+  }
 }

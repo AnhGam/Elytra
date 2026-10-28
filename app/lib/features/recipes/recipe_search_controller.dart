@@ -4,6 +4,7 @@ import '../../core/meal_time.dart' as mt;
 import 'recipe.dart';
 import 'recipe_catalog.dart';
 import 'recipe_query.dart';
+import 'recipe_text.dart';
 
 /// Nhãn tiếng Việt của nhóm món; thứ tự khóa = thứ tự hiển thị.
 const kCategoryLabels = {
@@ -55,7 +56,8 @@ class RecipeSearchController extends ChangeNotifier {
 
   void _addRecent(String raw) {
     final q = raw.trim();
-    if (q.isEmpty) return;
+    // Chỉ có khoảng trắng/dấu câu thì không phải từ khóa (giống RecipeQuery)
+    if (wordsOf(q).isEmpty) return;
     final low = q.toLowerCase();
     _recent.removeWhere((e) => e.toLowerCase() == low);
     _recent.insert(0, q);
@@ -149,8 +151,10 @@ class RecipeSearchController extends ChangeNotifier {
     return [...known, ...unknown];
   }
 
+  // Cũng bỏ món dị ứng như danh sách chính (spec §2)
   List<Recipe> get popular => RecipeQuery.apply(
         catalog.recipes,
+        excludeAllergenIds: _excluded(excludeAllergens),
         mealBudgetKcal: mealBudgetKcal,
       ).take(3).toList();
 }

@@ -27,6 +27,7 @@ class RecipeCatalog extends ChangeNotifier {
   Set<int> _userAllergenIds = const {};
   Future<void>? _inFlight;
   int _generation = 0; // tăng mỗi lần clear để bỏ kết quả tải cũ
+  int _allergenSaves = 0; // tăng mỗi lần lưu dị ứng xong, để lượt tải cũ không ghi đè
   bool _disposed = false;
 
   CatalogStatus get status => _status;
@@ -59,6 +60,7 @@ class RecipeCatalog extends ChangeNotifier {
 
   Future<void> _load() async {
     final gen = _generation;
+    final saves = _allergenSaves;
     final hadData = _status == CatalogStatus.ready;
     if (!hadData) {
       _status = CatalogStatus.loading;
@@ -75,7 +77,8 @@ class RecipeCatalog extends ChangeNotifier {
       _recipes = results[0] as List<Recipe>;
       _profile = results[1] as UserNutritionProfile?;
       _allergens = results[2] as List<Allergen>;
-      _userAllergenIds = results[3] as Set<int>;
+      // Người dùng vừa lưu dị ứng sau khi lượt tải này bắt đầu → giữ giá trị vừa lưu
+      if (saves == _allergenSaves) _userAllergenIds = results[3] as Set<int>;
       _status = CatalogStatus.ready;
       _notify();
     } catch (_) {
@@ -90,7 +93,11 @@ class RecipeCatalog extends ChangeNotifier {
 
   /// Ghi dị ứng lên server rồi cập nhật bộ nhớ đệm.
   Future<void> saveAllergens(Set<int> ids) async {
+    final gen = _generation;
     await repo.saveUserAllergenIds(ids);
+    // Đã đăng xuất/đổi tài khoản trong lúc lưu → không ghi vào cache của user mới
+    if (gen != _generation) return;
+    _allergenSaves++;
     _userAllergenIds = Set.of(ids);
     _notify();
   }
@@ -123,6 +130,10 @@ class RecipeCatalog extends ChangeNotifier {
 class RecipeScope extends InheritedNotifier<RecipeCatalog> {
   const RecipeScope({super.key, required RecipeCatalog catalog, required super.child})
       : super(notifier: catalog);
+
+  /// Như [of] nhưng trả null khi không có RecipeScope phía trên.
+  static RecipeCatalog? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<RecipeScope>()?.notifier;
 
   static RecipeCatalog of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<RecipeScope>();

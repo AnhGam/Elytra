@@ -27,4 +27,10 @@ void main() {
     expect(sodiumHighForMeal(701, MealType.lunch), isTrue);
     expect(sodiumHighForMeal(201, MealType.snack), isTrue); // ngưỡng 200
   });
+  test('số không hữu hạn (NaN/vô cực) → null, không ném lỗi', () {
+    expect(mealFit(double.nan, 689), isNull);
+    expect(mealFit(double.infinity, 689), isNull);
+    expect(pctOfTarget(double.nan, 2000), isNull);
+    expect(energySplit(recipe(protein: double.nan)), isNull);
+  });
 }

@@ -98,6 +98,16 @@ void main() {
       expect(focused(), isFalse);
     });
 
+    testWidgets('liên kết "sửa" có vùng chạm ≥ 48×48', (t) async {
+      repo.userAllergenIds = {2};
+      await pumpSearch(t);
+      await openFilter(t);
+      final link = find.ancestor(of: find.text('sửa'), matching: find.byType(InkWell)).first;
+      final size = t.getSize(link);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+    });
+
     testWidgets('min > max: báo lỗi, vô hiệu nút', (t) async {
       await pumpSearch(t);
       await openFilter(t);

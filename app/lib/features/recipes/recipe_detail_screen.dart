@@ -40,6 +40,8 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   RecipeDetailController? _controller;
+  // Giữ lại để ẩn SnackBar của màn này khi đóng màn (dispose không tra context được)
+  ScaffoldMessengerState? _messenger;
 
   RecipeDetailController get _c => _controller!;
 
@@ -61,10 +63,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       catalog: RecipeScope.of(context),
       mealLogs: widget.mealLogs ?? mealLogRepo,
     );
+    _messenger = ScaffoldMessenger.maybeOf(context);
   }
 
   @override
   void dispose() {
+    // SnackBar có action không tự tắt: không để nó bám sang màn khác rồi gọi vào màn đã đóng
+    _messenger?.hideCurrentSnackBar();
     _controller?.dispose();
     super.dispose();
   }
@@ -80,12 +85,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Future<void> _add() async {
+    if (!mounted) return;
     final result = await _c.addOneServing();
     if (!mounted) return;
     final meal = 'bữa ${_c.mealType.labelVi}';
-    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
-    void show(String text, [SnackBarAction? action]) =>
-        messenger.showSnackBar(SnackBar(content: Text(text), action: action));
+    final messenger = ScaffoldMessenger.of(context);
+    // Chỉ thay SnackBar cũ khi có thông báo mới (bỏ qua AddMealIgnored)
+    void show(String text, [SnackBarAction? action]) => messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text), action: action));
     switch (result) {
       case AddMealSuccess():
         show('Đã thêm 1 phần vào $meal');
@@ -100,7 +108,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           'Bạn cần hoàn tất hồ sơ trước',
           SnackBarAction(
             label: 'Khai báo',
-            onPressed: () => context.go('/gate'),
+            onPressed: () {
+              if (mounted) context.go('/gate');
+            },
           ),
         );
       case AddMealFailed():

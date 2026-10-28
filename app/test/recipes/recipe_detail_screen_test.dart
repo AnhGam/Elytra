@@ -162,6 +162,9 @@ void main() {
     expect(find.text('Cá basa kho tộ'), findsOneWidget);
     expect(find.textContaining('Chưa kiểm tra được dị ứng của bạn'), findsOneWidget);
 
+    final retry = find.ancestor(of: find.text('Thử lại'), matching: find.byType(InkWell)).first;
+    expect(t.getSize(retry).width, greaterThanOrEqualTo(48)); // vùng chạm ≥ 48
+
     repo
       ..failCatalogWith = null
       ..userAllergenIds = {2};
@@ -216,6 +219,46 @@ void main() {
     expect(meal.calls, hasLength(2));
     expect(meal.calls[1]['clientRequestId'], meal.calls[0]['clientRequestId']);
     expect(find.textContaining('Đã thêm 1 phần vào bữa'), findsOneWidget);
+  });
+
+  testWidgets('rời màn → SnackBar có action biến mất, không gọi lại vào màn đã đóng', (t) async {
+    phone(t);
+    final meal = FakeMealLogRepository()..failWith = const MealLogOffline();
+    final catalog = RecipeCatalog(repo: repo);
+    await t.pumpWidget(MaterialApp(
+      home: RecipeScope(
+        catalog: catalog,
+        child: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => RecipeScope(
+                    catalog: catalog,
+                    child: RecipeDetailScreen(id: 'r1', mealLogs: meal),
+                  ),
+                )),
+                child: const Text('Mở món'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await t.tap(find.text('Mở món'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('Thêm 1 phần vào bữa'));
+    await t.pumpAndSettle();
+    expect(find.text('Không có kết nối'), findsOneWidget);
+
+    await t.binding.handlePopRoute();
+    await t.pumpAndSettle();
+    await t.pump(const Duration(seconds: 10));
+    await t.pumpAndSettle();
+    expect(find.text('Mở món'), findsOneWidget);
+    expect(find.text('Không có kết nối'), findsNothing);
+    expect(find.widgetWithText(SnackBarAction, 'Thử lại'), findsNothing);
+    expect(meal.calls, hasLength(1));
   });
 
   testWidgets('chưa có hồ sơ → SnackBar "Bạn cần hoàn tất hồ sơ trước"', (t) async {

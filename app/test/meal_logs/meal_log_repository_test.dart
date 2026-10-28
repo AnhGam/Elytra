@@ -30,4 +30,14 @@ void main() {
     expect((e as MealLogFailed).code, 'RECIPE_NOT_FOUND');
     expect(mapMealLogError(StateError('?')), isA<MealLogFailed>());
   });
+  test('code/message sai kiểu hoặc body lạ → MealLogFailed, không ném TypeError', () {
+    final e = mapMealLogError(const FunctionException(
+        status: 500, details: {'error': {'code': 42, 'message': ['x']}}));
+    expect(e, isA<MealLogFailed>());
+    expect((e as MealLogFailed).code, isNull);
+    expect(mapMealLogError(const FunctionException(status: 502, details: '<html>')),
+        isA<MealLogFailed>());
+    expect(mapMealLogError(const FunctionException(status: 500, details: {'error': 'x'})),
+        isA<MealLogFailed>());
+  });
 }

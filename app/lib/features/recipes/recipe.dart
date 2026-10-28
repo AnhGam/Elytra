@@ -203,9 +203,10 @@ class RecipeDetail {
 
   // Dòng recipes kèm recipe_ingredients(*) và recipe_allergens(allergen_id, via_condiment).
   factory RecipeDetail.fromRow(Map<String, dynamic> row) {
+    // Bỏ dòng thiếu/hỏng allergen_id (tránh thành chất dị ứng "0" ảo)
     final allergenRows = [
       for (final a in (row['recipe_allergens'] as List? ?? const []))
-        if (a is Map) a,
+        if (a is Map && _num(a['allergen_id']) != null) a,
     ];
     final ingredients = [
       for (final i in (row['recipe_ingredients'] as List? ?? const []))

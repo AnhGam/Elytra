@@ -327,11 +327,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                       ),
                     ),
                   ),
-                  // Vùng chạm cao 48 cho chữ liên kết nhỏ
+                  // Vùng chạm tối thiểu 48×48 cho chữ liên kết nhỏ
                   InkWell(
                     onTap: () => showAllergenSheet(context),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 48),
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
                       child: Center(
                         widthFactor: 1,
                         child: Text(

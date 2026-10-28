@@ -65,6 +65,25 @@ void main() {
     await catalog.refresh();
     expect(ctl.categories, ['mon_man', 'mon_kho', 'zzz']);
   });
+  test('từ khóa chỉ có khoảng trắng/dấu câu không vào Tìm gần đây', () {
+    ctl.setQuery(' , . ');
+    ctl.submitQuery();
+    ctl.recordOpened();
+    expect(ctl.recentSearches, isEmpty);
+  });
+  test('popular bỏ món dị ứng khi đang bật lọc dị ứng', () async {
+    repo
+      ..recipes = [
+        recipe(id: 'a', title: 'A', kcal: 600, allergens: {1}),
+        recipe(id: 'b', title: 'B', kcal: 900),
+      ]
+      ..userAllergenIds = {1}
+      ..profile = const UserNutritionProfile(targetKcal: 2000); // trưa: 700
+    await catalog.refresh();
+    expect(ctl.popular.map((r) => r.id), ['b']);
+    ctl.toggleExcludeAllergens();
+    expect(ctl.popular.map((r) => r.id), ['a', 'b']);
+  });
   test('countFor không đổi filters hiện tại', () async {
     repo.recipes = [recipe(id: 'a', kcal: 100), recipe(id: 'b', kcal: 900)];
     await catalog.refresh();

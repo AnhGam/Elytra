@@ -680,7 +680,7 @@ test('lỗi khác giữ code', () {
     - `int? get mealBudgetKcal` (= `mealBudgetKcal(catalog.profile?.targetKcal, mealTypeAt(now()))`).
     - `List<Recipe> get results` (gọi `RecipeQuery.apply` với `excludeAllergenIds` = dị ứng user nếu bật và đã khai báo, ngược lại rỗng), `int countFor(RecipeFilters f)` (cho nút "Xem N món").
     - `List<String> get categories` – các `category` có món trong `catalog.recipes`, theo thứ tự khóa của `kCategoryLabels`, giá trị lạ xếp cuối A–Z.
-    - `List<Recipe> get popular` – 3 món đầu của `RecipeQuery.apply(catalog.recipes, mealBudgetKcal: …)`.
+    - `List<Recipe> get popular` – 3 món đầu của `RecipeQuery.apply(catalog.recipes, excludeAllergenIds: …, mealBudgetKcal: …)` (lọc dị ứng giống `results`; sửa sau review cuối nhánh).
 
 - [ ] **Step 1: Viết test fail** (catalog thật + `FakeRecipeRepository`, `await catalog.ensureLoaded()` trong `setUp`; `now: () => DateTime.utc(2026, 10, 28, 12)` → bữa trưa)
 
