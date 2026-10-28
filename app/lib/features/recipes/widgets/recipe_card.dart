@@ -72,7 +72,7 @@ class RecipeCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        stops: const [0.4, 1],
+                        stops: const [0.45, 1],
                         colors: [
                           AppColors.textPrimary.withValues(alpha: 0),
                           AppColors.textPrimary.withValues(alpha: 0.6),
