@@ -10,6 +10,8 @@ class FakeRecipeRepository implements RecipeRepository {
   Set<int> userAllergenIds = {};
   // Khác null thì mọi hàm đều ném lỗi này.
   Object? failWith;
+  // Khác null thì chỉ các hàm của catalog (món, hồ sơ, dị ứng) ném lỗi; fetchDetail vẫn chạy.
+  Object? failCatalogWith;
   int fetchAllCalls = 0;
 
   Future<T> _run<T>(T Function() body) {
@@ -18,23 +20,29 @@ class FakeRecipeRepository implements RecipeRepository {
     return Future.value(body());
   }
 
+  Future<T> _runCatalog<T>(T Function() body) {
+    final e = failCatalogWith;
+    if (e != null) return Future.error(e);
+    return _run(body);
+  }
+
   @override
   Future<List<Recipe>> fetchAll() {
     fetchAllCalls++;
-    return _run(() => List.of(recipes));
+    return _runCatalog(() => List.of(recipes));
   }
 
   @override
   Future<RecipeDetail?> fetchDetail(String id) => _run(() => details[id]);
 
   @override
-  Future<UserNutritionProfile?> fetchProfile() => _run(() => profile);
+  Future<UserNutritionProfile?> fetchProfile() => _runCatalog(() => profile);
 
   @override
-  Future<List<Allergen>> fetchAllergens() => _run(() => List.of(allergens));
+  Future<List<Allergen>> fetchAllergens() => _runCatalog(() => List.of(allergens));
 
   @override
-  Future<Set<int>> fetchUserAllergenIds() => _run(() => Set.of(userAllergenIds));
+  Future<Set<int>> fetchUserAllergenIds() => _runCatalog(() => Set.of(userAllergenIds));
 
   @override
   Future<void> saveUserAllergenIds(Set<int> ids) =>

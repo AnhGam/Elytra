@@ -14,6 +14,8 @@ import 'package:elytra/features/nutrition/result_screen.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 import 'package:elytra/features/onboarding/body_info_screen.dart';
 import 'package:elytra/features/onboarding/welcome_screen.dart';
+import 'package:elytra/features/recipes/recipe.dart';
+import 'package:elytra/features/recipes/recipe_detail_screen.dart';
 import 'package:elytra/features/recipes/recipe_search_screen.dart';
 import 'package:elytra/main.dart';
 
@@ -114,8 +116,11 @@ GoRouter buildRouter({
                 GoRoute(
                   path: ':id',
                   parentNavigatorKey: rootKey,
-                  builder: (_, state) =>
-                      ComingSoonScreen(title: state.pathParameters['id']!),
+                  builder: (_, state) => RecipeDetailScreen(
+                    id: state.pathParameters['id']!,
+                    // Mở từ danh sách: hiện ngay phần đầu trong lúc tải chi tiết
+                    initial: state.extra is Recipe ? state.extra as Recipe : null,
+                  ),
                 ),
               ],
             ),
