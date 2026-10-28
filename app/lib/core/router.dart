@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -64,6 +65,8 @@ GoRouter buildRouter({
   return GoRouter(
     navigatorKey: rootKey,
     initialLocation: initialLocation,
+    // Bản debug in log điều hướng (theo dõi hiện tượng tự về Trang chủ trên máy ảo)
+    debugLogDiagnostics: kDebugMode,
     refreshListenable: auth,
     redirect: (context, state) {
       final loggedIn = auth.isLoggedIn;

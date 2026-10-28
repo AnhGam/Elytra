@@ -56,6 +56,16 @@ void main() {
     expect(RecipeStep.parseSteps('[]'), isEmpty);
   });
 
+  test('parseSteps: bỏ ":" và khoảng trắng cuối tiêu đề', () {
+    final steps = RecipeStep.parseSteps([
+      {'step_number': 1, 'title': 'Làm hành ớt: ', 'description': 'A'},
+      {'step_number': 2, 'title': 'Bước 2: Ướp cá:', 'description': 'B'},
+      {'step_number': 3, 'title': 'Tỉ lệ 1:2 nước mắm', 'description': 'C'},
+      {'step_number': 4, 'title': ':', 'description': 'D'},
+    ]);
+    expect(steps.map((s) => s.title), ['Làm hành ớt', 'Ướp cá', 'Tỉ lệ 1:2 nước mắm', '']);
+  });
+
   test('RecipeDetail.fromRow: dị ứng từ gia vị, nguyên liệu theo order_index', () {
     final d = RecipeDetail.fromRow({
       ...searchRowMinimal,

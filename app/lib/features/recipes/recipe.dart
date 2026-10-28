@@ -145,6 +145,8 @@ class RecipeIngredient {
 // Tiền tố "Bước N:" trong tiêu đề bước.
 final RegExp _stepPrefix =
     RegExp(r'^\s*bước\s*\d+\s*[:.\-–]\s*', caseSensitive: false);
+// Dấu ":" và khoảng trắng ở cuối tiêu đề bước ("Làm hành ớt:").
+final RegExp _stepSuffix = RegExp(r'[\s:]+$');
 final RegExp _blankRuns = RegExp(r'\n{3,}');
 
 class RecipeStep {
@@ -174,7 +176,10 @@ class RecipeStep {
       if (e is! Map) continue;
       steps.add(RecipeStep(
         number: _int(e['step_number']),
-        title: ((e['title'] as String?) ?? '').replaceFirst(_stepPrefix, '').trim(),
+        title: ((e['title'] as String?) ?? '')
+            .replaceFirst(_stepPrefix, '')
+            .replaceFirst(_stepSuffix, '')
+            .trim(),
         description: ((e['description'] as String?) ?? '')
             .replaceAll(_blankRuns, '\n\n')
             .trim(),

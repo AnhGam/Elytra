@@ -27,12 +27,15 @@ const Set<String> _countableUnits = {
 // Đơn vị không có lượng cụ thể: chỉ hiện ghi chú.
 const Set<String> _noteOnlyUnits = {'phần', 'ít'};
 
-/// Định dạng số lượng kiểu Việt Nam; phần lẻ 0,5 hiện thành "½".
-String formatAmount(double v) {
+// Đơn vị đo lường: số lẻ hiện thập phân ("12,5 g"), không dùng "½".
+const Set<String> _metricUnits = {'g', 'kg', 'ml', 'lít'};
+
+/// Định dạng số lượng kiểu Việt Nam; phần lẻ 0,5 hiện thành "½" khi [half] bật.
+String formatAmount(double v, {bool half = true}) {
   final r = (v * 10).round() / 10;
   final whole = r.truncate();
   final frac = ((r - whole) * 10).round();
-  if (frac == 5) {
+  if (half && frac == 5) {
     return whole == 0 ? '½' : '$whole½';
   }
   return NumberFormat('#,##0.#', 'vi').format(r);
@@ -83,7 +86,7 @@ IngredientLine formatIngredient(RecipeIngredient row, double factor) {
     return IngredientLine(name: name, note: note.isEmpty ? 'Tùy thích' : note);
   }
 
-  final number = formatAmount(amount * factor);
+  final number = formatAmount(amount * factor, half: !_metricUnits.contains(unit));
   final amountText = unit == null ? number : '$number $unit';
   String? gramText;
   if (unit != null && _countableUnits.contains(unit) && row.amountG > 0) {

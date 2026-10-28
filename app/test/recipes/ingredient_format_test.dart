@@ -47,4 +47,20 @@ void main() {
     final ph = formatIngredient(ing('Hành lá: xắt nhỏ', 'Hành lá', 1, 'PHẦN', 30), 3);
     expect([ph.amountText, ph.gramText, ph.note], [null, null, 'xắt nhỏ']);
   });
+
+  test('g/kg/ml/lít: số lẻ hiện thập phân VN, không dùng ½', () {
+    expect(formatIngredient(ing('Hành tím: 10g', 'Hành tím', 10, 'g', 10), 1.25).amountText, '12,5 g');
+    expect(formatIngredient(ing('Cá: 1 kg', 'Cá', 1, 'kg', 1000), 0.5).amountText, '0,5 kg');
+    expect(formatIngredient(ing('Nước: 5 ml', 'Nước', 5, 'ml', 5), 0.5).amountText, '2,5 ml');
+    expect(formatIngredient(ing('Nước: 1 lít', 'Nước', 1, 'lít', 1000), 1.5).amountText, '1,5 lít');
+    // Đơn vị đếm và muỗng vẫn dùng ½
+    expect(formatIngredient(ing('Hành tây: 1 củ', 'Hành tây', 1, 'củ', 60), 1.5).amountText, '1½ củ');
+    expect(formatIngredient(ing('Đường: 1 muỗng canh', 'Đường', 1, 'muỗng canh', 12), 0.5).amountText,
+        '½ muỗng canh');
+  });
+
+  test('dòng gam mờ làm tròn số nguyên', () {
+    final l = formatIngredient(ing('Tỏi: 3 tép', 'Tỏi', 3, 'tép', 15), 1.25);
+    expect([l.amountText, l.gramText], ['3,8 tép', '19 g']);
+  });
 }
