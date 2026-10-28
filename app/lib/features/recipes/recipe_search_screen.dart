@@ -12,8 +12,11 @@ import 'package:elytra/features/recipes/recipe_query.dart';
 import 'package:elytra/features/recipes/recipe_search_controller.dart';
 import 'package:elytra/features/recipes/recipe_text.dart';
 import 'package:elytra/features/recipes/widgets/recipe_card.dart';
+import 'package:elytra/features/recipes/widgets/allergen_sheet.dart';
+import 'package:elytra/features/recipes/widgets/filter_sheet.dart';
 import 'package:elytra/features/recipes/widgets/recipe_chips.dart';
 import 'package:elytra/features/recipes/widgets/skeletons.dart';
+import 'package:elytra/features/recipes/widgets/sort_sheet.dart';
 
 final _kcal = NumberFormat('#,##0', 'vi');
 
@@ -114,13 +117,15 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
     }
   }
 
-  // Task 14 thay bằng sheet Bộ lọc, Sắp xếp, Dị ứng
-  void _openSheetPlaceholder() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) =>
-          const SizedBox(height: 200, child: Center(child: Text('Sắp có'))),
-    );
+  Future<void> _openFilter() async {
+    _focus.unfocus();
+    final f = await showFilterSheet(context, controller: _c);
+    if (f != null) _c.applyFilters(f);
+  }
+
+  Future<void> _openSort() async {
+    final s = await showSortSheet(context, _c.sort);
+    if (s != null) _c.setSort(s);
   }
 
   @override
@@ -246,7 +251,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
 
   Widget _buildFilterButton() {
     final badge = _c.filters.sheetBadgeCount;
-    return Stack(
+    final button = Stack(
       clipBehavior: Clip.none,
       children: [
         Material(
@@ -259,7 +264,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
             customBorder: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            onTap: _openSheetPlaceholder,
+            onTap: _openFilter,
             child: SizedBox(
               width: 48,
               height: 48,
@@ -267,7 +272,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
                 child: SvgPicture.asset(
                   'assets/icons/ic_tune.svg',
                   width: 20,
-                  semanticsLabel: 'Bộ lọc',
+                  excludeFromSemantics: true,
                 ),
               ),
             ),
@@ -297,6 +302,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
           ),
       ],
     );
+    return Tooltip(message: 'Bộ lọc', child: button);
   }
 
   Widget _chipRow(List<Widget> chips) {
@@ -325,7 +331,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
           label: 'Khai báo dị ứng',
           selected: false,
           icon: Icons.add,
-          onTap: _openSheetPlaceholder,
+          onTap: () => showAllergenSheet(context),
         ),
       QuickFilterChip(
         label: 'Từ tủ lạnh',
@@ -415,7 +421,7 @@ class _RecipeSearchScreenState extends State<RecipeSearchScreen> {
             child: Align(
               alignment: Alignment.centerRight,
               child: OutlinedButton.icon(
-                onPressed: _openSheetPlaceholder,
+                onPressed: _openSort,
                 icon: const Icon(Icons.swap_vert, size: 18),
                 label: Row(
                   mainAxisSize: MainAxisSize.min,

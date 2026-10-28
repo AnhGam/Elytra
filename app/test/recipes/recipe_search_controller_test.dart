@@ -71,6 +71,24 @@ void main() {
     expect(ctl.countFor(const RecipeFilters(maxKcal: 500)), 1);
     expect(ctl.results, hasLength(2));
   });
+  test('countFor đếm theo công tắc dị ứng nháp, không đổi cờ hiện tại', () async {
+    repo
+      ..recipes = [recipe(id: 'a', allergens: {1}), recipe(id: 'b', title: 'B')]
+      ..userAllergenIds = {1};
+    await catalog.refresh();
+    expect(ctl.countFor(const RecipeFilters()), 1);
+    expect(ctl.countFor(const RecipeFilters(), excludeAllergens: false), 2);
+    expect(ctl.excludeAllergens, isTrue);
+  });
+  test('setExcludeAllergens chỉ notify khi đổi', () {
+    var n = 0;
+    ctl.addListener(() => n++);
+    ctl.setExcludeAllergens(true);
+    expect(n, 0);
+    ctl.setExcludeAllergens(false);
+    expect(ctl.excludeAllergens, isFalse);
+    expect(n, 1);
+  });
   test('catalog đổi → controller notify', () async {
     var n = 0;
     ctl.addListener(() => n++);

@@ -29,6 +29,8 @@ class _Pill extends StatelessWidget {
         child: SizedBox(
           height: 48,
           child: Center(
+            // widthFactor 1: chip ôm nội dung, không giãn hết chiều ngang (vd. trong Wrap)
+            widthFactor: 1,
             child: Container(
               height: 32,
               padding: const EdgeInsets.symmetric(horizontal: 12),

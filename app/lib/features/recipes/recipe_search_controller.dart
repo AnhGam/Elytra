@@ -110,28 +110,36 @@ class RecipeSearchController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setExcludeAllergens(bool v) {
+    if (v == excludeAllergens) return;
+    excludeAllergens = v;
+    notifyListeners();
+  }
+
   bool get hasDeclaredAllergens => catalog.userAllergenIds.isNotEmpty;
 
   int? get mealBudgetKcal =>
       mt.mealBudgetKcal(catalog.profile?.targetKcal, mt.mealTypeAt(now()));
 
-  Set<int> get _excluded => excludeAllergens && hasDeclaredAllergens
+  Set<int> _excluded(bool exclude) => exclude && hasDeclaredAllergens
       ? catalog.userAllergenIds
       : const {};
 
-  List<Recipe> get results => _run(filters);
+  List<Recipe> get results => _run(filters, excludeAllergens);
 
-  List<Recipe> _run(RecipeFilters f) => RecipeQuery.apply(
+  List<Recipe> _run(RecipeFilters f, bool exclude) => RecipeQuery.apply(
         catalog.recipes,
         query: query,
         filters: f,
         sort: sort,
-        excludeAllergenIds: _excluded,
+        excludeAllergenIds: _excluded(exclude),
         mealBudgetKcal: mealBudgetKcal,
       );
 
   /// Số món khớp với bộ lọc [f] (cho nút "Xem N món"), không đổi bộ lọc hiện tại.
-  int countFor(RecipeFilters f) => _run(f).length;
+  /// [excludeAllergens] là công tắc dị ứng nháp trong sheet; null = cờ hiện tại.
+  int countFor(RecipeFilters f, {bool? excludeAllergens}) =>
+      _run(f, excludeAllergens ?? this.excludeAllergens).length;
 
   List<String> get categories {
     final present = {for (final r in catalog.recipes) r.category};
