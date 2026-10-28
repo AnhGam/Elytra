@@ -1,10 +1,10 @@
 // Sinh SQL map lại recipe_ingredients bằng ingredient_parser đã sửa, rồi tính lại dinh dưỡng + dị ứng của món.
 // Input: JSON xuất từ DB
-//   supabase db query --linked "select r.slug, x.order_index, x.ingredient_name_raw, x.raw_text from recipe_ingredients x
+//   supabase db query --linked "select r.slug, r.servings, x.order_index, x.ingredient_name_raw, x.raw_text from recipe_ingredients x
 //     join recipes r on r.id = x.recipe_id" -o json > rows.json
 // Chạy: node remap_recipe_ingredients.js rows.json > ../migrations/<timestamp>_remap_recipe_ingredients.sql
 const fs = require('fs');
-const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, consumedPct, parseIngredientLine, catalog } = require('./ingredient_parser');
+const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, consumedPct, parseIngredientLine, staplePerServing, catalog } = require('./ingredient_parser');
 // Sửa tay từng dòng khi quy tắc không đoán được (có ghi lý do): { slug: { raw_text: { consumed_pct?, amount_g?, note } } }
 const OVERRIDES = require('../data/recipe_ingredient_overrides.json');
 
@@ -20,9 +20,12 @@ for (const r of rows) {
   // Khối lượng đọc lại từ câu gốc (parser cũ đọc '1,5 kg' thành 30 g, '1 muỗng cà phê' thành 30 g...)
   const p = parseIngredientLine(r.raw_text);
   const o = OVERRIDES[r.slug]?.[r.raw_text] ?? {};
-  const grams = o.amount_g ?? p.amount_g;
+  // Tinh bột chính không ghi lượng -> khẩu phần chuẩn × số khẩu phần của món
+  const staple = p.quantity_missing ? staplePerServing(r.ingredient_name_raw) : null;
+  const grams = o.amount_g ?? (staple ? staple * r.servings : p.amount_g);
   const pct = o.consumed_pct ?? consumedPct(r.ingredient_name_raw, p.unit, ing);
-  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${pct}, ${p.amount}, ${q(p.unit)}, ${grams})`);
+  const amount = staple ? r.servings : p.amount, unit = staple ? 'khẩu phần chuẩn' : p.unit;
+  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${pct}, ${amount}, ${q(unit)}, ${grams})`);
   for (const code of keywordAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, false)`);
   for (const code of condimentAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, true)`);
 }

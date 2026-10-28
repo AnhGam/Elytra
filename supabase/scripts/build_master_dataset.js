@@ -105,14 +105,15 @@ async function buildMasterDataset() {
             total_fiber_g: Math.round(totalFiber * 10) / 10,
             total_sodium_mg: Math.round(totalSodium * 10) / 10,
             per_serving: {
-              calories: Math.round((totalCals / servings) * 10) / 10,
-              protein_g: Math.round((totalProtein / servings) * 10) / 10,
-              fat_g: Math.round((totalFat / servings) * 10) / 10,
-              carbs_g: Math.round((totalCarbs / servings) * 10) / 10,
+              calories: parsed.sourceNutrition?.calories ?? Math.round((totalCals / servings) * 10) / 10, // bài gốc có kcal/khẩu thì dùng
+              protein_g: parsed.sourceNutrition?.protein_g ?? Math.round((totalProtein / servings) * 10) / 10,
+              fat_g: parsed.sourceNutrition?.fat_g ?? Math.round((totalFat / servings) * 10) / 10,
+              carbs_g: parsed.sourceNutrition?.carbs_g ?? Math.round((totalCarbs / servings) * 10) / 10,
               fiber_g: Math.round((totalFiber / servings) * 10) / 10,
               sodium_mg: Math.round((totalSodium / servings) * 10) / 10
             }
           },
+          nutrition_source: parsed.sourceNutrition ? 'source' : 'computed',
           ingredient_match_rate: `${matchedCount}/${parsedIngredients.length} (${matchPct.toFixed(1)}%)`
         };
 
@@ -205,15 +206,16 @@ async function buildMasterDataset() {
               total_fiber_g: Math.round(totalFiber * 10) / 10,
               total_sodium_mg: Math.round(totalSodium * 10) / 10,
               per_serving: {
-                calories: Math.round((totalCals / servings) * 10) / 10,
-                protein_g: Math.round((totalProtein / servings) * 10) / 10,
-                fat_g: Math.round((totalFat / servings) * 10) / 10,
-                carbs_g: Math.round((totalCarbs / servings) * 10) / 10,
+                calories: parsed.sourceNutrition?.calories ?? Math.round((totalCals / servings) * 10) / 10, // bài gốc có kcal/khẩu thì dùng
+                protein_g: parsed.sourceNutrition?.protein_g ?? Math.round((totalProtein / servings) * 10) / 10,
+                fat_g: parsed.sourceNutrition?.fat_g ?? Math.round((totalFat / servings) * 10) / 10,
+                carbs_g: parsed.sourceNutrition?.carbs_g ?? Math.round((totalCarbs / servings) * 10) / 10,
                 fiber_g: Math.round((totalFiber / servings) * 10) / 10,
                 sodium_mg: Math.round((totalSodium / servings) * 10) / 10
               }
             },
-            ingredient_match_rate: `${matchedCount}/${parsedIngredients.length} (${matchPct.toFixed(1)}%)`
+            nutrition_source: parsed.sourceNutrition ? 'source' : 'computed',
+          ingredient_match_rate: `${matchedCount}/${parsedIngredients.length} (${matchPct.toFixed(1)}%)`
           };
 
           recipesMap.set(normKey, recipeRecord);

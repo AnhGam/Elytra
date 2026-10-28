@@ -287,6 +287,16 @@ const COUNT_WEIGHTS = [
 ];
 const COUNT_UNIT_DEFAULT = { sợi: 0.5, bó: 300, lát: 5, gói: 50, hộp: 300, lon: 300, miếng: 50, tép: 4, cây: 15, nhánh: 15 };
 
+// Tinh bột chính mà bài gốc không ghi lượng ("Bún tươi", "Hủ tiếu khô"): tính theo khẩu phần chuẩn của nam trưởng thành.
+// Không có quy chuẩn chính thức; các trang y tế dùng 150 g bún/tô vừa (Long Châu, HelloBacsi), 190–200 g bún bò Huế/bún riêu
+// (Bazaar), lẩu ~250 g/người (Bách hóa XANH). Chọn 200 g tươi (~80 g sợi khô). Đổi ở đây nếu nhóm có số chính thức.
+const STAPLE_PER_SERVING_G = [['bún', 200], ['hủ tiếu', 200], ['bánh phở', 200], ['phở', 200]];
+function staplePerServing(name) {
+  const t = name.toLowerCase();
+  const hit = STAPLE_PER_SERVING_G.find(([k]) => hasWord(t, k));
+  return hit ? hit[1] : null;
+}
+
 function countWeight(name, unit) {
   const t = name.toLowerCase();
   // Cụm khớp dài nhất thắng: 'trứng gà' phải thắng 'gà'
@@ -369,6 +379,7 @@ function parseIngredientLine(raw) {
     amount: Math.round(qty * 100) / 100,
     unit,
     amount_g: Math.round(grams * 10) / 10,
+    quantity_missing: !num && !explicit,
     matched_ingredient_id: matchedIngredient ? matchedIngredient.id : null,
     matched_ingredient_code: matchedIngredient ? matchedIngredient.code : null,
     matched_ingredient_name: matchedIngredient ? matchedIngredient.name_vi : null,
@@ -389,5 +400,6 @@ module.exports = {
   lookupIngredient,
   keywordAllergenCodes,
   condimentAllergenCodes,
-  consumedPct
+  consumedPct,
+  staplePerServing
 };

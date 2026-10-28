@@ -36,4 +36,12 @@ for (const [title, want] of [
   ['sườn non kho tiêu mềm ngon mặn ngọt hao cơm', 'Sườn non kho tiêu'], // vị đứng riêng là lời khen
 ]) assert.equal(normalizeDishName(title), want, title);
 
+// Dinh dưỡng do bài gốc công bố (JSON-LD schema.org Recipe): có thì pipeline dùng thay số tự tính
+const { sourceNutrition } = require('./unified_recipe_parser');
+const ld = (o) => '<script type="application/ld+json">' + JSON.stringify(o) + '</script>';
+assert.deepEqual(sourceNutrition(ld({ '@graph': [{ '@type': 'Recipe', nutrition: { calories: '452 kcal', proteinContent: '28,5 g' } }] })),
+  { calories: 452, protein_g: 28.5, fat_g: null, carbs_g: null });
+assert.equal(sourceNutrition(ld({ '@type': 'Recipe', nutrition: {} })), null);
+assert.equal(sourceNutrition('<p>không có</p>'), null);
+
 console.log(`dish name: all checks passed (quy tắc đúng ${ruleOk}/${Object.keys(NAMES).length}, ${Object.keys(KNOWN_EXCEPTIONS).length} ngoại lệ duyệt tay)`);

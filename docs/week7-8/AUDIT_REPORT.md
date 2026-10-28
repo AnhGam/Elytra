@@ -163,3 +163,9 @@ Bảng TPTP 2017 có chương XV "Thức ăn truyền thống" gồm 73 **món �
 - Ghi đè tay có lý do: `supabase/data/recipe_ingredient_overrides.json` (súp nui gà: "thịt gà 1,8 kg" là gà nguyên con).
 - Kết quả: 45 món 92–1244 kcal/khẩu (trước 22–1244), kcal khớp macro ở mọi món. Lẩu gà lá giang 81 → 483, cá chim kho thơm 85 → 237, hủ tiếu gà trộn 269 → 542.
 - Giới hạn: nguyên liệu không ghi lượng trong bài gốc (bún ăn kèm lẩu, "hủ tiếu khô" trong hủ tiếu gà trộn, dầu chiên ngập) chỉ tính 2 g; nước mía chưa có số liệu; khối lượng chuẩn cho đơn vị đếm là ước tính thông dụng.
+
+### Quy ước tính calo (chốt 28/10/2026)
+- **Món ăn sẵn**: không có khẩu phần riêng. kcal/100 g của bảng TPTP đã là trung bình cả tô (nước dùng, thịt, rau, bánh) → tính theo số gam người dùng nhập.
+- **Bài gốc có kcal/khẩu phần** thì dùng số đó (`sourceNutrition` đọc JSON-LD schema.org Recipe; `nutrition_source: 'source' | 'computed'`). Đã quét 45 bài bepxua: 43 bài không có, 2 bài không tải được vì `source_url` hỏng lúc crawl (emoji trong tiêu đề thành `NaN0%9f...`).
+- **Bún/hủ tiếu không ghi lượng**: khẩu phần chuẩn nam trưởng thành **200 g tươi/khẩu** × số khẩu phần (`STAPLE_PER_SERVING_G`). Không có quy chuẩn chính thức; các trang y tế dùng 150 g/tô vừa, 190–200 g bún bò Huế/bún riêu, lẩu ~250 g/người. Áp cho 5 món: Bún riêu cua đồng hải sản 287 → 511, Lẩu riêu tôm 437 → 661, Lẩu gà lá giang 483 → 706, Lẩu Thái 520 → 743, Hủ tiếu gà trộn 542 → 824 kcal/khẩu.
+- **Dầu**: chưa chốt. Hiện dầu ghi theo muỗng (xào, kho) tính 100%; "dầu ăn (đủ để chiên ngập)" không ghi lượng tính 2 g.

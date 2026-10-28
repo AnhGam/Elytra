@@ -81,6 +81,23 @@ function normalizeDishName(title) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+// Dinh dưỡng mỗi khẩu phần do bài gốc công bố (schema.org Recipe trong JSON-LD, WPRM tự xuất khi tác giả nhập).
+// Có thì pipeline dùng số này thay cho số tự tính từ nguyên liệu. 45 bài bepxua hiện tại đều không có.
+function sourceNutrition(html) {
+  const num = (v) => { const m = String(v ?? '').replace(',', '.').match(/\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+  for (const m of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data; try { data = JSON.parse(m[1]); } catch { continue; }
+    const nodes = [data, ...(Array.isArray(data) ? data : []), ...(data['@graph'] || [])].flat();
+    const recipe = nodes.find((n) => n && [].concat(n['@type']).includes('Recipe') && n.nutrition);
+    if (!recipe) continue;
+    const n = recipe.nutrition;
+    const calories = num(n.calories);
+    if (!calories) continue;
+    return { calories, protein_g: num(n.proteinContent), fat_g: num(n.fatContent), carbs_g: num(n.carbohydrateContent) };
+  }
+  return null;
+}
+
 function parseRecipeUnified(html, rawTitle) {
   const title = cleanTitle(rawTitle);
   const isWprm = html.includes('wprm-recipe-container');
@@ -180,7 +197,7 @@ function parseRecipeUnified(html, rawTitle) {
   else if (tLower.includes('xào ')) category = 'mon_xao';
   else if (tLower.includes('nướng ')) category = 'mon_nuong';
 
-  return { title, name: normalizeDishName(rawTitle), rawIngredients, steps, servings, prepTime, cookTime, category };
+  return { title, name: normalizeDishName(rawTitle), sourceNutrition: sourceNutrition(html), rawIngredients, steps, servings, prepTime, cookTime, category };
 }
 
-module.exports = { parseRecipeUnified, cleanHtml, cleanTitle, normalizeDishName };
+module.exports = { parseRecipeUnified, cleanHtml, cleanTitle, normalizeDishName, sourceNutrition };
