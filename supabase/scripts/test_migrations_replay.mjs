@@ -175,4 +175,10 @@ assert.ok(phoIng.indexOf("Bánh phở") >= 0 && phoIng.indexOf("Bánh phở") < 
 await db.query(`SELECT create_custom_ingredient('Rau thử nghiệm', 4, 10, 1, 0, 2)`);
 assert.equal((await one(`SELECT name_unaccented AS n FROM ingredients WHERE name_vi = 'Rau thử nghiệm'`)).n, "rau thu nghiem");
 
+// Tên món đã chuẩn hóa, tiêu đề gốc còn giữ
+assert.equal((await one(`SELECT count(*)::int AS n FROM recipes WHERE title ~* '(^|[^[:alpha:]])(ngon|ghiền|đậm đà|thơm lừng)([^[:alpha:]]|$)'`)).n, 0, "tên món không còn lời quảng cáo");
+assert.equal((await one(`SELECT count(*)::int AS n FROM recipes WHERE source_title IS NULL`)).n, 0, "tiêu đề gốc được giữ");
+assert.equal((await one(`SELECT title FROM recipes WHERE slug = 'cach-lam-ca-chim-kho-thom-dam-da-ca-mem-khong-tanh-hao-com-cuc'`)).title, "Cá chim kho thơm");
+assert.ok((await rows(`SELECT 1 FROM search_recipes(p_query => 'bo luc lac')`)).length === 1);
+
 console.log("migrations replay + audit fixes: all checks passed");

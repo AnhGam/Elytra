@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { parseRecipeUnified, cleanHtml, cleanTitle } = require('./unified_recipe_parser');
+// Tên món đã duyệt tay (ưu tiên); món mới dùng normalizeDishName
+const RECIPE_NAMES = require('../data/recipe_names.json');
 const { parseIngredientLine, stripAccents, allergensByIngrId } = require('./ingredient_parser');
 
 async function buildMasterDataset() {
@@ -80,7 +82,8 @@ async function buildMasterDataset() {
           .replace(/-+$/, '');
 
         const recipeRecord = {
-          title: cleanT,
+          title: RECIPE_NAMES[cleanSlug] ?? parsed.name,
+          source_title: cleanT,
           slug: cleanSlug,
           description: cleanHtml(p.excerpt?.rendered || "").substring(0, 300) || `Công thức chuẩn vị cho món ${cleanT}`,
           category: parsed.category,
@@ -179,7 +182,8 @@ async function buildMasterDataset() {
             .replace(/-+$/, '');
 
           const recipeRecord = {
-            title: cleanT,
+            title: RECIPE_NAMES[cleanSlug] ?? parsed.name,
+            source_title: cleanT,
             slug: cleanSlug,
             description: cleanHtml(p.excerpt?.rendered || "").substring(0, 300) || `Công thức chuẩn vị cho món ${cleanT}`,
             category: parsed.category,
