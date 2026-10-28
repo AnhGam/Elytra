@@ -102,9 +102,9 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 | Trường | Kiểu | Bắt buộc | Ràng buộc |
 | --- | --- | --- | --- |
 | `gender` | `"male"` \| `"female"` \| `"other"` | Có | `other` dùng công thức nam |
-| `age` | số nguyên | Có | 10–100 (app giới hạn 18–80) |
-| `height_cm` | số | Có | 50–250 (app 120–220) |
-| `weight_kg` | số | Có | 20–300 (app 30–200) |
+| `age` | số nguyên | Có | 18–80 (khớp app) |
+| `height_cm` | số | Có | 120–220 (khớp app) |
+| `weight_kg` | số | Có | 30–200 (khớp app) |
 | `activity_level` | `ActivityLevel` | Có | |
 | `goal` | `Goal` | Có | |
 | `save_to_profile` | boolean | Không | Mặc định `false` |
@@ -144,7 +144,7 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 }
 ```
 
-- Giảm cân: calo mục tiêu không thấp hơn mức sàn 1200 kcal (nữ) / 1500 kcal (nam); khi đó `calorie_difference` > −500.
+- Calo mục tiêu (mọi mục tiêu, kể cả duy trì/tăng cân) không thấp hơn mức sàn 1200 kcal (nữ) / 1500 kcal (nam). Khi bị nâng lên sàn, `calorie_difference` khác −500 / 0 / +400.
 
 ### Lỗi riêng
 
@@ -401,8 +401,8 @@ App dùng luôn `budget` để cập nhật Dashboard, không cần gọi lại 
 
 **`client_request_id`:** app sinh UUID **một lần** khi người dùng bấm "Thêm", lưu lại và gửi **y nguyên** khi retry. Không sinh lại mỗi lần gửi.
 
-- Cùng key + cùng nội dung → trả món đã ghi, `replayed: true`.
-- Cùng key + khác nội dung → `422 IDEMPOTENCY_CONFLICT` (lỗi lập trình phía app).
+- Cùng key + cùng nội dung **request gốc** → trả món đã ghi ở **trạng thái hiện tại** (kể cả đã bị PATCH, hoặc gửi lại sau 0h khi không gửi `date`), `replayed: true`, `budget` là của ngày món được ghi.
+- Cùng key + khác nội dung (so với request gốc, không phải trạng thái hiện tại) → `422 IDEMPOTENCY_CONFLICT` (lỗi lập trình phía app).
 - Không gửi key → mỗi request là một lần ghi mới (retry có thể ghi trùng).
 
 ### 4.2 `GET /meal-logs?date=YYYY-MM-DD` – Tổng hợp 1 ngày
@@ -442,7 +442,7 @@ Cho biểu đồ. Tối đa 31 ngày mỗi lần. Trả **đủ mọi ngày** tr
 
 - `days[].target_kcal`: mục tiêu của ngày đó (lưu lúc ghi). Đổi hồ sơ không làm đổi các ngày đã qua.
 - `target_kcal` ở ngoài: mục tiêu hiện tại.
-- Quy tắc chung cho `budget.target.kcal` của `GET /meal-logs?date=` và `days[].target_kcal`: **ngày đã qua** dùng mục tiêu lúc ghi (nếu ngày đó có ghi), **hôm nay** dùng mục tiêu hiện tại. Macro mục tiêu luôn lấy theo hồ sơ hiện tại.
+- Quy tắc chung cho `budget.target` của `GET /meal-logs?date=` và `days[].target_kcal`: **ngày đã qua** dùng mục tiêu lúc ghi bữa đầu tiên trong ngày (cả kcal và macro), **hôm nay** dùng hồ sơ hiện tại.
 
 ### 4.4 `PATCH /meal-logs/items/:id` – Sửa khẩu phần / khối lượng
 
@@ -458,7 +458,7 @@ Response `200`: `{ "item": { /* MealLogItem */ "meal_type": "lunch", "date": "20
 
 ### 4.5 `DELETE /meal-logs/items/:id` – Xóa 1 món
 
-Response `204`, không có body. Idempotent: món không tồn tại hoặc đã xóa vẫn trả `204`. Gọi lại `GET /meal-logs?date=` để cập nhật Dashboard.
+Response `204`, không có body. Chỉ xóa được món trong 30 ngày gần nhất. Idempotent: món không tồn tại hoặc đã xóa vẫn trả `204`. Xóa món cuối cùng của một bữa thì bữa đó cũng được dọn. Gọi lại `GET /meal-logs?date=` để cập nhật Dashboard.
 
 ### Lỗi riêng
 
@@ -468,7 +468,7 @@ Response `204`, không có body. Idempotent: món không tồn tại hoặc đã
 | 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Không tồn tại hoặc chưa duyệt |
 | 404 | `INGREDIENT_NOT_FOUND` | `ingredient_id` | Không tồn tại hoặc đã vô hiệu hóa |
 | 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo |
-| 400 | `VALIDATION_ERROR` | `date` | PATCH món cũ hơn 30 ngày |
+| 400 | `VALIDATION_ERROR` | `date` | PATCH hoặc DELETE món cũ hơn 30 ngày |
 | 401 | `UNAUTHORIZED` | | Token không phải của user đã đăng nhập (vd gửi anon key) |
 | 404 | `ITEM_NOT_FOUND` | `id` | PATCH món không tồn tại hoặc của người khác |
 | 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Xem 4.1 |

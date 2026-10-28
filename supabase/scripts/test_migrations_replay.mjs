@@ -114,4 +114,65 @@ assert.equal(yesterday.budget.target.kcal, 2000);
 assert.equal(h.days[1].target_kcal, 2500);
 assert.equal(today.budget.target.kcal, 2500);
 
+// ===== Review PR #4 =====
+// B1: sàn calo cho mọi mục tiêu (nữ 80t, 140 cm, 35 kg, ít vận động: TDEE 796,8)
+const tiny = (goal) => one(`SELECT calculate_nutrition_targets('female', 80, 140, 35, 'sedentary', $1) AS r`, [goal]);
+assert.equal(Number((await tiny("maintain")).r.target_calories), 1200);
+assert.equal(Number((await tiny("gain_weight")).r.target_calories), 1200);
+await db.query(`UPDATE profiles SET target_calories = $2 WHERE id = $1`, [uid, (await tiny("maintain")).r.target_calories]);
+await db.query(`UPDATE profiles SET target_calories = 2500, target_protein_g = 100 WHERE id = $1`, [uid]);
+
+await db.query(`DELETE FROM meal_logs WHERE user_id = $1`, [uid]);
+const logEgg = (args) => one(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 100${args}) AS r`, [egg]);
+// R1a: gửi lại request gốc sau khi món đã bị PATCH -> trả món đã ghi, không 422
+const key1 = "11111111-2222-3333-4444-555555555555";
+const k1 = (await one(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 100, p_client_request_id => $2) AS r`, [egg, key1])).r;
+await db.query(`SELECT update_meal_log_item($1, p_amount_g => 150)`, [k1.item.id]);
+const re1 = (await one(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 100, p_client_request_id => $2) AS r`, [egg, key1])).r;
+assert.equal(re1.replayed, true);
+assert.equal(re1.item.amount_g, 150, "trả trạng thái hiện tại của món");
+await assert.rejects(db.query(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 999, p_client_request_id => $2)`, [egg, key1]), /IDEMPOTENCY_CONFLICT/);
+// R1b: không gửi date, gửi lại sau 0h -> vẫn là request cũ, không tạo bữa rỗng hôm nay
+const key2 = "11111111-2222-3333-4444-666666666666";
+const k2 = (await one(`SELECT log_meal('dinner', p_ingredient_id => $1, p_amount_g => 50, p_client_request_id => $2) AS r`, [egg, key2])).r;
+await db.query(`UPDATE meal_logs SET log_date = vn_today() - 1 WHERE id = (SELECT meal_log_id FROM meal_log_items WHERE id = $1)`, [k2.item.id]);
+const re2 = (await one(`SELECT log_meal('dinner', p_ingredient_id => $1, p_amount_g => 50, p_client_request_id => $2) AS r`, [egg, key2])).r;
+assert.equal(re2.replayed, true);
+assert.equal(re2.item.date, (await one(`SELECT (vn_today() - 1)::text AS d`)).d);
+assert.equal((await one(`SELECT count(*)::int AS n FROM meal_logs WHERE user_id = $1 AND log_date = vn_today() AND meal_type = 'dinner'`, [uid])).n, 0);
+
+// R2: ngày đã qua dùng snapshot cả kcal lẫn macro
+await db.query(`UPDATE meal_logs SET target_kcal = 2000, target_protein_g = 90 WHERE log_date = vn_today() - 1`);
+const yd = (await one(`SELECT get_daily_nutrition(vn_today() - 1) AS r`)).r.budget.target;
+assert.equal(yd.kcal, 2000);
+assert.equal(Number(yd.protein_g), 90, "macro ngày cũ theo snapshot");
+assert.equal(Number((await one(`SELECT get_daily_nutrition() AS r`)).r.budget.target.protein_g), 100, "hôm nay theo hồ sơ");
+
+// R3: xóa qua RPC: chặn món > 30 ngày, dọn bữa rỗng, idempotent
+await db.query(`UPDATE meal_logs SET log_date = vn_today() - 40 WHERE id = (SELECT meal_log_id FROM meal_log_items WHERE id = $1)`, [k2.item.id]);
+await assert.rejects(db.query(`SELECT delete_meal_log_item($1)`, [k2.item.id]), /VALIDATION_ERROR/);
+const lunchLog = (await one(`SELECT meal_log_id AS id FROM meal_log_items WHERE id = $1`, [k1.item.id])).id;
+await db.query(`SELECT delete_meal_log_item($1)`, [k1.item.id]);
+assert.equal((await one(`SELECT count(*)::int AS n FROM meal_logs WHERE id = $1`, [lunchLog])).n, 0, "bữa rỗng bị dọn");
+await db.query(`SELECT delete_meal_log_item($1)`, [k1.item.id]); // gọi lại không lỗi
+
+// R4: % và _ là ký tự thường
+assert.equal((await rows(`SELECT * FROM search_recipes(p_query => '%', p_limit => 100)`)).length, 0);
+assert.equal((await rows(`SELECT * FROM search_recipes(p_query => '_', p_limit => 100)`)).length, 0);
+// '%' giờ là ký tự thường: chỉ khớp 8 tên tiếng Anh có '%' thật (vd 'Cognac (32% alcohol)'), trước đây ra toàn bộ
+const pctIng = await rows(`SELECT name_en FROM search_ingredients(p_query => '%', p_limit => 100)`);
+assert.ok(pctIng.length === 8 && pctIng.every((x) => x.name_en.includes('%')), 'tìm % ra ' + pctIng.length);
+assert.equal((await rows(`SELECT * FROM search_ingredients(p_query => '_', p_limit => 100)`)).length, 0);
+// Tìm không dấu
+for (const [plain, accented] of [["bo luc lac", "bò lúc lắc"], ["dau hu", "đậu hũ"], ["DAU HU", "Đậu Hũ"]]) {
+  const a = (await rows(`SELECT id FROM search_recipes(p_query => $1)`, [accented])).map((x) => x.id).sort();
+  const b = (await rows(`SELECT id FROM search_recipes(p_query => $1)`, [plain])).map((x) => x.id).sort();
+  assert.ok(a.length > 0 && JSON.stringify(a) === JSON.stringify(b), `'${plain}' phải ra giống '${accented}'`);
+}
+const phoIng = (await rows(`SELECT name_vi FROM search_ingredients(p_query => 'pho')`)).map((x) => x.name_vi);
+assert.ok(phoIng.indexOf("Bánh phở") >= 0 && phoIng.indexOf("Bánh phở") < phoIng.findIndex((n) => /phồng/.test(n)), "khớp nguyên từ 'phở' xếp trước 'phồng'");
+// f_unaccent có thật -> create_custom_ingredient (admin) chạy được
+await db.query(`SELECT create_custom_ingredient('Rau thử nghiệm', 4, 10, 1, 0, 2)`);
+assert.equal((await one(`SELECT name_unaccented AS n FROM ingredients WHERE name_vi = 'Rau thử nghiệm'`)).n, "rau thu nghiem");
+
 console.log("migrations replay + audit fixes: all checks passed");

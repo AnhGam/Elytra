@@ -19,7 +19,8 @@ const ENUMS: Record<string, string[]> = {
   activity_level: ["sedentary", "light", "moderate", "active", "very_active"],
   goal: ["lose_weight", "maintain", "gain_weight"],
 };
-const RANGES: Record<string, [number, number]> = { age: [10, 100], height_cm: [50, 250], weight_kg: [20, 300] };
+// Khớp BodyInfoLimits trong app. Rộng hơn thì công thức ra số vô nghĩa (vd 100 tuổi, 50 cm, 20 kg -> target âm).
+const RANGES: Record<string, [number, number]> = { age: [18, 80], height_cm: [120, 220], weight_kg: [30, 200] };
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

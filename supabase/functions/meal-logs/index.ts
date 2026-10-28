@@ -120,8 +120,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (req.method === "DELETE" && item) {
-      // Xóa idempotent: món không tồn tại hoặc của người khác (RLS lọc) vẫn trả 204
-      const { error } = await supabase.from("meal_log_items").delete().eq("id", item[1]);
+      // Qua RPC để áp cửa sổ 30 ngày và dọn bữa rỗng. Idempotent: món không tồn tại / của người khác vẫn 204
+      const { error } = await supabase.rpc("delete_meal_log_item", { p_item_id: item[1] });
       return error ? fromDbError(error) : json(null, 204);
     }
 

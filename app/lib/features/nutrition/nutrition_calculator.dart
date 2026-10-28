@@ -11,7 +11,7 @@ class NutritionResult {
   /// Calo mục tiêu − TDEE: −500 (giảm cân), 0, +400 (tăng cân)
   final double calorieDifference;
 
-  /// Giảm cân bị nâng lên mức sàn an toàn (1.200 nữ / 1.500 nam)
+  /// Calo mục tiêu bị nâng lên mức sàn an toàn (1.200 nữ / 1.500 nam), áp cho mọi mục tiêu
   final bool floorApplied;
   final double proteinG;
   final double fatG;
@@ -47,7 +47,7 @@ class NutritionResult {
 /// Tính BMR/TDEE/macro GIỐNG HỆT hàm `calculate_nutrition_targets` trong database:
 /// - BMR Mifflin-St Jeor, làm tròn 1 chữ số thập phân
 /// - TDEE = BMR × hệ số vận động (1.2 / 1.375 / 1.55 / 1.725 / 1.9)
-/// - Giảm cân −500 (sàn 1.200 nữ / 1.500 nam), Tăng cân +400, Duy trì giữ nguyên
+/// - Giảm cân −500, Tăng cân +400, Duy trì giữ nguyên; sau đó nâng lên sàn 1.200 nữ / 1.500 nam nếu thấp hơn
 /// - Protein 2.0 / 1.6 / 1.8 g/kg (giảm / duy trì / tăng), Fat 25% calo, Carbs phần còn lại
 /// - Chất xơ 14 g/1.000 kcal (tối thiểu 25 g), Nước 35 ml/kg
 ///
@@ -94,7 +94,8 @@ class NutritionCalculator {
       Goal.gainWeight => tdee10 + 4000,
     };
     final floor10 = isFemale ? 12000 : 15000;
-    final floorApplied = info.goal == Goal.loseWeight && target10 < floor10;
+    // Sàn áp cho mọi mục tiêu: người nhỏ con/lớn tuổi có TDEE < sàn ngay cả khi duy trì/tăng cân
+    final floorApplied = target10 < floor10;
     if (floorApplied) target10 = floor10;
 
     final protein10 = _div(w10 * _proteinPerKg[info.goal]!, 10);
