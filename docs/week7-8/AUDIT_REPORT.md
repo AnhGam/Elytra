@@ -143,3 +143,23 @@ Bảng TPTP 2017 có chương XV "Thức ăn truyền thống" gồm 73 **món �
 - Vẫn ghi bữa được: `POST /meal-logs` thêm `dish_id` + `amount_g` (MealLogItem `source = "dish"`); tìm bằng RPC `search_dishes` (không dấu).
 - Parser bỏ map "bánh mì" → "Bánh mì xíu mại" (món ăn); dị ứng gluten vẫn bắt qua từ khóa.
 - Đã kiểm production: 0 dòng công thức và 0 bữa ghi đang dùng nhóm này trước khi tách. Ghi 500 g Phở bò chín → 365 kcal.
+
+### Calo món ăn vô lý (28/10/2026)
+**Món ăn sẵn** (Phở bò chín 73 kcal): số liệu **đúng**, là kcal trên **100 g** theo Bảng TPTP 2017 (phở có 81,7% nước vì gồm nước dùng). Một tô ~500–600 g ≈ 365–440 kcal. Bảng gốc không ghi khẩu phần chuẩn (1 tô bao nhiêu g) → chưa có `serving_g`, chờ chốt nguồn.
+
+**Công thức**: sai thật. Nguyên nhân gốc là bộ đọc số lượng trong `parseIngredientLine`:
+
+| Câu gốc | Đọc cũ | Đúng | Lỗi |
+| --- | --- | --- | --- |
+| gà: 1,5 kg | 30 g | 1500 g | Không hiểu dấu phẩy thập phân → rơi về mặc định 30 g |
+| Cá chim biển (1 con vừa ăn) | 2 g | 500 g | Bỏ qua số lượng trong ngoặc |
+| nghệ bột: ⅓ muỗng cafe | 30 g | 1,7 g | Không hiểu ½ ⅓ |
+| đường: 3-4 muỗng canh | 90 g | 52,5 g | Không hiểu khoảng |
+| Dầu mè: 1 muỗng cà phê | 30 g | 4,6 g | Đơn vị chỉ lấy 2 chữ ('muỗng cà') → mặc định |
+| rau ăn kèm( … tần ô&#8230;.) | — | 2 g | Mã HTML `&#8230;` bị đọc thành số 8230 |
+
+Đã sửa: đọc dấu phẩy, phân số, khoảng (lấy trung bình), số trong ngoặc, khối lượng ghi rõ trong ngoặc ("1 vá (khoảng 150ml)"), đơn vị nhiều chữ, ml × tỉ trọng nguyên liệu, khối lượng chuẩn cho đơn vị đếm (khớp cụm dài nhất: "trứng gà" thắng "gà"), giải mã HTML. Đọc lại 604 dòng (199 dòng đổi khối lượng), duyệt tay toàn bộ.
+- Thêm "Nước cốt dừa" (USDA SR Legacy 12117, 230 kcal/100 g); "sắn" (miền Nam) = củ đậu; đồ chay giả mặn tạm map vào protein đậu nành tách béo (có tag soy).
+- Ghi đè tay có lý do: `supabase/data/recipe_ingredient_overrides.json` (súp nui gà: "thịt gà 1,8 kg" là gà nguyên con).
+- Kết quả: 45 món 92–1244 kcal/khẩu (trước 22–1244), kcal khớp macro ở mọi món. Lẩu gà lá giang 81 → 483, cá chim kho thơm 85 → 237, hủ tiếu gà trộn 269 → 542.
+- Giới hạn: nguyên liệu không ghi lượng trong bài gốc (bún ăn kèm lẩu, "hủ tiếu khô" trong hủ tiếu gà trộn, dầu chiên ngập) chỉ tính 2 g; nước mía chưa có số liệu; khối lượng chuẩn cho đơn vị đếm là ước tính thông dụng.

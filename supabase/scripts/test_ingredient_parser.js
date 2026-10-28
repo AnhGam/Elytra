@@ -11,7 +11,7 @@ const cases = [
   // theo từ, không theo chuỗi con
   ['bớt muối', 'Muối'], ['nấm đùi gà', 'Nấm thường tươi'], ['Nấm mèo', 'Mộc nhĩ'],
   // cố ý không map
-  ['cá bống chay', null], ['sườn non chay', null], ['đậu bắp', null], ['hạt điều đỏ DH Foods', null], ['lá dứa', null],
+  ['cá bống chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['sườn non chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['tôm chay', null], ['đậu bắp', null], ['hạt điều đỏ DH Foods', null], ['lá dứa', null],
   ['gói gia vị mì (có sẵn trong gói mì)', null], ['nước mắm chay', null]
 ];
 for (const [raw, want] of cases) assert.equal(name(raw), want, raw);
@@ -32,4 +32,13 @@ for (const [raw, unit, want] of [['gà (cắt miếng vừa ăn', 'kg', 48], ['C
   ['thịt ba chỉ', 'gram', 100], ['tỏi băm', 'g', 100], ['tỏi', 'g', 80], ['dừa nạo', 'gram', 100], ['tương cà', 'muỗng canh', 100], ['sả', 'g', 100]]) {
   assert.equal(consumedPct(raw, unit, lookupIngredient(raw)), want, 'consumed ' + raw);
 }
+// Đọc số lượng: các ca parser cũ đọc sai (calo lệch vài lần)
+const { parseIngredientLine } = require('./ingredient_parser');
+for (const [line, grams] of [
+  ['gà: 1,5 kg', 1500], ['Cá chim biển (1 con vừa ăn)', 500], ['nghệ bột: ⅓ muỗng cafe', 1.7], ['đường: 3-4 muỗng canh', 52.5],
+  ['Dầu mè: 1 muỗng cà phê', 4.6], ['Muối: 1 muỗng cà phê', 5], ['bắp chuối: 1', 400], ['Nước luộc gà: 1 vá (khoảng 150ml)', 150],
+  ['2 quả trứng gà', 100], ['3 lòng đỏ trứng gà (lòng trắng để riêng dùng sau)', 51], ['Tiêu xay: 1 ít', 2], ['Tiêu xay', 2],
+  ['nước dừa tươi: 2,5 lit', 2500], ['đậu bắp: 8 trái', 120], ['Ớt, rau ăn kèm( cải thảo, tần ô&#8230;.), mì gói(mì trứng)', 2],
+  ['500g thịt bò', 500], ['đường phèn: 2,5 muỗng canh', 37.5], ['Tiêu xay: 1/2 muỗng cà phê', 2.5],
+]) assert.equal(parseIngredientLine(line).amount_g, grams, line);
 console.log('ingredient_parser: all checks passed');

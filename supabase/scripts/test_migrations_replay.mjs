@@ -196,4 +196,11 @@ await assert.rejects(db.query(`SELECT log_meal('lunch', p_dish_id => $1, p_ingre
 const glutenDish = (await one(`SELECT count(*)::int AS n FROM prepared_dish_allergens`)).n;
 assert.equal(glutenDish, 10, "10 liên kết dị ứng chuyển theo món");
 
+// Calo/khẩu phần hợp lý sau khi đọc lại khối lượng (trước: lẩu gà 81, cá chim kho 85, cá bống chay 9)
+const kcal = Object.fromEntries((await rows(`SELECT title, calories_per_serving::float AS k FROM recipes`)).map((x) => [x.title, x.k]));
+assert.ok(Object.values(kcal).every((k) => k >= 80 && k <= 1300), "mọi món 80–1300 kcal/khẩu");
+assert.ok(kcal["Lẩu gà lá giang"] > 400 && kcal["Cá chim kho thơm"] > 200 && kcal["Hủ tiếu gà trộn"] > 400);
+const macroOff = await one(`SELECT count(*)::int AS n FROM recipes WHERE abs(4*protein_g_per_serving + 4*carbs_g_per_serving + 9*fat_g_per_serving - calories_per_serving) > calories_per_serving * 0.2`);
+assert.equal(macroOff.n, 0, "kcal khớp macro");
+
 console.log("migrations replay + audit fixes: all checks passed");

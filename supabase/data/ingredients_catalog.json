@@ -8218,5 +8218,20 @@
     "sodium_mg": 1.9,
     "edible_portion_pct": 100,
     "density_g_per_ml": 1
+  },
+  {
+    "id": "9b2e4c61-7d3a-4f58-8e1b-2c6d0a7f3e94",
+    "code": "X03001",
+    "name_vi": "Nước cốt dừa",
+    "name_unaccented": "nuoc cot dua",
+    "category_id": 3,
+    "calories_per_100g": 230,
+    "protein_per_100g": 2.3,
+    "fat_per_100g": 23.8,
+    "carbs_per_100g": 5.5,
+    "fiber_per_100g": 2.2,
+    "sodium_mg": 15,
+    "edible_portion_pct": 100,
+    "density_g_per_ml": 1
   }
 ]

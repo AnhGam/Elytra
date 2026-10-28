@@ -1,21 +1,28 @@
 // Sinh SQL map lại recipe_ingredients bằng ingredient_parser đã sửa, rồi tính lại dinh dưỡng + dị ứng của món.
 // Input: JSON xuất từ DB
-//   supabase db query --linked "select r.slug, x.order_index, x.ingredient_name_raw, x.unit from recipe_ingredients x
+//   supabase db query --linked "select r.slug, x.order_index, x.ingredient_name_raw, x.raw_text from recipe_ingredients x
 //     join recipes r on r.id = x.recipe_id" -o json > rows.json
 // Chạy: node remap_recipe_ingredients.js rows.json > ../migrations/<timestamp>_remap_recipe_ingredients.sql
 const fs = require('fs');
-const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, consumedPct, catalog } = require('./ingredient_parser');
+const { lookupIngredient, keywordAllergenCodes, condimentAllergenCodes, consumedPct, parseIngredientLine, catalog } = require('./ingredient_parser');
+// Sửa tay từng dòng khi quy tắc không đoán được (có ghi lý do): { slug: { raw_text: { consumed_pct?, amount_g?, note } } }
+const OVERRIDES = require('../data/recipe_ingredient_overrides.json');
 
 const raw = fs.readFileSync(process.argv[2], 'utf8');
 const rows = JSON.parse(raw.slice(raw.indexOf('{'))).rows;
 const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 
-const rice = catalog.find((i) => i.code === 'X01004');
+const derived = catalog.filter((i) => i.code.startsWith('X'));
 const mapRows = [];
 const allergenRows = new Set();
 for (const r of rows) {
   const ing = lookupIngredient(r.ingredient_name_raw);
-  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${consumedPct(r.ingredient_name_raw, r.unit, ing)})`);
+  // Khối lượng đọc lại từ câu gốc (parser cũ đọc '1,5 kg' thành 30 g, '1 muỗng cà phê' thành 30 g...)
+  const p = parseIngredientLine(r.raw_text);
+  const o = OVERRIDES[r.slug]?.[r.raw_text] ?? {};
+  const grams = o.amount_g ?? p.amount_g;
+  const pct = o.consumed_pct ?? consumedPct(r.ingredient_name_raw, p.unit, ing);
+  mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${pct}, ${p.amount}, ${q(p.unit)}, ${grams})`);
   for (const code of keywordAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, false)`);
   for (const code of condimentAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, true)`);
 }
@@ -24,14 +31,14 @@ process.stdout.write(`-- Sinh bởi supabase/scripts/remap_recipe_ingredients.js
 -- Lý do: từ điển cũ trỏ sai mã FCT (vd 'gà' -> Thịt cừu, 'lạc' -> Quả đại, 'mè' -> Bột đậu xanh, 'dầu ăn' -> Dầu lạc+vừng)
 -- và bỏ sót nhiều nguyên liệu (cá, mắm, tàu hủ ky) -> sai calo và thiếu/thừa tag dị ứng.
 
--- Nguyên liệu quy đổi: FCT chỉ có gạo sống, công thức ghi khối lượng cơm chín (gạo tẻ máy ÷ 2,6)
-INSERT INTO public.ingredients (id, code, name_vi, name_unaccented, category_id, calories_per_100g, protein_per_100g,
+-- Nguyên liệu quy đổi (mã X...): FCT không có. Cơm tẻ = gạo tẻ máy ÷ 2,6; Nước cốt dừa = USDA SR Legacy 12117
+${derived.map((d) => `INSERT INTO public.ingredients (id, code, name_vi, name_unaccented, category_id, calories_per_100g, protein_per_100g,
     fat_per_100g, carbs_per_100g, fiber_per_100g, sodium_mg, edible_portion_pct, density_g_per_ml)
-VALUES (${q(rice.id)}, ${q(rice.code)}, ${q(rice.name_vi)}, ${q(rice.name_unaccented)}, ${rice.category_id}, ${rice.calories_per_100g},
-    ${rice.protein_per_100g}, ${rice.fat_per_100g}, ${rice.carbs_per_100g}, ${rice.fiber_per_100g}, ${rice.sodium_mg}, 100, 1)
-ON CONFLICT (code) DO NOTHING;
+VALUES (${q(d.id)}, ${q(d.code)}, ${q(d.name_vi)}, ${q(d.name_unaccented)}, ${d.category_id}, ${d.calories_per_100g},
+    ${d.protein_per_100g}, ${d.fat_per_100g}, ${d.carbs_per_100g}, ${d.fiber_per_100g}, ${d.sodium_mg}, 100, ${d.density_g_per_ml})
+ON CONFLICT (code) DO NOTHING;`).join('\n')}
 
-CREATE TEMP TABLE remap (slug TEXT, order_index INT, code TEXT, consumed_pct NUMERIC) ON COMMIT DROP;
+CREATE TEMP TABLE remap (slug TEXT, order_index INT, code TEXT, consumed_pct NUMERIC, amount NUMERIC, unit TEXT, amount_g NUMERIC) ON COMMIT DROP;
 INSERT INTO remap VALUES
 ${mapRows.join(',\n')};
 
@@ -40,7 +47,7 @@ UPDATE public.recipe_ingredients x
        calories_per_100g = COALESCE(i.calories_per_100g, 0), protein_per_100g = COALESCE(i.protein_per_100g, 0),
        fat_per_100g = COALESCE(i.fat_per_100g, 0), carbs_per_100g = COALESCE(i.carbs_per_100g, 0),
        fiber_per_100g = COALESCE(i.fiber_per_100g, 0), sodium_mg_per_100g = COALESCE(i.sodium_mg, 0),
-       consumed_pct = m.consumed_pct
+       consumed_pct = m.consumed_pct, amount = m.amount, unit = m.unit, amount_g = m.amount_g
   FROM remap m
   JOIN public.recipes r ON r.slug = m.slug
   LEFT JOIN public.ingredients i ON i.code = m.code

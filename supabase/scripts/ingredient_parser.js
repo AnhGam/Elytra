@@ -85,7 +85,7 @@ const RAW_SYNONYMS = [
   // Trái cây
   ['nước cốt chanh', 'Chanh'], ['chanh', 'Chanh'], ['quất', 'Quất chín (cả vỏ)'], ['tắc', 'Quất chín (cả vỏ)'],
   ['dứa', 'Dứa ta'], ['thơm', 'Dứa ta'], ['khóm', 'Dứa ta'], ['nước cốt me', 'Quả me chua'], ['me chua', 'Quả me chua'], ['me chín', 'Quả me chua'], ['me', 'Quả me chua'],
-  ['chuối', 'Chuối tiêu'], ['dừa nạo', 'Cùi dừa già'], ['cơm dừa', 'Cùi dừa già'], ['nước dừa tươi', 'Nước dừa non tươi'], ['nước dừa', 'Nước dừa non tươi'], ['nước cốt dừa', null],
+  ['chuối', 'Chuối tiêu'], ['dừa nạo', 'Cùi dừa già'], ['cơm dừa', 'Cùi dừa già'], ['nước dừa tươi', 'Nước dừa non tươi'], ['nước dừa', 'Nước dừa non tươi'], ['nước cốt dừa', 'Nước cốt dừa'],
   ['bắp ngọt', 'Ngô bắp tươi'], ['bắp non', 'Ngô bao tử'], ['bắp', 'Ngô bắp tươi'], ['ngô', 'Ngô bắp tươi'], ['măng chua', 'Măng chua'], ['măng tươi', 'Măng chua'], ['măng', 'Măng chua'],
   // Gia vị, dầu
   ['dầu đậu phộng', 'Dầu lạc'], ['dầu lạc', 'Dầu lạc'], ['dầu mè', 'Dầu mè'], ['dầu vừng', 'Dầu mè'],
@@ -106,11 +106,15 @@ const RAW_SYNONYMS = [
   ['gạo tẻ', 'Gạo tẻ máy'], ['gạo nếp', 'Gạo nếp (loại thường)'], ['gạo', 'Gạo tẻ máy'],
   ['bún tươi', 'Bún'], ['bún', 'Bún'], ['bánh phở', 'Bánh phở'], ['phở', 'Bánh phở'], ['hủ tiếu', 'Bánh phở'], ['miến dong', 'Miến dong'], ['miến', 'Miến dong'],
   ['bia', 'Bia (cồn: 4,5 g)'], ['củ cải trắng', 'Củ cải trắng'], ['củ cải', 'Củ cải trắng'], ['nếp', 'Gạo nếp cái'], ['hạt sen', 'Hạt sen tươi'],
-  ['su su', 'Su su'], ['rau răm', 'Rau răm'], ['sắn', 'Củ sắn'], ['đậu trắng', 'Đậu trắng hạt (Đậu Tây)'], ['nước cam', 'Nước cam tươi'],
+  ['su su', 'Su su'], ['rau răm', 'Rau răm'], // Nguồn bepxua là miền Nam: 'củ sắn' = củ đậu (jicama, 31 kcal), khoai mì mới là sắn của miền Bắc (158 kcal)
+  ['sắn', 'Củ đậu'], ['củ sắn', 'Củ đậu'], ['củ đậu', 'Củ đậu'], ['khoai mì', 'Củ sắn'], ['đậu trắng', 'Đậu trắng hạt (Đậu Tây)'], ['nước cam', 'Nước cam tươi'],
   // 'bạc hà' trong canh chua là dọc mùng, không phải kẹo bạc hà
   ['bạc hà', 'Dọc mùng'], ['dọc mùng', 'Dọc mùng'], ['lá chanh', null], ['nước', null],
   ['thịt thăn bò', 'Thịt bò loại I'], ['bắp chuối', 'Hoa chuối'], ['hoa chuối', 'Hoa chuối'], ['lá dứa', null], ['gia vị', null], ['đậu bún', null],
-  // đồ chay giả mặn: không lấy dinh dưỡng/dị ứng của nguyên liệu động vật
+  // đồ chay giả mặn: không lấy dinh dưỡng/dị ứng của nguyên liệu động vật.
+  // Sườn/bò/cá chay thường làm từ protein đậu nành tách béo (TVP) -> tạm dùng 'Bột đậu tương đã loại béo' (có cả tag soy)
+  ['sườn non chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['sườn chay', 'Bột đậu tương đã loại béo (đậu nành)'],
+  ['bò lát chay', 'Bột đậu tương đã loại béo (đậu nành)'], ['cá bống chay', 'Bột đậu tương đã loại béo (đậu nành)'],
   ['nước mắm chay', null],
   ['gói gia vị', null], ['mì trứng', 'Bột mì'], ['mì sợi', 'Bột mì'], ['mì gói', 'Bột mì'], ['mì', 'Bột mì'], ['nui', 'Bột mì'],
   // FCT không có bánh mì trơn; 'Bánh mì xíu mại' là món ăn (prepared_dishes), không phải nguyên liệu. Dị ứng gluten vẫn bắt qua từ khóa
@@ -224,145 +228,146 @@ function stripAccents(str) {
     .trim();
 }
 
+// ===== Đọc số lượng =====
+// Bản cũ chỉ hiểu số kiểu '1.5' và đơn vị 2 chữ: '1,5 kg' gà -> 30 g, '⅓ muỗng cafe' -> 30 g, 'muỗng cà phê' -> 30 g,
+// '(1 con vừa ăn)' -> 2 g. Calo nhiều món lệch vài lần.
+const FRACTIONS = { '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅛': 0.125 };
+const NUM = '\\d+(?:[.,]\\d+)?(?:\\s*\\/\\s*\\d+)?';
+
+// "1,5" -> 1.5 ; "1/2" -> 0.5 ; "1 ½" -> 1.5 ; "3-4" / "3 đến 4" -> 3.5 (lấy trung bình)
+function parseNumber(text) {
+  let t = text;
+  for (const [ch, v] of Object.entries(FRACTIONS)) t = t.replace(new RegExp(`(\\d+)?\\s*${ch}`, 'g'), (m, whole) => String((whole ? Number(whole) : 0) + v));
+  const range = t.match(new RegExp(`(${NUM})\\s*(?:-|–|~|đến|tới)\\s*(${NUM})`));
+  const one = (s) => {
+    s = s.replace(',', '.');
+    const mixed = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+    if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+    const frac = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+)$/);
+    return frac ? Number(frac[1]) / Number(frac[2]) : Number(s);
+  };
+  if (range) return { value: (one(range[1]) + one(range[2])) / 2, index: range.index, length: range[0].length };
+  const m = t.match(new RegExp(`(\\d+\\s+\\d+\\s*\\/\\s*\\d+|${NUM})`));
+  return m ? { value: one(m[1]), index: m.index, length: m[0].length, text: t } : null;
+}
+
+// [cụm, loại, hệ số]: g = gam; ml = mililit (nhân tỉ trọng nguyên liệu); count = đơn vị đếm (tra khối lượng chuẩn)
+const UNITS = [
+  ['muỗng cà phê', 'ml', 5], ['thìa cà phê', 'ml', 5], ['muỗng cafe', 'ml', 5], ['muỗng cà', 'ml', 5], ['tsp', 'ml', 5],
+  ['muỗng canh', 'ml', 15], ['thìa canh', 'ml', 15], ['muỗng súp', 'ml', 15], ['tbsp', 'ml', 15], ['muỗng', 'ml', 15], ['thìa', 'ml', 5],
+  ['kg', 'g', 1000], ['kí', 'g', 1000], ['ký', 'g', 1000], ['lạng', 'g', 100], ['gram', 'g', 1], ['gam', 'g', 1], ['gr', 'g', 1], ['g', 'g', 1],
+  ['lít', 'ml', 1000], ['lit', 'ml', 1000], ['ml', 'ml', 1], ['l', 'ml', 1000], ['chén', 'ml', 200], ['bát', 'ml', 200], ['vá', 'ml', 100], ['ly', 'ml', 250],
+  ['tép', 'count', 0], ['củ', 'count', 0], ['trái', 'count', 0], ['quả', 'count', 0], ['con', 'count', 0], ['cây', 'count', 0],
+  ['nhánh', 'count', 0], ['miếng', 'count', 0], ['bó', 'count', 0], ['lát', 'count', 0], ['gói', 'count', 0], ['hộp', 'count', 0],
+  ['lon', 'count', 0], ['cái', 'count', 0], ['sợi', 'count', 0], ['bắp', 'count', 0], ['tai', 'count', 0],
+  // không ghi lượng cụ thể ('1 ít', 'chút'): chỉ là nêm/rắc thêm
+  ['ít', 'small', 2], ['chút', 'small', 2], ['nhúm', 'small', 2], ['xíu', 'small', 2]
+];
+
+// Khối lượng chuẩn (g, khối lượng mua) cho đơn vị đếm. Ước tính thông dụng ở chợ VN.
+const COUNT_WEIGHTS = [
+  [['gà ta', 'gà tre', 'gà'], { con: 1500, cái: 300, default: 300 }],
+  [['vịt'], { con: 2000, default: 500 }],
+  [['cá'], { con: 500, default: 500 }],
+  [['tôm'], { con: 25, default: 25 }], [['mực'], { con: 250, default: 250 }], [['cua', 'ghẹ'], { con: 200, default: 200 }],
+  [['ốc'], { con: 15, default: 15 }],
+  [['lòng đỏ'], { default: 17 }], [['lòng trắng'], { default: 33 }],
+  [['trứng cút', 'trứng chim cút'], { default: 10 }], [['trứng vịt', 'hột vịt'], { default: 65 }], [['trứng', 'hột gà'], { default: 50 }],
+  [['tỏi'], { tép: 4, củ: 40, default: 4 }], [['hành tím', 'hành khô'], { default: 15 }], [['hành tây'], { default: 150 }],
+  [['hành lá', 'hành'], { default: 10 }], [['sả'], { default: 25 }], [['gừng', 'riềng', 'nghệ'], { lát: 2, default: 20 }],
+  [['ớt'], { default: 5 }], [['chanh'], { default: 40 }], [['tắc', 'quất'], { default: 15 }], [['me'], { default: 15 }],
+  [['cà chua'], { default: 100 }], [['cà tím'], { default: 200 }], [['cà rốt'], { default: 120 }], [['khoai tây'], { default: 150 }],
+  [['khoai lang'], { default: 200 }], [['củ cải'], { default: 300 }], [['củ sen'], { default: 200 }], [['sắn'], { default: 300 }],
+  [['đậu bắp'], { default: 15 }], [['bắp chuối'], { default: 400 }], [['bắp', 'ngô'], { default: 300 }], [['thơm', 'dứa', 'khóm'], { default: 1000 }],
+  [['khổ qua', 'mướp đắng'], { default: 200 }], [['dưa leo', 'dưa chuột'], { default: 150 }], [['su su'], { default: 250 }],
+  [['mướp'], { default: 300 }], [['bí'], { default: 1000 }],
+  [['đậu hũ', 'đậu phụ', 'tàu hũ', 'tàu hủ'], { default: 100 }],
+  [['ngò', 'rau mùi', 'húng', 'rau răm', 'thì là'], { default: 5 }], [['cần'], { default: 30 }],
+  [['nấm hương', 'nấm đông cô'], { default: 15 }], [['mì gói', 'mì tôm', 'mì'], { default: 75 }], [['tiêu'], { default: 5 }],
+];
+const COUNT_UNIT_DEFAULT = { sợi: 0.5, bó: 300, lát: 5, gói: 50, hộp: 300, lon: 300, miếng: 50, tép: 4, cây: 15, nhánh: 15 };
+
+function countWeight(name, unit) {
+  const t = name.toLowerCase();
+  // Cụm khớp dài nhất thắng: 'trứng gà' phải thắng 'gà'
+  let best = null, bestLen = 0;
+  for (const [keys, w] of COUNT_WEIGHTS) for (const k of keys) if (k.length > bestLen && hasWord(t, k)) { best = w; bestLen = k.length; }
+  if (best) return best[unit] ?? best.default;
+  return COUNT_UNIT_DEFAULT[unit] ?? 100;
+}
+
+// Khối lượng ghi rõ trong ngoặc thắng mọi suy luận: '1 vá (khoảng 150ml)', '(200g)'
+function explicitAmount(text) {
+  const m = text.match(new RegExp(`\\(\\s*(?:khoảng|tầm|chừng)?\\s*(${NUM})\\s*(kg|g|gr|gram|gam|ml|l|lít)\\s*\\)`, 'i'));
+  if (!m) return null;
+  const v = Number(m[1].replace(',', '.')), u = m[2].toLowerCase();
+  return u === 'kg' ? { g: v * 1000 } : ['l', 'lít'].includes(u) ? { ml: v * 1000 } : u === 'ml' ? { ml: v } : { g: v };
+}
+
+function findUnit(text) {
+  const t = text.toLowerCase();
+  for (const [word, kind, factor] of UNITS) {
+    const m = t.match(new RegExp(`^\\s*${word.replace(/\s+/g, '\\s+')}(?![\\p{L}])`, 'u'));
+    if (m) return { word, kind, factor };
+  }
+  return null;
+}
+
+function decodeHtml(t) {
+  return t.replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
+}
+
 function parseIngredientLine(raw) {
-  let line = raw.trim();
-  let name = "";
-  let qty = 1;
-  let unit = "phần";
-  let grams = 0;
-  let notes = "";
-
+  const line = decodeHtml(raw).trim();
+  let name, rest;
   if (line.includes(':')) {
-    const parts = line.split(':');
-    name = parts[0].trim();
-    const rest = parts.slice(1).join(':').trim();
-    
-    const parenGrams = rest.match(/\((\d+(?:\.\d+)?)\s*(?:g|gram|gam)\)/i);
-    if (parenGrams) {
-      grams = parseFloat(parenGrams[1]);
-    }
-
-    const qtyMatch = rest.match(/^(\d+(?:\/\d+|\.\d+)?)\s*([a-zA-Z\u00C0-\u1EF9]+(?:\s+[a-zA-Z\u00C0-\u1EF9]+)?)?/);
-    if (qtyMatch) {
-      let numStr = qtyMatch[1];
-      if (numStr.includes('/')) {
-        const [num, den] = numStr.split('/').map(Number);
-        qty = num / den;
-      } else {
-        qty = parseFloat(numStr);
-      }
-      if (qtyMatch[2]) {
-        unit = qtyMatch[2].toLowerCase().trim();
-      }
-    }
-    notes = rest;
+    name = line.slice(0, line.indexOf(':')).trim();
+    rest = line.slice(line.indexOf(':') + 1).trim();
   } else {
-    const numUnitRegex = /^(\d+(?:\/\d+|\.\d+)?)\s*(kg|kí|ký|g|gram|gam|ml|l|lít|muỗng canh|thìa canh|muỗng cà phê|thìa cà phê|muỗng súp|muỗng cafe|tbsp|tsp|chén|bát|tép|củ|trái|quả|cây|nhánh|miếng|bó|lát)\s+(.*)$/i;
-    const match = line.match(numUnitRegex);
-    if (match) {
-      let numStr = match[1];
-      if (numStr.includes('/')) {
-        const [num, den] = numStr.split('/').map(Number);
-        qty = num / den;
-      } else {
-        qty = parseFloat(numStr);
-      }
-      unit = match[2].trim().toLowerCase();
-      name = match[3].split(',')[0].trim();
-      notes = line;
+    // "500g thịt bò", "2 quả trứng gà", "Cá chim biển (1 con vừa ăn)", "Dầu ăn"
+    const lead = line.match(new RegExp(`^((?:${NUM}|[½⅓⅔¼¾⅕⅛])\\s*(?:(?:-|–)\\s*${NUM}\\s*)?)(.*)$`));
+    if (lead) {
+      const afterNum = lead[2];
+      const u = findUnit(afterNum);
+      rest = lead[1] + (u ? afterNum.slice(0, afterNum.toLowerCase().indexOf(u.word) + u.word.length) : '');
+      name = (u ? afterNum.slice(afterNum.toLowerCase().indexOf(u.word) + u.word.length) : afterNum).split(',')[0].trim();
     } else {
-      const attachedMatch = line.match(/^(\d+(?:\.\d+)?)(kg|kí|ký|g|gram|gam|ml|l)\s+(.*)$/i);
-      if (attachedMatch) {
-        qty = parseFloat(attachedMatch[1]);
-        unit = attachedMatch[2].trim().toLowerCase();
-        name = attachedMatch[3].split(',')[0].trim();
-        notes = line;
-      } else {
-        const numOnlyMatch = line.match(/^(\d+(?:\/\d+|\.\d+)?)\s+(.*)$/);
-        if (numOnlyMatch) {
-          qty = parseFloat(numOnlyMatch[1]);
-          unit = "phần";
-          name = numOnlyMatch[2].split(',')[0].trim();
-          notes = line;
-        } else {
-          name = line.split(',')[0].trim();
-          qty = 1;
-          unit = "ít";
-          notes = line;
-        }
-      }
+      name = line.split(',')[0].trim();
+      const paren = line.match(/\(([^)]*\d[^)]*)\)/);
+      rest = paren ? paren[1] : '';
     }
   }
-
-  // Grams conversion
-  if (grams === 0) {
-    const u = unit.toLowerCase();
-    const n = name.toLowerCase();
-
-    if (u === 'g' || u === 'gram' || u === 'gam') {
-      grams = qty;
-    } else if (u === 'kg' || u === 'kí' || u === 'ký') {
-      grams = qty * 1000;
-    } else if (u === 'ml' || u === 'mililit') {
-      grams = qty;
-    } else if (u === 'l' || u === 'lít') {
-      grams = qty * 1000;
-    } else if (u.includes('muỗng canh') || u.includes('thìa canh') || u.includes('súp') || u.includes('tbsp')) {
-      grams = qty * 15;
-    } else if (u.includes('muỗng cà phê') || u.includes('thìa cà phê') || u.includes('tsp') || u.includes('cafe')) {
-      grams = qty * 5;
-    } else if (u.includes('chén') || u.includes('bát')) {
-      grams = qty * 200;
-    } else if (u.includes('tép')) {
-      grams = qty * 5;
-    } else if (u.includes('củ')) {
-      if (n.includes('hành tím') || n.includes('hành khô')) grams = qty * 15;
-      else if (n.includes('hành tây')) grams = qty * 120;
-      else if (n.includes('gừng')) grams = qty * 20;
-      else if (n.includes('cà rốt')) grams = qty * 100;
-      else if (n.includes('khoai tây')) grams = qty * 150;
-      else grams = qty * 50;
-    } else if (u.includes('trái') || u.includes('quả')) {
-      if (n.includes('trứng gà')) grams = qty * 50;
-      else if (n.includes('trứng vịt')) grams = qty * 65;
-      else if (n.includes('cà chua')) grams = qty * 75;
-      else if (n.includes('ớt')) grams = qty * 5;
-      else if (n.includes('chanh') || n.includes('tắc')) grams = qty * 30;
-      else if (n.includes('khổ qua')) grams = qty * 150;
-      else if (n.includes('dưa leo')) grams = qty * 100;
-      else grams = qty * 60;
-    } else if (u.includes('cây') || u.includes('nhánh')) {
-      if (n.includes('sả')) grams = qty * 25;
-      else if (n.includes('hành lá')) grams = qty * 15;
-      else if (n.includes('cần')) grams = qty * 30;
-      else grams = qty * 20;
-    } else if (u.includes('miếng')) {
-      if (n.includes('đậu hũ') || n.includes('đậu phụ')) grams = qty * 100;
-      else grams = qty * 50;
-    } else if (u.includes('bó')) {
-      grams = qty * 300;
-    } else if (u.includes('lát')) {
-      grams = qty * 5;
-    } else if (u.includes('ít') || u.includes('chút') || u.includes('nhúm')) {
-      grams = 2;
-    } else {
-      grams = qty > 20 ? qty : qty * 30;
-    }
+  // Số lượng nằm trong ngoặc ở phần tên: "Cá chim biển (1 con vừa ăn)"
+  if (!/\d|[½⅓⅔¼¾]/.test(rest)) {
+    const paren = name.match(/\(([^)]*\d[^)]*)\)/);
+    if (paren) rest = paren[1] + ' ' + rest;
   }
+  const cleanName = name.replace(/\([^)]*\)?/g, '').trim() || name;
 
-  // Lookup matching ingredient
-  let matchedIngredient = null;
-  const cleanNameLower = name.toLowerCase().trim();
+  const num = parseNumber(rest);
+  const qty = num ? num.value : 1;
+  const afterNum = num ? (num.text ?? rest).slice(num.index + num.length) : rest;
+  const u = findUnit(afterNum);
+  const unit = u ? u.word : num ? 'phần' : 'ít';
 
-  // 1. Từ điển đồng nghĩa (theo từ). 2. Trùng đúng tên FCT có dấu.
-  // Bỏ so khớp mờ không dấu: 'ga' khớp cả 'gà', 'cà', 'gạ'... gây map sai loài.
-  matchedIngredient = lookupIngredient(cleanNameLower);
+  const matchedIngredient = lookupIngredient(cleanName.toLowerCase().trim());
+  const density = matchedIngredient ? Number(matchedIngredient.density_g_per_ml) || 1 : 1;
+
+  let grams;
+  const explicit = explicitAmount(line);
+  if (explicit) grams = explicit.g ?? explicit.ml * density;
+  else if (u && u.kind === 'g') grams = qty * u.factor;
+  else if (u && u.kind === 'ml') grams = qty * u.factor * density;
+  else if (u && u.kind === 'small') grams = u.factor;
+  else if (u && u.kind === 'count') grams = qty * countWeight(cleanName, u.word);
+  else if (num) grams = qty * countWeight(cleanName, 'default'); // "bắp chuối: 1", "Trứng gà: 2"
+  else grams = 2; // không ghi lượng ("Dầu ăn", "Tiêu xay"): chỉ là nêm/rắc thêm
 
   return {
     raw_text: raw,
-    ingredient_name_raw: name || raw,
+    ingredient_name_raw: cleanName || raw,
     amount: Math.round(qty * 100) / 100,
-    unit: unit,
+    unit,
     amount_g: Math.round(grams * 10) / 10,
     matched_ingredient_id: matchedIngredient ? matchedIngredient.id : null,
     matched_ingredient_code: matchedIngredient ? matchedIngredient.code : null,
