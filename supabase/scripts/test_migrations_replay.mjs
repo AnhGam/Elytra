@@ -181,4 +181,19 @@ assert.equal((await one(`SELECT count(*)::int AS n FROM recipes WHERE source_tit
 assert.equal((await one(`SELECT title FROM recipes WHERE slug = 'cach-lam-ca-chim-kho-thom-dam-da-ca-mem-khong-tanh-hao-com-cuc'`)).title, "Cá chim kho thơm");
 assert.ok((await rows(`SELECT 1 FROM search_recipes(p_query => 'bo luc lac')`)).length === 1);
 
+// Món ăn sẵn (FCT chương XV) không còn là nguyên liệu, nhưng vẫn ghi bữa được
+assert.equal((await one(`SELECT count(*)::int AS n FROM ingredients WHERE category_id = 15`)).n, 0);
+assert.equal((await one(`SELECT count(*)::int AS n FROM prepared_dishes`)).n, 73);
+assert.equal((await rows(`SELECT 1 FROM search_ingredients(p_query => 'phở bò')`)).length, 0, "phở bò không còn là nguyên liệu");
+const phoDish = (await rows(`SELECT id, name_vi FROM search_dishes(p_query => 'pho')`));
+assert.equal(phoDish[0].name_vi.startsWith("Phở"), true, "search_dishes 'pho' ra món phở trước");
+await assert.rejects(db.query(`INSERT INTO ingredients (code, name_vi, category_id, calories_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g)
+  VALUES ('X99', 'Bún chả mới', 15, 1, 1, 1, 1)`), /ingredients_not_prepared_dish/);
+const dishLog = (await one(`SELECT log_meal('lunch', p_dish_id => $1, p_amount_g => 500) AS r`, [phoDish[0].id])).r;
+assert.equal(dishLog.item.source, "dish");
+assert.equal(dishLog.item.dish_id, phoDish[0].id);
+await assert.rejects(db.query(`SELECT log_meal('lunch', p_dish_id => $1, p_ingredient_id => $2, p_amount_g => 100)`, [phoDish[0].id, egg]), /VALIDATION_ERROR/);
+const glutenDish = (await one(`SELECT count(*)::int AS n FROM prepared_dish_allergens`)).n;
+assert.equal(glutenDish, 10, "10 liên kết dị ứng chuyển theo món");
+
 console.log("migrations replay + audit fixes: all checks passed");

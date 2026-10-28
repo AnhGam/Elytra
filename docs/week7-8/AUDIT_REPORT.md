@@ -136,3 +136,10 @@ Tiêu đề bài viết gốc trộn tên món với lời quảng cáo ở trư
 - 45 tên chuẩn duyệt tay trong `supabase/data/recipe_names.json`; `recipes.title` = tên chuẩn, tiêu đề gốc giữ ở `recipes.source_title`.
 - `normalizeDishName` (cho lần crawl sau): bỏ tiền tố (cách làm, công thức, bí quyết...), cắt sau dấu phân cách, bỏ lời khen, giữ vị khi có động từ nấu trong 2 từ đứng trước, giữ hoa địa danh. Đúng 42/45 tên hiện có; 3 ngoại lệ cần hiểu nghĩa ghi trong `test_dish_name.js`.
 - Giới hạn: thứ tự từ kiểu thành ngữ ("Cách kho cá lóc tộ" → "Cá lóc tộ kho" thay vì "Cá lóc kho tộ") cần duyệt tay.
+
+### Món ăn sẵn bị nạp làm nguyên liệu
+Bảng TPTP 2017 có chương XV "Thức ăn truyền thống" gồm 73 **món ăn** (phở, bún chả, xôi, chè...) đo dinh dưỡng trên 100 g. Lúc import, cả chương bị nạp vào `ingredients`, nên "Phở bò chín" hiện ra như nguyên liệu.
+- Tách sang bảng `prepared_dishes` (giữ nguyên id, số liệu, 10 liên kết dị ứng ở `prepared_dish_allergens`); `ingredients` có CHECK không cho thêm nhóm 15.
+- Vẫn ghi bữa được: `POST /meal-logs` thêm `dish_id` + `amount_g` (MealLogItem `source = "dish"`); tìm bằng RPC `search_dishes` (không dấu).
+- Parser bỏ map "bánh mì" → "Bánh mì xíu mại" (món ăn); dị ứng gluten vẫn bắt qua từ khóa.
+- Đã kiểm production: 0 dòng công thức và 0 bữa ghi đang dùng nhóm này trước khi tách. Ghi 500 g Phở bò chín → 365 kcal.

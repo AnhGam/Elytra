@@ -360,6 +360,7 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
   "source": "recipe",
   "recipe_id": "8f1c…",
   "ingredient_id": null,
+  "dish_id": null,
   "name": "Phở bò",
   "image_url": "https://…/pho-bo.jpg",
   "servings": 1.5,
@@ -372,18 +373,19 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 }
 ```
 
-- `source = "recipe"` → có `servings`, `amount_g = null`. `source = "ingredient"` → có `amount_g`, `servings = null`.
-- `recipe_id` / `ingredient_id` có thể thành `null` nếu món gốc bị xóa; `name` và số liệu vẫn giữ.
+- `source = "recipe"` → có `servings`, `amount_g = null`. `source = "ingredient"` hoặc `"dish"` (món ăn sẵn) → có `amount_g`, `servings = null`.
+- `recipe_id` / `ingredient_id` / `dish_id` có thể thành `null` nếu món gốc bị xóa; `name` và số liệu vẫn giữ.
 
 ### 4.1 `POST /meal-logs` – Ghi 1 món
 
 | Trường | Kiểu | Bắt buộc | Ràng buộc |
 | --- | --- | --- | --- |
 | `meal_type` | `MealType` | Có | |
-| `recipe_id` | `uuid` | Một trong hai | Món đã duyệt |
+| `recipe_id` | `uuid` | Một trong ba | Món đã duyệt |
 | `servings` | số | Không | Chỉ đi với `recipe_id`. 0.25–10, mặc định 1 |
-| `ingredient_id` | `uuid` | Một trong hai | Nguyên liệu đang hoạt động |
-| `amount_g` | số | Khi có `ingredient_id` | 1–2000 (gam phần ăn được) |
+| `ingredient_id` | `uuid` | Một trong ba | Nguyên liệu đang hoạt động |
+| `dish_id` | `uuid` | Một trong ba | Món ăn sẵn (phở, bún chả, xôi... từ Bảng TPTP 2017), tìm bằng RPC `search_dishes` |
+| `amount_g` | số | Khi có `ingredient_id` hoặc `dish_id` | 1–2000 (gam phần ăn được) |
 | `date` | `YYYY-MM-DD` | Không | Mặc định hôm nay. Không ở tương lai, lùi tối đa 30 ngày |
 | `client_request_id` | `uuid` | Không (nên gửi) | Chống ghi trùng khi mạng chập chờn, xem dưới |
 
@@ -464,9 +466,10 @@ Response `204`, không có body. Chỉ xóa được món trong 30 ngày gần n
 
 | HTTP | `code` | `field` | Khi nào |
 | --- | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | trường sai | Body không phải JSON object; sai `meal_type`; gửi cả hai hoặc không gửi `recipe_id`/`ingredient_id` (`field = recipe_id`); `servings`/`amount_g`/`date` ngoài khoảng; `from`/`to` sai hoặc quá 31 ngày (`field = from`) |
+| 400 | `VALIDATION_ERROR` | trường sai | Body không phải JSON object; sai `meal_type`; không gửi đúng 1 trong `recipe_id`/`ingredient_id`/`dish_id` (`field = recipe_id`); `servings`/`amount_g`/`date` ngoài khoảng; `from`/`to` sai hoặc quá 31 ngày (`field = from`) |
 | 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Không tồn tại hoặc chưa duyệt |
 | 404 | `INGREDIENT_NOT_FOUND` | `ingredient_id` | Không tồn tại hoặc đã vô hiệu hóa |
+| 404 | `DISH_NOT_FOUND` | `dish_id` | Món ăn sẵn không tồn tại hoặc đã vô hiệu hóa |
 | 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo |
 | 400 | `VALIDATION_ERROR` | `date` | PATCH hoặc DELETE món cũ hơn 30 ngày |
 | 401 | `UNAUTHORIZED` | | Token không phải của user đã đăng nhập (vd gửi anon key) |
@@ -477,6 +480,7 @@ Response `204`, không có body. Chỉ xóa được món trong 30 ngày gần n
 
 ```dart
 await supabase.functions.invoke('meal-logs', body: {...});                       // POST
+await supabase.rpc('search_dishes', params: {'p_query': 'pho'});              // tìm món ăn sẵn để ghi bữa
 await supabase.functions.invoke('meal-logs', method: HttpMethod.get, queryParameters: {'date': '2026-10-26'});
 await supabase.functions.invoke('meal-logs/history', method: HttpMethod.get, queryParameters: {'from': '…', 'to': '…'});
 await supabase.functions.invoke('meal-logs/items/$id', method: HttpMethod.patch, body: {'servings': 2});

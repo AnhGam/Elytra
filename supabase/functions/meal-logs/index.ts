@@ -21,6 +21,7 @@ const STATUS: Record<string, number> = {
   PROFILE_NOT_FOUND: 404,
   RECIPE_NOT_FOUND: 404,
   INGREDIENT_NOT_FOUND: 404,
+  DISH_NOT_FOUND: 404,
   ITEM_NOT_FOUND: 404,
   IDEMPOTENCY_CONFLICT: 422,
   NOT_FOUND: 404,
@@ -43,6 +44,7 @@ const MESSAGES: Record<string, string> = {
   PROFILE_NOT_FOUND: "Chưa hoàn tất hồ sơ thể trạng",
   RECIPE_NOT_FOUND: "Không tìm thấy món ăn",
   INGREDIENT_NOT_FOUND: "Không tìm thấy nguyên liệu",
+  DISH_NOT_FOUND: "Không tìm thấy món ăn sẵn",
   ITEM_NOT_FOUND: "Không tìm thấy món trong nhật ký",
   IDEMPOTENCY_CONFLICT: "client_request_id đã dùng cho một món khác",
 };
@@ -95,6 +97,7 @@ Deno.serve(async (req: Request) => {
         p_amount_g: b.amount_g ?? null,
         p_date: b.date ?? null,
         p_client_request_id: b.client_request_id ?? null,
+        p_dish_id: b.dish_id ?? null,
       });
       if (error) return fromDbError(error);
       return json(data, data.replayed ? 200 : 201);

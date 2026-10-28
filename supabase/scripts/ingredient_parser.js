@@ -112,7 +112,9 @@ const RAW_SYNONYMS = [
   ['thịt thăn bò', 'Thịt bò loại I'], ['bắp chuối', 'Hoa chuối'], ['hoa chuối', 'Hoa chuối'], ['lá dứa', null], ['gia vị', null], ['đậu bún', null],
   // đồ chay giả mặn: không lấy dinh dưỡng/dị ứng của nguyên liệu động vật
   ['nước mắm chay', null],
-  ['gói gia vị', null], ['mì trứng', 'Bột mì'], ['mì sợi', 'Bột mì'], ['mì gói', 'Bột mì'], ['mì', 'Bột mì'], ['nui', 'Bột mì'], ['bánh mì', 'Bánh mì xíu mại']
+  ['gói gia vị', null], ['mì trứng', 'Bột mì'], ['mì sợi', 'Bột mì'], ['mì gói', 'Bột mì'], ['mì', 'Bột mì'], ['nui', 'Bột mì'],
+  // FCT không có bánh mì trơn; 'Bánh mì xíu mại' là món ăn (prepared_dishes), không phải nguyên liệu. Dị ứng gluten vẫn bắt qua từ khóa
+  ['bánh mì', null]
 ];
 
 const ingredientByName = new Map(catalog.map(i => [i.name_vi, i]));
