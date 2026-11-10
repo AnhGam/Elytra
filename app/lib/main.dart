@@ -3,6 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:elytra/core/router.dart';
 import 'package:elytra/core/theme.dart';
+import 'package:elytra/features/meal_logs/diary_scope.dart';
+import 'package:elytra/features/meal_logs/diary_store.dart';
+import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:elytra/features/recipes/recipe_repository.dart';
 
@@ -31,8 +34,25 @@ class _ElytraAppState extends State<ElytraApp> {
     userIdChanges: supabase.auth.onAuthStateChange.map((s) => s.session?.user.id),
   );
 
+  // Nhật ký bữa ăn dùng chung cả app; tự xoá khi đăng xuất/đổi tài khoản
+  late final DiaryStore _diary = DiaryStore(
+    repo: mealLogRepo,
+    userIdChanges: supabase.auth.onAuthStateChange.map((s) => s.session?.user.id),
+  );
+
+  // Quay lại app thì kiểm tra đã sang ngày mới chưa
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _diary.checkDayChange);
+  }
+
   @override
   void dispose() {
+    _lifecycle.dispose();
+    _diary.dispose();
     _catalog.dispose();
     super.dispose();
   }
@@ -44,7 +64,10 @@ class _ElytraAppState extends State<ElytraApp> {
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       routerConfig: router,
-      builder: (context, child) => RecipeScope(catalog: _catalog, child: child!),
+      builder: (context, child) => DiaryScope(
+        store: _diary,
+        child: RecipeScope(catalog: _catalog, child: child!),
+      ),
     );
   }
 }

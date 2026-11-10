@@ -18,6 +18,9 @@ class FakeMealLogRepository implements MealLogRepository {
   final Map<String, MealLogException> failOnce = {};
   int addCount = 0;
 
+  /// Ngày server ghi món (mặc định = ngày gửi), để giả lập retry sau 0h.
+  String Function(LogRequest req)? addDate;
+
   Future<void> _enter(String op, Object arg) async {
     calls.add((op, arg));
     if (gate != null) await gate!.future;
@@ -47,6 +50,7 @@ class FakeMealLogRepository implements MealLogRepository {
   Future<AddResult> add(LogRequest req, {required String clientRequestId}) async {
     await _enter('add', (req, clientRequestId));
     final n = ++addCount;
+    final date = addDate?.call(req) ?? req.date;
     final item = MealLogItem(
       id: 'item-$n',
       source: req.source,
@@ -55,11 +59,11 @@ class FakeMealLogRepository implements MealLogRepository {
       amountG: req.amountG?.toDouble(),
       macros: const Macros(kcal: 100),
       mealType: req.meal,
-      date: req.date,
+      date: date,
     );
-    final day = days[req.date] ?? dayLog(date: req.date);
+    final day = days[date] ?? dayLog(date: date);
     final budget = day.budget.withConsumed(day.budget.consumed + item.macros);
-    days[req.date] = day.upsert(item, req.meal, budget);
+    days[date] = day.upsert(item, req.meal, budget);
     return AddResult(item: item, budget: budget, replayed: false);
   }
 
