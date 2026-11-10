@@ -248,6 +248,7 @@ class UserNutritionProfile {
     this.carbsG,
     this.fatG,
     this.fiberG,
+    this.fullName,
   });
 
   final double? targetKcal;
@@ -256,6 +257,9 @@ class UserNutritionProfile {
   final double? fatG;
   final double? fiberG;
 
+  /// Họ tên trong hồ sơ (có thể null).
+  final String? fullName;
+
   factory UserNutritionProfile.fromRow(Map<String, dynamic> row) =>
       UserNutritionProfile(
         targetKcal: _num(row['target_calories']),
@@ -263,5 +267,6 @@ class UserNutritionProfile {
         carbsG: _num(row['target_carbs_g']),
         fatG: _num(row['target_fat_g']),
         fiberG: _num(row['target_fiber_g']),
+        fullName: row['full_name'] is String ? row['full_name'] as String : null,
       );
 }

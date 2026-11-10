@@ -53,7 +53,7 @@ class SupabaseRecipeRepository implements RecipeRepository {
   Future<UserNutritionProfile?> fetchProfile() async {
     final row = await supabase
         .from('profiles')
-        .select('target_calories, target_protein_g, target_carbs_g, target_fat_g, target_fiber_g')
+        .select('target_calories, target_protein_g, target_carbs_g, target_fat_g, target_fiber_g, full_name')
         .eq('id', _uid)
         .maybeSingle();
     return row == null ? null : UserNutritionProfile.fromRow(row);
