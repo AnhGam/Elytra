@@ -1,3 +1,4 @@
+import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
@@ -217,7 +218,8 @@ void main() {
     await t.tap(find.widgetWithText(SnackBarAction, 'Thử lại'));
     await t.pumpAndSettle();
     expect(meal.calls, hasLength(2));
-    expect(meal.calls[1]['clientRequestId'], meal.calls[0]['clientRequestId']);
+    expect((meal.calls[1].$2 as (LogRequest, String)).$2,
+        (meal.calls[0].$2 as (LogRequest, String)).$2);
     expect(find.textContaining('Đã thêm 1 phần vào bữa'), findsOneWidget);
   });
 

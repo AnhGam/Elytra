@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:elytra/core/meal_time.dart';
+import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
@@ -28,6 +29,10 @@ void main() {
       newRequestId: () => 'id-${++n}',
     );
   }
+
+  // clientRequestId của từng lần gọi add.
+  List<String> reqIds() =>
+      [for (final c in meal.calls) (c.$2 as (LogRequest, String)).$2];
 
   setUp(() {
     repo = FakeRecipeRepository();
@@ -86,10 +91,11 @@ void main() {
   test('gửi đúng body, thành công thì lần sau id mới', () async {
     expect(await c.addOneServing(), isA<AddMealSuccess>());
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-2']);
-    expect(meal.calls.first['mealType'], MealType.lunch);
-    expect(meal.calls.first['date'], '2026-10-28');
-    expect(meal.calls.first['recipeId'], 'r1');
+    expect(reqIds(), ['id-1', 'id-2']);
+    expect(
+        (meal.calls.first.$2 as (LogRequest, String)).$1,
+        const LogRequest.recipe(
+            refId: 'r1', servings: 1, meal: MealType.lunch, date: '2026-10-28'));
   });
 
   test('mất mạng thì thử lại dùng lại id cũ', () async {
@@ -97,7 +103,7 @@ void main() {
     expect(await c.addOneServing(), isA<AddMealOffline>());
     meal.failWith = null;
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-1']);
+    expect(reqIds(), ['id-1', 'id-1']);
   });
 
   test('PROFILE_NOT_FOUND', () async {
@@ -110,7 +116,7 @@ void main() {
     expect(await c.addOneServing(), isA<AddMealFailed>());
     meal.failWith = null;
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-1']);
+    expect(reqIds(), ['id-1', 'id-1']);
   });
 
   test('bấm hai lần khi đang gửi → một request', () async {

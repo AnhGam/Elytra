@@ -40,4 +40,30 @@ void main() {
     expect(mapMealLogError(const FunctionException(status: 500, details: {'error': 'x'})),
         isA<MealLogFailed>());
   });
+
+  FunctionException fx(Map<String, Object?> err, [int s = 400]) =>
+      FunctionException(status: s, details: {'error': err});
+  test('field=date: TooOld chỉ khi update/delete', () {
+    final e = fx({'code': 'VALIDATION_ERROR', 'field': 'date'});
+    expect(mapMealLogError(e, op: MealLogOp.update), isA<MealLogTooOld>());
+    expect(mapMealLogError(e, op: MealLogOp.delete), isA<MealLogTooOld>());
+    final add = mapMealLogError(e, op: MealLogOp.add);
+    expect(add, isA<MealLogInvalid>());
+    expect((add as MealLogInvalid).field, 'date');
+  });
+  test('ITEM_NOT_FOUND, IDEMPOTENCY_CONFLICT', () {
+    expect(mapMealLogError(fx({'code': 'ITEM_NOT_FOUND'}, 404), op: MealLogOp.update),
+        isA<MealLogItemNotFound>());
+    final c = mapMealLogError(
+        fx({'code': 'IDEMPOTENCY_CONFLICT', 'field': 'client_request_id'}, 422));
+    expect((c as MealLogFailed).code, 'IDEMPOTENCY_CONFLICT');
+  });
+  test('field không phải chuỗi, body lạ không crash', () {
+    expect(mapMealLogError(fx({'code': 'VALIDATION_ERROR', 'field': 7})),
+        isA<MealLogInvalid>());
+    expect(mapMealLogError(const FunctionException(status: 500, details: '<html>')),
+        isA<MealLogFailed>());
+    expect(mapMealLogError(const FunctionException(status: 500, details: {'error': 'x'})),
+        isA<MealLogFailed>());
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:elytra/core/meal_time.dart';
 import 'package:elytra/core/uuid.dart';
+import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
@@ -149,10 +150,8 @@ class RecipeDetailController extends ChangeNotifier {
     _notify();
     final reqId = _clientRequestId ??= newRequestId();
     try {
-      await mealLogs.addRecipe(
-        recipeId: id,
-        mealType: mealType,
-        date: logDate,
+      await mealLogs.add(
+        LogRequest.recipe(refId: id, servings: 1, meal: mealType, date: logDate),
         clientRequestId: reqId,
       );
       _clientRequestId = null;
