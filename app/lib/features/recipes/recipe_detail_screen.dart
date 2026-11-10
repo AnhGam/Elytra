@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:elytra/core/theme.dart';
-import 'package:elytra/features/meal_logs/meal_log_repository.dart';
+import 'package:elytra/features/meal_logs/diary_scope.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:elytra/features/recipes/recipe_detail_controller.dart';
@@ -23,16 +23,12 @@ class RecipeDetailScreen extends StatefulWidget {
     super.key,
     required this.id,
     this.initial,
-    this.mealLogs,
   });
 
   final String id;
 
   /// Món truyền từ danh sách (extra) để hiện ngay phần đầu trong lúc tải
   final Recipe? initial;
-
-  /// Tiêm bản giả trong test; mặc định gọi Edge Function thật
-  final MealLogRepository? mealLogs;
 
   @override
   State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
@@ -61,7 +57,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       id: widget.id,
       initial: widget.initial,
       catalog: RecipeScope.of(context),
-      mealLogs: widget.mealLogs ?? mealLogRepo,
+      store: DiaryScope.of(context),
     );
     _messenger = ScaffoldMessenger.maybeOf(context);
   }

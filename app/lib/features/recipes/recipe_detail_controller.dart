@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:elytra/core/meal_time.dart';
 import 'package:elytra/core/uuid.dart';
+import 'package:elytra/features/meal_logs/diary_store.dart';
 import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
+import 'package:elytra/features/meal_logs/request_keys.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:flutter/foundation.dart';
@@ -45,10 +49,11 @@ class RecipeDetailController extends ChangeNotifier {
     required this.id,
     Recipe? initial,
     required this.catalog,
-    required this.mealLogs,
+    required this.store,
     DateTime Function() now = vnNow,
-    this.newRequestId = uuidV4,
+    String Function() newRequestId = uuidV4,
   })  : _initial = initial,
+        _keys = RequestKeys(newId: newRequestId),
         _cookServings = initial?.servings ?? 1 {
     // Gọi now() đúng một lần: bữa và ngày luôn cùng một thời điểm.
     final t = now();
@@ -59,8 +64,8 @@ class RecipeDetailController extends ChangeNotifier {
   final String id;
   final Recipe? _initial;
   final RecipeCatalog catalog;
-  final MealLogRepository mealLogs;
-  final String Function() newRequestId;
+  final DiaryStore store;
+  final RequestKeys _keys;
 
   late final MealType mealType;
   late final String logDate;
@@ -71,7 +76,6 @@ class RecipeDetailController extends ChangeNotifier {
   bool _servingsTouched = false;
   final Set<int> _doneSteps = {};
   bool _sending = false;
-  String? _clientRequestId;
   bool _disposed = false;
 
   RecipeDetail? get detail => _detail;
@@ -148,15 +152,14 @@ class RecipeDetailController extends ChangeNotifier {
     if (_sending) return const AddMealIgnored();
     _sending = true;
     _notify();
-    final reqId = _clientRequestId ??= newRequestId();
+    final req =
+        LogRequest.recipe(refId: id, servings: 1, meal: mealType, date: logDate);
     try {
-      await mealLogs.add(
-        LogRequest.recipe(refId: id, servings: 1, meal: mealType, date: logDate),
-        clientRequestId: reqId,
-      );
-      _clientRequestId = null;
+      await store.add(req, clientRequestId: _keys.keyFor(req));
+      _keys.succeeded();
       return const AddMealSuccess();
     } on MealLogOffline {
+      _keys.markNetworkError();
       return const AddMealOffline();
     } on MealLogProfileMissing {
       return const AddMealProfileMissing();
@@ -175,6 +178,15 @@ class RecipeDetailController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    // Rời màn sau lỗi mạng: làm mới ngày để món đã lên server hiện ra.
+    // Hoãn một microtask: dispose chạy lúc cây widget đang khoá, store báo
+    // thay đổi ngay thì DiaryScope không build lại được.
+    if (_keys.hadNetworkError) {
+      final date = logDate;
+      scheduleMicrotask(() {
+        unawaited(store.refreshDay(date).catchError((Object _) {}));
+      });
+    }
     super.dispose();
   }
 }
