@@ -35,13 +35,18 @@ class DiaryController extends ChangeNotifier {
   bool canEdit(String date) => withinEditWindow(date, store.today);
 
   void selectDate(String d) {
-    if (d.compareTo(store.today) > 0) return;
+    if (_setDate(d)) _changed();
+  }
+
+  // Đặt ngày (và dời dải nếu cần) mà không thông báo; false nếu bỏ qua ngày tương lai.
+  bool _setDate(String d) {
+    if (d.compareTo(store.today) > 0) return false;
     if (!stripDates.contains(d)) {
       final e = shiftDate(d, 3);
       stripEnd = e.compareTo(store.today) < 0 ? e : store.today;
     }
     selectedDate = d;
-    _changed();
+    return true;
   }
 
   /// [direction] -1 lùi một dải (7 ngày), +1 tiến; không vượt hôm nay.
@@ -66,13 +71,10 @@ class DiaryController extends ChangeNotifier {
   void apply(DiaryViewRequest r) {
     segment = r.segment;
     final days = r.rangeDays;
-    if (days == 7 || days == 30) rangeDays = days!;
+    if (days != null && (days == 7 || days == 30)) rangeDays = days;
     final d = r.date;
-    if (d != null) {
-      selectDate(d); // tự gọi _changed
-    } else {
-      _changed();
-    }
+    if (d != null) _setDate(d);
+    _changed();
   }
 
   // Sang ngày mới: view đang ở hôm nay cũ thì chuyển theo.
@@ -83,6 +85,8 @@ class DiaryController extends ChangeNotifier {
     _lastToday = t;
     if (selectedDate == old) selectedDate = t;
     if (stripEnd == old) stripEnd = t;
+    // Dải dời tới thì ngày quá khứ có thể rơi ra ngoài: kẹp về đầu dải
+    if (selectedDate.compareTo(stripDates.first) < 0) selectedDate = stripDates.first;
     _changed();
   }
 

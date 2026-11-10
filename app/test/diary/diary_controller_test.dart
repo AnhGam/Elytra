@@ -80,4 +80,22 @@ void main() {
     expect(c.selectedDate, '2026-11-08');
     expect(c.stripEnd, '2026-11-12'); // dải đang kết thúc ở hôm nay cũ nên theo ngày mới
   });
+  test('sang ngày mới: ngày chọn ở đầu dải cũ vẫn nằm trong dải', () {
+    c.selectDate('2026-11-05');
+    clock = DateTime.utc(2026, 11, 12, 1);
+    store.checkDayChange();
+    expect(c.stripDates, contains(c.selectedDate));
+    expect(c.selectedDate, '2026-11-06');
+  });
+  test('apply với ngày tương lai vẫn thông báo và tải thống kê', () async {
+    var n = 0;
+    c.addListener(() => n++);
+    c.apply(const DiaryViewRequest(segment: DiarySegment.stats, date: '2026-11-12', rangeDays: 30));
+    expect(n, 1);
+    expect(c.selectedDate, '2026-11-11');
+    await pumpEventQueue();
+    final r = rangeEnding('2026-11-11', 30);
+    expect(repo.calls.where((x) => x.$1 == 'getHistory').map((x) => x.$2),
+        contains((r.from, r.to)));
+  });
 }
