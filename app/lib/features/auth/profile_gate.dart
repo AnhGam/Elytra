@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:elytra/core/pending_onboarding.dart';
 import 'package:elytra/features/nutrition/nutrition_repository.dart';
+import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:elytra/main.dart';
 
 /// Màn chờ ngắn ngay sau đăng ký/đăng nhập, quyết định màn tiếp theo.
@@ -30,7 +31,10 @@ class _ProfileGateState extends State<ProfileGate> {
       if (pending != null) {
         await nutritionRepo.save(pending); // ghi thể trạng + mục tiêu vào profiles
         pendingBodyInfo.value = null; // chỉ xóa SAU KHI lưu thành công
-        if (mounted) context.go('/home');
+        if (!mounted) return;
+        // Mục tiêu vừa đổi: bỏ hồ sơ cũ trong bộ nhớ đệm món ăn để lần sau tải lại
+        RecipeScope.maybeOf(context)?.clear();
+        context.go('/home');
         return;
       }
       // 2. Đăng nhập lại: đã có hồ sơ thì vào Home, chưa có thì khai báo.
