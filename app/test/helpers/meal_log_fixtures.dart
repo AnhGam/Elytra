@@ -57,3 +57,7 @@ HistoryDay hday(String date, double kcal, {double target = 1968, int? items}) =>
       itemCount: items ?? (kcal > 0 ? 1 : 0),
       targetKcal: target,
     );
+
+/// Kết quả tìm kiếm giả; id = [name].
+FoodHit hit(String name, {FoodKind kind = FoodKind.dish}) =>
+    FoodHit(id: name, kind: kind, name: name, per100: const Macros(kcal: 100));
