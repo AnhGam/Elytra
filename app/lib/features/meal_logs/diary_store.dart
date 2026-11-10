@@ -35,6 +35,34 @@ class DiaryViewRequest {
 
 typedef _Range = (String from, String to);
 
+/// Món đang chờ xoá (vuốt để xoá, snackbar Hoàn tác còn hiện).
+/// Món bị ẩn khỏi mọi view; `DELETE` chỉ gửi khi [commit].
+class PendingDelete {
+  PendingDelete._(this._store, this.item, this.date);
+  final DiaryStore _store;
+  final MealLogItem item;
+  final String date;
+  Future<void>? _commit;
+  bool _undone = false;
+
+  /// Trả món lại, không gửi request. Đã commit hoặc đã undo thì không làm gì.
+  void undo() {
+    if (_undone || _commit != null) return;
+    _undone = true;
+    _store._dropPending(this);
+  }
+
+  /// Gửi `DELETE`; lỗi thì món hiện lại rồi ném lỗi. Gọi lần hai trả về cùng Future.
+  /// Món đã bị undo hoặc bị `clear()` bỏ thì không gửi gì.
+  Future<void> commit() {
+    if (_commit != null) return _commit!;
+    if (_undone || !identical(_store._pending[item.id], this)) {
+      return _commit = Future.value();
+    }
+    return _commit = _store._delete(item, date, pending: this);
+  }
+}
+
 LoadStatus _statusOf(Object e) => switch (e) {
       MealLogProfileMissing() => LoadStatus.profileMissing,
       MealLogOffline() => LoadStatus.offline,
@@ -83,6 +111,8 @@ class DiaryStore extends ChangeNotifier {
   final Map<_Range, Future<void>> _historyFlights = {};
   final Map<_Range, int> _historyTokens = {};
 
+  final Map<String, PendingDelete> _pending = {}; // theo id món
+
   /// Yêu cầu mở màn Nhật ký (vd. từ Dashboard).
   final ValueNotifier<DiaryViewRequest?> viewRequest = ValueNotifier(null);
 
@@ -94,7 +124,7 @@ class DiaryStore extends ChangeNotifier {
   DayEntry day(String date) {
     final e = _days[date];
     if (e == null) return const DayEntry(LoadStatus.idle);
-    return DayEntry(e.status, _viewDay(e.log));
+    return DayEntry(e.status, _viewDay(date, e.log));
   }
 
   HistoryEntry history(String from, String to) =>
@@ -118,8 +148,15 @@ class DiaryStore extends ChangeNotifier {
   HistoryDay _mergeDay(HistoryDay d) {
     final e = _days[d.date];
     // Có log trong cache (kể cả log cũ giữ lại khi làm mới lỗi) thì luôn dùng log
-    final log = _viewDay(e?.log);
-    if (log == null) return d;
+    final log = _viewDay(d.date, e?.log);
+    if (log == null) {
+      // Ngày chỉ có số từ /history: trừ thẳng các món đang chờ xoá
+      var out = d;
+      for (final p in _pendingOn(d.date)) {
+        out = _subtract(out, p.item);
+      }
+      return out;
+    }
     final c = log.budget.consumed;
     return d.copyWith(
       kcal: c.kcal,
@@ -130,8 +167,31 @@ class DiaryStore extends ChangeNotifier {
     );
   }
 
-  // Điểm duy nhất biến DayLog trong cache thành bản hiển thị (Task 8 trừ món chờ xoá ở đây).
-  DayLog? _viewDay(DayLog? log) => log;
+  // Điểm duy nhất biến DayLog trong cache thành bản hiển thị: bỏ các món đang chờ xoá.
+  DayLog? _viewDay(String date, DayLog? log) {
+    if (log == null) return null;
+    var out = log;
+    for (final p in _pendingOn(date)) {
+      out = out.without(p.item.id);
+    }
+    return out;
+  }
+
+  Iterable<PendingDelete> _pendingOn(String date) =>
+      _pending.values.where((p) => p.date == date);
+
+  // Trừ một món khỏi số của ngày trong /history, không xuống dưới 0.
+  static HistoryDay _subtract(HistoryDay d, MealLogItem it) {
+    double sub(double a, double b) => a - b < 0 ? 0 : a - b;
+    final m = it.macros;
+    return d.copyWith(
+      kcal: sub(d.kcal, m.kcal),
+      proteinG: sub(d.proteinG, m.proteinG),
+      carbsG: sub(d.carbsG, m.carbsG),
+      fatG: sub(d.fatG, m.fatG),
+      itemCount: d.itemCount > 0 ? d.itemCount - 1 : 0,
+    );
+  }
 
   // ---------- Tải ----------
 
@@ -247,16 +307,65 @@ class DiaryStore extends ChangeNotifier {
   }
 
   /// Xoá món; thành công thì bỏ khỏi cache ngay rồi làm mới chạy nền.
-  Future<void> delete(MealLogItem item, {required String date}) async {
+  Future<void> delete(MealLogItem item, {required String date}) => _delete(item, date);
+
+  // [pending]: món đang treo được commit; giữ ẩn tới khi DELETE xong, lỗi thì hiện lại.
+  Future<void> _delete(MealLogItem item, String date, {PendingDelete? pending}) async {
     final gen = _generation;
-    await repo.deleteItem(item.id);
+    try {
+      await repo.deleteItem(item.id);
+    } catch (_) {
+      if (pending != null && gen == _generation) _dropPending(pending);
+      rethrow;
+    }
     if (gen != _generation) return;
+    if (pending != null && identical(_pending[item.id], pending)) _pending.remove(item.id);
     final e = _days[date];
     if (e?.log != null) {
       _days[date] = DayEntry(e!.status, e.log!.without(item.id));
-      _notify();
     }
+    // Ngày chỉ có trong /history: trừ luôn để số không nhảy lại trước khi làm mới xong
+    _histories.updateAll((key, h) {
+      final hist = h.history;
+      if (hist == null || key.$1.compareTo(date) > 0 || key.$2.compareTo(date) < 0) return h;
+      return HistoryEntry(
+        h.status,
+        History(
+          from: hist.from,
+          to: hist.to,
+          targetKcal: hist.targetKcal,
+          days: [for (final d in hist.days) d.date == date ? _subtract(d, item) : d],
+        ),
+      );
+    });
+    _notify();
     _afterMutation(date);
+  }
+
+  /// Ẩn món ngay và trả về handle Hoàn tác / commit. Món treo khác được commit trước
+  /// (không chờ; lỗi thì món đó hiện lại).
+  PendingDelete deleteDeferred(MealLogItem item, {required String date}) {
+    final existing = _pending[item.id];
+    if (existing != null) return existing;
+    for (final p in _pending.values.toList()) {
+      if (p._commit == null) unawaited(p.commit().catchError((Object _) {}));
+    }
+    final p = PendingDelete._(this, item, date);
+    _pending[item.id] = p;
+    _notify();
+    return p;
+  }
+
+  /// Commit mọi món treo và chờ xong; lỗi bị bỏ qua (gọi trước khi đăng xuất).
+  Future<void> flushPendingDeletes() => Future.wait([
+        for (final p in _pending.values.toList())
+          p.commit().catchError((Object _) {}),
+      ]);
+
+  void _dropPending(PendingDelete p) {
+    if (!identical(_pending[p.item.id], p)) return;
+    _pending.remove(p.item.id);
+    _notify();
   }
 
   /// Hoàn tác lần ghi vừa rồi (= xoá món đó).
@@ -314,6 +423,7 @@ class DiaryStore extends ChangeNotifier {
     _histories.clear();
     _historyFlights.clear();
     _historyTokens.clear();
+    _pending.clear(); // bỏ, không gửi DELETE (phiên đã mất)
     _today = isoDate(now());
     _notify();
   }
