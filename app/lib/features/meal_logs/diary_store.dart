@@ -100,7 +100,7 @@ class DiaryStore extends ChangeNotifier {
   HistoryEntry history(String from, String to) =>
       _histories[(from, to)] ?? const HistoryEntry(LoadStatus.idle);
 
-  /// Lịch sử đã ghép: ngày nào có DayLog sẵn sàng trong cache (kể cả hôm nay)
+  /// Lịch sử đã ghép: ngày nào có DayLog trong cache (kể cả hôm nay, kể cả khi làm mới lỗi)
   /// thì lấy số từ DayLog để khớp vòng calo. Khoảng chưa tải thì null.
   History? historyView(String from, String to) {
     final h = _histories[(from, to)]?.history;
@@ -117,8 +117,9 @@ class DiaryStore extends ChangeNotifier {
 
   HistoryDay _mergeDay(HistoryDay d) {
     final e = _days[d.date];
-    if (e == null || e.status != LoadStatus.ready || e.log == null) return d;
-    final log = _viewDay(e.log)!;
+    // Có log trong cache (kể cả log cũ giữ lại khi làm mới lỗi) thì luôn dùng log
+    final log = _viewDay(e?.log);
+    if (log == null) return d;
     final c = log.budget.consumed;
     return d.copyWith(
       kcal: c.kcal,

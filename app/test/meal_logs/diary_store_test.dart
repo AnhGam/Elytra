@@ -150,4 +150,53 @@ void main() {
     expect(s.history(r.from, r.to).status, LoadStatus.failed);
     expect(s.history(r.from, r.to).history, isNotNull);
   });
+
+  test('add thành công nhưng làm mới nền lỗi: cột hôm nay vẫn khớp DayLog', () async {
+    await s.ensureDay(s.today);
+    final r = rangeEnding(s.today, 7);
+    await s.ensureHistory(r.from, r.to);
+    repo.failOnce['getDay'] = const MealLogOffline();
+    repo.failOnce['getHistory'] = const MealLogOffline();
+    await s.add(add1, clientRequestId: 'k1');
+    await pumpEventQueue();
+    expect(s.day(s.today).status, LoadStatus.offline);
+    final kcal = s.day(s.today).log!.budget.consumed.kcal;
+    expect(kcal, 100);
+    expect(s.historyView(r.from, r.to)!.days.last.kcal, kcal);
+  });
+
+  test('xoá trên ngày offline giữ log cũ: cột hôm nay vẫn khớp DayLog', () async {
+    final it = item(id: 'a', date: '2026-11-11');
+    repo.days['2026-11-11'] = dayLog(items: [(MealType.lunch, it)]);
+    repo.onHistory = (from, to) => History(
+          from: from,
+          to: to,
+          targetKcal: 1968,
+          days: [hday(to, 100)],
+        );
+    await s.ensureDay(s.today);
+    final r = rangeEnding(s.today, 7);
+    await s.ensureHistory(r.from, r.to);
+    repo.failOnce['getDay'] = const MealLogOffline();
+    await s.refreshDay(s.today);
+    expect(s.day(s.today).status, LoadStatus.offline);
+    repo.failOnce['getDay'] = const MealLogOffline();
+    repo.failOnce['getHistory'] = const MealLogOffline();
+    await s.delete(it, date: s.today);
+    await pumpEventQueue();
+    final kcal = s.day(s.today).log!.budget.consumed.kcal;
+    expect(kcal, 0);
+    expect(s.historyView(r.from, r.to)!.days.last.kcal, kcal);
+  });
+
+  test('kết quả ghi về sau clear() không vào cache', () async {
+    await s.ensureDay(s.today);
+    repo.gate = Completer();
+    final f = s.add(add1, clientRequestId: 'k1');
+    s.clear();
+    repo.gate!.complete();
+    await f;
+    await pumpEventQueue();
+    expect(s.day(s.today).status, LoadStatus.idle);
+  });
 }
