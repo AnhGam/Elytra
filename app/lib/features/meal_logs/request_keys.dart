@@ -11,7 +11,7 @@ class RequestKeys {
   String? _key;
   bool _networkError = false;
 
-  /// Đã có ít nhất một lần lỗi mạng kể từ lần thành công / reset gần nhất.
+  /// Đã có ít nhất một lần lỗi mạng kể từ lần thành công / xoá cờ gần nhất.
   bool get hadNetworkError => _networkError;
 
   String keyFor(LogRequest req) {
@@ -21,15 +21,16 @@ class RequestKeys {
     return _key = _newId();
   }
 
-  /// Gửi thành công: bỏ cặp (nội dung, khoá) và cờ lỗi mạng.
-  void succeeded() => reset();
-
-  void markNetworkError() => _networkError = true;
-
-  /// Về trạng thái ban đầu (vd. đóng sheet sau khi đã làm mới ngày).
-  void reset() {
+  /// Gửi thành công: nơi duy nhất bỏ cặp (nội dung, khoá); xoá luôn cờ lỗi mạng.
+  void succeeded() {
     _req = null;
     _key = null;
     _networkError = false;
   }
+
+  void markNetworkError() => _networkError = true;
+
+  /// Chỉ xoá cờ lỗi mạng (sau khi đã làm mới ngày); khoá vẫn giữ để gửi lại
+  /// y nguyên không ghi trùng nếu request đầu thực ra đã tới server.
+  void clearNetworkError() => _networkError = false;
 }

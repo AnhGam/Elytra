@@ -186,25 +186,26 @@ class LogMealController extends ChangeNotifier {
     try {
       List<FoodHit> hits;
       String? label;
+      bool? featured; // chỉ ghi vào controller khi kết quả được nhận
       if (t == FoodTab.dishes) {
         hits = await search.searchDishes(q);
         label = empty ? _labelDishesAz : null;
       } else if (empty) {
         hits = await search.searchIngredients(q, featured: true);
         if (seq != _seq) return;
-        _ingredientFeatured = true;
+        featured = true;
         label = _labelSuggest;
         if (hits.isEmpty) {
           // Chưa có nguyên liệu gợi ý: chuyển sang danh sách A–Z
           hits = await search.searchIngredients(q);
-          _ingredientFeatured = null;
+          featured = null;
           label = _labelIngredientsAz;
         }
       } else {
         hits = await search.searchIngredients(q);
-        _ingredientFeatured = null;
       }
       if (seq != _seq || _disposed) return;
+      if (t == FoodTab.ingredients) _ingredientFeatured = featured;
       _states[t] = FoodTabState(
         status: SearchStatus.ready,
         hits: hits,
@@ -260,6 +261,7 @@ class LogMealController extends ChangeNotifier {
   /// Tải lại tab đang mở từ trang đầu.
   Future<void> retry() async {
     if (_tab == FoodTab.recipes) {
+      // Lỗi catalog hiện qua catalog.status (→ SearchStatus.failed)
       await catalog.refresh().catchError((Object _) {});
       return;
     }
@@ -291,10 +293,12 @@ class LogMealController extends ChangeNotifier {
   }
 
   /// Đóng sheet: sau lỗi mạng thì làm mới ngày, vì request đầu có thể đã tới server.
+  /// Khoá vẫn giữ tới khi gửi thành công.
   Future<void> onSheetClosed() async {
     if (!keys.hadNetworkError) return;
-    keys.reset();
-    await store.refreshDay(date);
+    final f = store.refreshDay(date);
+    keys.clearNetworkError();
+    await f;
   }
 
   void _notify() {
@@ -305,6 +309,11 @@ class LogMealController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _debounceTimer?.cancel();
+    // Rời màn sau lỗi mạng (chưa đóng sheet): làm mới ngày để món đã lên server hiện ra
+    if (keys.hadNetworkError) {
+      keys.clearNetworkError();
+      unawaited(store.refreshDay(date).catchError((Object _) {}));
+    }
     catalog.removeListener(_notify);
     super.dispose();
   }

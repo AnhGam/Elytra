@@ -101,6 +101,42 @@ void main() {
       expect(repo.calls.where((x) => x.$1 == 'getDay'), hasLength(1));
     });
 
+    test('lỗi mạng → đóng sheet → mở lại thêm y nguyên thì giữ khoá cũ', () async {
+      repo.failOnce['add'] = const MealLogOffline();
+      expect(await c.submit(req), isA<LogOfflineOutcome>());
+      await c.onSheetClosed();
+      expect(c.keys.hadNetworkError, isFalse);
+      expect(await c.submit(req), isA<LogAdded>());
+      final keys = repo.calls
+          .where((x) => x.$1 == 'add')
+          .map((x) => (x.$2 as (LogRequest, String)).$2)
+          .toList();
+      expect(keys, hasLength(2));
+      expect(keys[1], keys[0]);
+    });
+
+    test('rời màn sau lỗi mạng thì refreshDay', () async {
+      repo.failOnce['add'] = const MealLogOffline();
+      await c.submit(req);
+      repo.calls.clear();
+      c.dispose();
+      expect(repo.calls.where((x) => x.$1 == 'getDay' && x.$2 == '2026-11-11'), hasLength(1));
+      // tearDown cần một controller chưa dispose
+      c = LogMealController(
+          store: store, catalog: catalog, search: search, meal: MealType.lunch, date: '2026-11-11');
+    });
+
+    test('rời màn khi đã đóng sheet (đã làm mới) thì không refreshDay lần nữa', () async {
+      repo.failOnce['add'] = const MealLogOffline();
+      await c.submit(req);
+      await c.onSheetClosed();
+      repo.calls.clear();
+      c.dispose();
+      expect(repo.calls.where((x) => x.$1 == 'getDay'), isEmpty);
+      c = LogMealController(
+          store: store, catalog: catalog, search: search, meal: MealType.lunch, date: '2026-11-11');
+    });
+
     test('IDEMPOTENCY_CONFLICT → LogFailedOutcome', () async {
       repo.failOnce['add'] = const MealLogFailed('IDEMPOTENCY_CONFLICT');
       expect(await c.submit(req), isA<LogFailedOutcome>());
@@ -186,7 +222,7 @@ void main() {
       c.setQuery('pho');
       expect(c.query, 'pho');
       expect(search.calls, isEmpty);
-      await Future<void>.delayed(const Duration(milliseconds: 40));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
       await pumpEventQueue();
       expect(search.calls.map((x) => x.$2), ['pho']);
     });
@@ -230,6 +266,49 @@ void main() {
       await pumpEventQueue();
       expect(search.calls.map((x) => x.$2), [null, 'bun', 'pho']);
       expect(c.stateOf(FoodTab.dishes).hits.map((h) => h.name), ['Phở bò']);
+    });
+
+    test('kết quả cũ của tab Nguyên liệu không đổi chế độ featured của trang sau', () async {
+      search.ingredients = [
+        for (var i = 0; i < 25; i++)
+          hit('Cà ${i.toString().padLeft(2, '0')}', kind: FoodKind.ingredient),
+      ];
+      search.featuredIds = {for (final h in search.ingredients) h.id};
+      c.setTab(FoodTab.ingredients);
+      await pumpEventQueue();
+      final caGate = Completer<void>();
+      search.gate = caGate;
+      c.setQuery('ca');
+      await pumpEventQueue(); // request 'ca' (featured null) đang chờ
+      search.gate = null;
+      c.setQuery('');
+      await pumpEventQueue(); // trang gợi ý (featured true) về trước
+      caGate.complete(); // 'ca' về muộn, phải bị bỏ
+      await pumpEventQueue();
+      final st = c.stateOf(FoodTab.ingredients);
+      expect(st.sectionLabel, 'Gợi ý');
+      expect(st.hasMore, isTrue);
+      search.calls.clear();
+      await c.loadMore();
+      expect(search.calls.map((x) => (x.$3, x.$4)), [(true, 20)]);
+    });
+
+    test('trang loadMore về sau khi đổi từ khoá thì bị bỏ', () async {
+      search.dishes = [for (var i = 0; i < 25; i++) hit('Món ${i.toString().padLeft(2, '0')}')];
+      c.setTab(FoodTab.dishes);
+      await pumpEventQueue();
+      final g = Completer<void>();
+      search.gate = g;
+      final more = c.loadMore();
+      await pumpEventQueue();
+      search.gate = null;
+      c.setQuery('mon 2');
+      await pumpEventQueue();
+      g.complete();
+      await more;
+      await pumpEventQueue();
+      expect(c.stateOf(FoodTab.dishes).hits.map((h) => h.name),
+          ['Món 20', 'Món 21', 'Món 22', 'Món 23', 'Món 24']);
     });
 
     test('mất mạng thì offline; retry tải lại', () async {
