@@ -18,6 +18,10 @@ class FakeMealLogRepository implements MealLogRepository {
   final Map<String, MealLogException> failOnce = {};
   int addCount = 0;
 
+  /// Chỉ giữ DELETE (sau khi ghi lời gọi), để mô phỏng DELETE đang bay trong khi
+  /// các lời gọi khác vẫn trả về.
+  Completer<void>? deleteGate;
+
   /// Gọi khi DELETE thành công (sau [gate] và lỗi giả), để kiểm tra thứ tự.
   void Function(String id)? onDelete;
 
@@ -83,6 +87,7 @@ class FakeMealLogRepository implements MealLogRepository {
   @override
   Future<void> deleteItem(String id) async {
     await _enter('delete', id);
+    if (deleteGate != null) await deleteGate!.future;
     for (final e in days.entries.toList()) {
       if (e.value.find(id) != null) days[e.key] = e.value.without(id);
     }

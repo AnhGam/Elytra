@@ -45,6 +45,10 @@ class PendingDelete {
   Future<void>? _commit;
   bool _undone = false;
 
+  /// Số thứ tự lúc gửi DELETE (null: chưa gửi). Dữ liệu /history lấy sau mốc này
+  /// có thể đã không còn món nên không trừ nữa.
+  int? _sentSeq;
+
   /// Trả món lại, không gửi request. Đã commit hoặc đã undo thì không làm gì.
   void undo() {
     if (_undone || _commit != null) return;
@@ -108,6 +112,12 @@ class DiaryStore extends ChangeNotifier {
   final Map<String, int> _dayTokens = {}; // chỉ lượt tải mới nhất của một ngày được ghi
 
   final Map<_Range, HistoryEntry> _histories = {};
+
+  // Số thứ tự tăng dần cho mỗi request /history và mỗi DELETE; [_historySeq] là số của
+  // request đã cho ra dữ liệu đang cache. Dùng để biết dữ liệu có chắc còn chứa món
+  // vừa xoá hay không (tránh trừ hai lần).
+  int _seq = 0;
+  final Map<_Range, int> _historySeq = {};
   final Map<_Range, Future<void>> _historyFlights = {};
   final Map<_Range, int> _historyTokens = {};
 
@@ -140,20 +150,22 @@ class DiaryStore extends ChangeNotifier {
       to: h.to,
       targetKcal: h.targetKcal,
       days: [
-        for (final d in h.days) _mergeDay(d),
+        for (final d in h.days) _mergeDay(d, _historySeq[(from, to)] ?? 0),
       ],
     );
   }
 
-  HistoryDay _mergeDay(HistoryDay d) {
+  HistoryDay _mergeDay(HistoryDay d, int dataSeq) {
     final e = _days[d.date];
     // Có log trong cache (kể cả log cũ giữ lại khi làm mới lỗi) thì luôn dùng log
     final log = _viewDay(d.date, e?.log);
     if (log == null) {
-      // Ngày chỉ có số từ /history: trừ thẳng các món đang chờ xoá
+      // Ngày chỉ có số từ /history: trừ các món đang chờ xoá, trừ khi dữ liệu được
+      // lấy sau khi đã gửi DELETE (server có thể đã bỏ món, trừ nữa là trừ hai lần)
       var out = d;
       for (final p in _pendingOn(d.date)) {
-        out = _subtract(out, p.item);
+        final sent = p._sentSeq;
+        if (sent == null || dataSeq < sent) out = _subtract(out, p.item);
       }
       return out;
     }
@@ -253,6 +265,7 @@ class DiaryStore extends ChangeNotifier {
     final gen = _generation;
     final token = (_historyTokens[key] ?? 0) + 1;
     _historyTokens[key] = token;
+    final reqSeq = ++_seq;
     if (_histories[key]?.history == null &&
         _histories[key]?.status != LoadStatus.loading) {
       _histories[key] = const HistoryEntry(LoadStatus.loading);
@@ -265,6 +278,7 @@ class DiaryStore extends ChangeNotifier {
         final h = await repo.getHistory(key.$1, key.$2);
         if (!current()) return;
         _histories[key] = HistoryEntry(LoadStatus.ready, h);
+        _historySeq[key] = reqSeq;
       } catch (e) {
         if (!current()) return;
         _histories[key] = HistoryEntry(_statusOf(e), _histories[key]?.history);
@@ -318,6 +332,8 @@ class DiaryStore extends ChangeNotifier {
   // [pending]: món đang treo được commit; giữ ẩn tới khi DELETE xong, lỗi thì hiện lại.
   Future<void> _delete(MealLogItem item, String date, {PendingDelete? pending}) async {
     final gen = _generation;
+    final sentSeq = ++_seq;
+    pending?._sentSeq = sentSeq;
     try {
       await repo.deleteItem(item.id);
     } catch (_) {
@@ -331,9 +347,12 @@ class DiaryStore extends ChangeNotifier {
       _days[date] = DayEntry(e!.status, e.log!.without(item.id));
     }
     // Ngày chỉ có trong /history: trừ luôn để số không nhảy lại trước khi làm mới xong
+    // Chỉ trừ ở khoảng có dữ liệu lấy trước khi gửi DELETE (chắc còn món);
+    // dữ liệu lấy sau đó để lượt làm mới bên dưới quyết định.
     _histories.updateAll((key, h) {
       final hist = h.history;
       if (hist == null || key.$1.compareTo(date) > 0 || key.$2.compareTo(date) < 0) return h;
+      if ((_historySeq[key] ?? 0) >= sentSeq) return h;
       return HistoryEntry(
         h.status,
         History(
@@ -429,6 +448,7 @@ class DiaryStore extends ChangeNotifier {
     _histories.clear();
     _historyFlights.clear();
     _historyTokens.clear();
+    _historySeq.clear();
     _pending.clear(); // bỏ, không gửi DELETE (phiên đã mất)
     _today = isoDate(now());
     _notify();
