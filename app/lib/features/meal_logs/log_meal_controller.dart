@@ -313,7 +313,9 @@ class LogMealController extends ChangeNotifier {
       return const LogOfflineOutcome();
     } on MealLogProfileMissing {
       return const LogProfileMissingOutcome();
-    } catch (_) {
+    } catch (e) {
+      // Khoá đã gắn với nội dung khác trên server: bỏ để lần bấm sau dùng khoá mới
+      if (RequestKeys.isConflict(e)) keys.reset();
       return const LogFailedOutcome();
     } finally {
       _sending = false;

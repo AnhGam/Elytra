@@ -145,6 +145,29 @@ void main() {
       expect(await c.submit(req), isA<LogFailedOutcome>());
     });
 
+    test('IDEMPOTENCY_CONFLICT rồi bấm lại y nguyên thì gửi khoá mới', () async {
+      repo.failOnce['add'] = const MealLogFailed('IDEMPOTENCY_CONFLICT');
+      await c.submit(req);
+      expect(await c.submit(req), isA<LogAdded>());
+      final keys = [
+        for (final x in repo.calls)
+          if (x.$1 == 'add') (x.$2 as (LogRequest, String)).$2,
+      ];
+      expect(keys, hasLength(2));
+      expect(keys[1], isNot(keys[0]));
+    });
+
+    test('lỗi khác (không phải conflict) vẫn giữ khoá', () async {
+      repo.failOnce['add'] = const MealLogFailed('X');
+      await c.submit(req);
+      await c.submit(req);
+      final keys = [
+        for (final x in repo.calls)
+          if (x.$1 == 'add') (x.$2 as (LogRequest, String)).$2,
+      ];
+      expect(keys[1], keys[0]);
+    });
+
     test('PROFILE_NOT_FOUND → LogProfileMissingOutcome', () async {
       repo.failOnce['add'] = const MealLogProfileMissing();
       expect(await c.submit(req), isA<LogProfileMissingOutcome>());

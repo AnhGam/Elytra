@@ -127,6 +127,14 @@ void main() {
     expect(reqIds(), ['id-1', 'id-1']);
   });
 
+  test('IDEMPOTENCY_CONFLICT → AddMealFailed, lần sau dùng id mới', () async {
+    meal.failWith = MealLogFailed('IDEMPOTENCY_CONFLICT');
+    expect(await c.addOneServing(), isA<AddMealFailed>());
+    meal.failWith = null;
+    await c.addOneServing();
+    expect(reqIds(), ['id-1', 'id-2']);
+  });
+
   test('bấm hai lần khi đang gửi → một request', () async {
     meal.gate = Completer<void>();
     final first = c.addOneServing();

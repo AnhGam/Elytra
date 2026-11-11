@@ -31,6 +31,17 @@ void main() {
     expect(k.hadNetworkError, isFalse);
   });
 
+  test('reset bỏ khoá cũ: cùng nội dung lấy khoá mới', () {
+    var n = 0;
+    final k = RequestKeys(newId: () => 'k${n++}');
+    const a = LogRequest.recipe(refId: 'r', meal: MealType.lunch, date: '2026-11-11');
+    expect(k.keyFor(a), 'k0');
+    k.markNetworkError();
+    k.reset();
+    expect(k.keyFor(a), 'k1');
+    expect(k.hadNetworkError, isFalse);
+  });
+
   test('mặc định sinh UUID v4', () {
     final k = RequestKeys();
     const a = LogRequest.dish(refId: 'd', amountG: 100, meal: MealType.lunch, date: '2026-11-11');

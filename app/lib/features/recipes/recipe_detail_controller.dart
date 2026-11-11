@@ -163,7 +163,9 @@ class RecipeDetailController extends ChangeNotifier {
       return const AddMealOffline();
     } on MealLogProfileMissing {
       return const AddMealProfileMissing();
-    } catch (_) {
+    } catch (e) {
+      // Khoá đã gắn với nội dung khác trên server: bỏ để lần bấm sau dùng khoá mới
+      if (RequestKeys.isConflict(e)) _keys.reset();
       return const AddMealFailed();
     } finally {
       _sending = false;

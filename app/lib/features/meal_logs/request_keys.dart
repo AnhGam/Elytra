@@ -1,5 +1,6 @@
 import '../../core/uuid.dart';
 import 'meal_log_models.dart';
+import 'meal_log_repository.dart';
 
 /// Khoá idempotency (`client_request_id`) gắn với nội dung request.
 /// Gửi lại y nguyên thì giữ khoá cũ; nội dung khác thì sinh khoá mới.
@@ -21,12 +22,20 @@ class RequestKeys {
     return _key = _newId();
   }
 
-  /// Gửi thành công: nơi duy nhất bỏ cặp (nội dung, khoá); xoá luôn cờ lỗi mạng.
-  void succeeded() {
+  /// Gửi thành công: bỏ cặp (nội dung, khoá); xoá luôn cờ lỗi mạng.
+  void succeeded() => reset();
+
+  /// Bỏ khoá hiện tại (thành công, hoặc server báo khoá đã dùng cho nội dung khác:
+  /// `IDEMPOTENCY_CONFLICT`); lần gửi sau sinh khoá mới.
+  void reset() {
     _req = null;
     _key = null;
     _networkError = false;
   }
+
+  /// Lỗi [e] có phải server báo trùng khoá với nội dung khác không.
+  static bool isConflict(Object e) =>
+      e is MealLogFailed && e.code == 'IDEMPOTENCY_CONFLICT';
 
   void markNetworkError() => _networkError = true;
 
