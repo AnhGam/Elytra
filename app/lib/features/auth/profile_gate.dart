@@ -9,7 +9,10 @@ import 'package:elytra/main.dart';
 
 /// Màn chờ ngắn ngay sau đăng ký/đăng nhập, quyết định màn tiếp theo.
 class ProfileGate extends StatefulWidget {
-  const ProfileGate({super.key});
+  const ProfileGate({super.key, this.hasProfile});
+
+  /// Đã khai báo thể trạng chưa; mặc định hỏi bảng `profiles` (tiêm vào để test).
+  final Future<bool> Function()? hasProfile;
 
   @override
   State<ProfileGate> createState() => _ProfileGateState();
@@ -39,21 +42,34 @@ class _ProfileGateState extends State<ProfileGate> {
         context.go('/home');
         return;
       }
-      // 2. Đăng nhập lại: đã có hồ sơ thì vào Home, chưa có thì khai báo.
-      // Bảng `profiles` có trigger tạo sẵn 1 dòng khi đăng ký, nên "có dòng"
-      // chưa có nghĩa là đã khai báo: kiểm tra thêm target_calories.
-      final row = await supabase
-          .from('profiles')
-          .select('target_calories')
-          .eq('id', supabase.auth.currentUser!.id)
-          .maybeSingle();
-      if (!mounted) return;
-      final hasProfile = row != null && row['target_calories'] != null;
-      context.go(hasProfile ? '/home' : '/onboarding');
     } catch (e) {
       // Lỗi: giữ nguyên pendingBodyInfo để người dùng không phải khai báo lại
       if (mounted) setState(() => _error = 'Không lưu được hồ sơ. Kiểm tra mạng và thử lại.');
+      return;
     }
+    // 2. Đăng nhập lại / mở lại app: đã có hồ sơ thì vào Home, chưa có thì khai báo.
+    bool hasProfile;
+    try {
+      hasProfile = await (widget.hasProfile ?? _hasProfileInDb)();
+    } catch (_) {
+      // Không kiểm tra được (thường là mất mạng): vẫn vào Home. Dashboard tự hiện
+      // khối mất mạng + Thử lại, hoặc nút "Khai báo thể trạng" khi server báo
+      // PROFILE_NOT_FOUND, nên không cần chặn ở đây.
+      hasProfile = true;
+    }
+    if (!mounted) return;
+    context.go(hasProfile ? '/home' : '/onboarding');
+  }
+
+  // Bảng `profiles` có trigger tạo sẵn 1 dòng khi đăng ký, nên "có dòng"
+  // chưa có nghĩa là đã khai báo: kiểm tra thêm target_calories.
+  static Future<bool> _hasProfileInDb() async {
+    final row = await supabase
+        .from('profiles')
+        .select('target_calories')
+        .eq('id', supabase.auth.currentUser!.id)
+        .maybeSingle();
+    return row != null && row['target_calories'] != null;
   }
 
   @override
