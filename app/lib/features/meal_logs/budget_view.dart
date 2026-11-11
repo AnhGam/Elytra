@@ -26,10 +26,10 @@ int overPct(double consumed, double target) {
   return ((consumed / target - 1) * 100).round();
 }
 
-/// `Còn 61,6 g` hoặc `Vượt 12 g` khi âm.
-String gramRemainingLabel(double remaining) => remaining < 0
+/// `Còn 61,6 g` hoặc `Vượt 12 g` khi âm. |còn lại| < 0,05 g (hiển thị thành 0) là `Còn 0 g`.
+String gramRemainingLabel(double remaining) => remaining <= -0.05
     ? 'Vượt ${formatGram(-remaining)} g'
-    : 'Còn ${formatGram(remaining)} g';
+    : 'Còn ${formatGram(remaining < 0 ? 0 : remaining)} g';
 
 /// Số và chú thích ở tâm vòng kcal.
 ({String value, String caption}) ringCenter(Budget b) {

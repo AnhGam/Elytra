@@ -73,4 +73,32 @@ void main() {
     expect(h.days.single.itemCount, 2);
     expect(h.days.single.copyWith(kcal: 1).kcal, 1);
   });
+
+  test('số NaN / Infinity (kể cả dạng chuỗi) quy về 0, không ném khi đổi sang int', () {
+    final d = HistoryDay.fromJson({
+      'date': '2026-11-11',
+      'kcal': 'NaN',
+      'protein_g': double.infinity,
+      'carbs_g': '-Infinity',
+      'fat_g': double.nan,
+      'item_count': 'NaN',
+      'target_kcal': 'Infinity',
+    });
+    expect(d.kcal, 0);
+    expect(d.proteinG, 0);
+    expect(d.carbsG, 0);
+    expect(d.fatG, 0);
+    expect(d.itemCount, 0);
+    expect(d.targetKcal, 0);
+    final i = MealLogItem.fromJson(
+        {'id': 'x', 'name': 'A', 'source': 'dish', 'amount_g': 'NaN', 'kcal': 'Infinity'});
+    expect(i.macros.kcal, 0);
+    expect(i.amountG, isNull);
+    final b = Budget.fromJson({
+      'target': {'kcal': 'NaN'},
+      'consumed': {'kcal': double.infinity},
+    });
+    expect(b.target.kcal, 0);
+    expect(b.remaining.kcal, 0);
+  });
 }

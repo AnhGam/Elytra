@@ -1,17 +1,17 @@
 import '../../core/meal_time.dart';
 
 // Đọc số khoan dung: num -> double, chuỗi số -> double, còn lại -> 0.
-double _num(Object? v) {
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v.trim()) ?? 0;
-  return 0;
-}
+// NaN / Infinity (kể cả chuỗi "NaN") cũng là 0, để `.toInt()` không ném.
+double _num(Object? v) => _numOrNull(v) ?? 0;
 
-// Như _num nhưng giữ null khi thiếu/hỏng (cột nullable).
+// Như _num nhưng giữ null khi thiếu/hỏng/không hữu hạn (cột nullable).
 double? _numOrNull(Object? v) {
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v.trim());
-  return null;
+  final d = v is num
+      ? v.toDouble()
+      : v is String
+          ? double.tryParse(v.trim())
+          : null;
+  return d != null && d.isFinite ? d : null;
 }
 
 String? _str(Object? v) => v is String ? v : null;

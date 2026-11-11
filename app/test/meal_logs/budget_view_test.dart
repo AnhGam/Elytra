@@ -13,6 +13,11 @@ void main() {
   test('nhãn còn/vượt và tâm vòng', () {
     expect(gramRemainingLabel(61.6), 'Còn 61,6 g');
     expect(gramRemainingLabel(-12), 'Vượt 12 g');
+    // |còn lại| < 0,05 g hiển thị thành 0: không ghi "Vượt 0 g"
+    expect(gramRemainingLabel(-0.04), 'Còn 0 g');
+    expect(gramRemainingLabel(-0.049), 'Còn 0 g');
+    expect(gramRemainingLabel(0.04), 'Còn 0 g');
+    expect(gramRemainingLabel(-0.06), 'Vượt 0,1 g');
     expect(overPct(2240, 1968), 14);
     expect(overPct(100, 0), 0);
     expect(isOver(2240, 1968), isTrue);
