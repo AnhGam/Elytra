@@ -13,7 +13,11 @@ class DiaryController extends ChangeNotifier {
     _lastToday = store.today;
     selectedDate = stripEnd = store.today;
     store.addListener(_onStore);
-    _load();
+    // Hoãn một nhịp: controller thường được tạo trong lúc build, store báo listener
+    // ngay khi chuyển sang loading sẽ gây lỗi markNeedsBuild during build.
+    scheduleMicrotask(() {
+      if (!_disposed) _load();
+    });
   }
 
   final DiaryStore store;

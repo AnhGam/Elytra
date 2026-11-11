@@ -295,12 +295,18 @@ class DiaryStore extends ChangeNotifier {
   }
 
   /// Sửa lượng của món; lỗi thì ném và không đổi cache.
-  Future<void> update(MealLogItem item, {double? servings, int? amountG}) async {
+  /// [date]: ngày của món khi item không mang `date` (item lấy từ `GET ?date=`).
+  Future<void> update(MealLogItem item,
+      {double? servings, int? amountG, String? date}) async {
     final gen = _generation;
     final r = await repo.updateItem(item, servings: servings, amountG: amountG);
     if (gen != _generation) return;
-    final date = r.item.date ?? item.date;
-    if (date == null) return;
+    final d = r.item.date ?? item.date ?? date;
+    if (d == null) return;
+    _applyUpdate(item, r, d);
+  }
+
+  void _applyUpdate(MealLogItem item, UpdateResult r, String date) {
     final meal = r.item.mealType ?? item.mealType ?? _days[date]?.log?.mealOf(item.id);
     if (meal != null) _upsert(date, r.item, meal, r.budget);
     _afterMutation(date);

@@ -132,6 +132,17 @@ void main() {
     expect(repo.calls.where((c) => c.$1 == 'getDay'), hasLength(1));
   });
 
+  test('update món không mang date (từ GET ?date=) dùng tham số date', () async {
+    final it = item(id: 'a', servings: 1); // date null như item trong DayLog
+    repo.days['2026-11-11'] = dayLog(items: [(MealType.dinner, it)]);
+    await s.ensureDay('2026-11-11');
+    repo.calls.clear();
+    await s.update(it, servings: 2, date: '2026-11-11');
+    expect(s.day('2026-11-11').log!.find('a')!.servings, 2);
+    await pumpEventQueue();
+    expect(repo.calls.where((c) => c.$1 == 'getDay'), hasLength(1));
+  });
+
   test('thao tác lỗi thì ném và không đổi cache', () async {
     final it = item(id: 'a', date: '2026-11-11');
     repo.days['2026-11-11'] = dayLog(items: [(MealType.lunch, it)]);

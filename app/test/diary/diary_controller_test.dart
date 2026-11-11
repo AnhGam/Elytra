@@ -45,6 +45,19 @@ void main() {
     final r = rangeEnding(store.today, 7);
     expect(repo.calls.where((x) => x.$1 == 'getHistory').map((x) => x.$2), [(r.from, r.to)]);
   });
+  test('tải lần đầu hoãn một nhịp (controller thường được tạo trong lúc build)', () async {
+    final repo2 = FakeMealLogRepository();
+    final store2 = DiaryStore(repo: repo2, now: () => clock, scheduleMidnight: false);
+    var notified = 0;
+    store2.addListener(() => notified++);
+    final c2 = DiaryController(store: store2);
+    expect(notified, 0);
+    expect(repo2.calls, isEmpty);
+    await pumpEventQueue();
+    expect(repo2.calls.map((x) => x.$1), containsAll(['getDay', 'getHistory']));
+    c2.dispose();
+    store2.dispose();
+  });
   test('canEdit theo withinEditWindow', () {
     expect(c.canEdit('2026-10-12'), isTrue);
     expect(c.canEdit('2026-10-11'), isFalse);
