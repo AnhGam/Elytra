@@ -27,6 +27,9 @@ class AuthRepository {
 
   Future<void> signOut() => supabase.auth.signOut();
 
+  /// Email của phiên hiện tại (chỉ hiện nhỏ ở tab Cá nhân, không dùng làm tên).
+  String? get currentEmail => supabase.auth.currentUser?.email;
+
   // Quên mật khẩu (4.6)
   Future<void> sendResetEmail(String email) => supabase.auth.resetPasswordForEmail(
         email.trim(),

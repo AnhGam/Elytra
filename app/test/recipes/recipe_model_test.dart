@@ -106,4 +106,9 @@ void main() {
     expect(p.targetKcal, 1968);
     expect(p.proteinG, isNull);
   });
+
+  test('profile đọc full_name, kiểu lạ thì null', () {
+    expect(UserNutritionProfile.fromRow({'full_name': 'An'}).fullName, 'An');
+    expect(UserNutritionProfile.fromRow({'full_name': 3}).fullName, isNull);
+  });
 }

@@ -8,10 +8,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:elytra/core/pending_onboarding.dart';
 import 'package:elytra/core/theme.dart';
 import 'package:elytra/features/auth/widgets/auth_widgets.dart';
+import 'package:elytra/features/meal_logs/diary_scope.dart';
 import 'package:elytra/features/nutrition/nutrition_calculator.dart';
 import 'package:elytra/features/nutrition/nutrition_repository.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 import 'package:elytra/features/onboarding/body_info_rules.dart';
+import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:elytra/main.dart';
 
 /// Kiểu số Việt Nam: 2.069 · 22,5
@@ -60,7 +62,11 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _saving = true);
     try {
       await nutritionRepo.save(widget.input);
-      if (mounted) context.go('/home');
+      if (!mounted) return;
+      // Mục tiêu vừa đổi: bỏ hồ sơ và nhật ký cũ trong bộ nhớ đệm
+      RecipeScope.maybeOf(context)?.clear();
+      DiaryScope.maybeOf(context)?.clear();
+      context.go('/home');
     } on AuthException {
       if (mounted) context.go('/login'); // phiên hết hạn → đăng nhập lại
     } catch (_) {

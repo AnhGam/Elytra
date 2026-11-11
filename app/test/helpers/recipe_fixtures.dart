@@ -19,6 +19,10 @@ Recipe recipe({
   String category = 'mon_kho',
   Set<int> allergens = const {},
   Set<int> condiment = const {},
+  // Tên thay thế cho protein/carbs/fat (ưu tiên nếu có).
+  double? proteinG,
+  double? carbsG,
+  double? fatG,
 }) =>
     Recipe(
       id: id,
@@ -31,9 +35,9 @@ Recipe recipe({
       cookMinutes: cook,
       difficulty: difficulty,
       kcal: kcal,
-      proteinG: protein,
-      carbsG: carbs,
-      fatG: fat,
+      proteinG: proteinG ?? protein,
+      carbsG: carbsG ?? carbs,
+      fatG: fatG ?? fat,
       fiberG: fiber,
       sodiumMg: sodium,
       allergenIds: allergens,

@@ -1,3 +1,6 @@
+import 'package:elytra/features/meal_logs/diary_scope.dart';
+import 'package:elytra/features/meal_logs/diary_store.dart';
+import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
@@ -77,12 +80,26 @@ void main() {
   }
 
   // Dựng thẳng màn, tiêm repo meal-logs giả
+  DiaryStore storeFor(MealLogRepository? meal) {
+    final s = DiaryStore(
+        repo: meal ?? FakeMealLogRepository(), scheduleMidnight: false);
+    addTearDown(s.dispose);
+    return s;
+  }
+
+  // Chỉ các lần gọi add (store còn gọi getDay để làm mới)
+  List<(String, Object)> adds(FakeMealLogRepository m) =>
+      [for (final c in m.calls) if (c.$1 == 'add') c];
+
   Future<void> pumpDetail(WidgetTester t, {MealLogRepository? meal}) async {
     phone(t);
     await t.pumpWidget(MaterialApp(
-      home: RecipeScope(
-        catalog: RecipeCatalog(repo: repo),
-        child: RecipeDetailScreen(id: 'r1', mealLogs: meal ?? FakeMealLogRepository()),
+      home: DiaryScope(
+        store: storeFor(meal),
+        child: RecipeScope(
+          catalog: RecipeCatalog(repo: repo),
+          child: const RecipeDetailScreen(id: 'r1'),
+        ),
       ),
     ));
     await t.pumpAndSettle();
@@ -204,7 +221,7 @@ void main() {
     await t.tap(find.textContaining('Thêm 1 phần vào bữa'));
     await t.pumpAndSettle();
     expect(find.textContaining('Đã thêm 1 phần vào bữa'), findsOneWidget);
-    expect(meal.calls, hasLength(1));
+    expect(adds(meal), hasLength(1));
   });
 
   testWidgets('mất mạng → "Không có kết nối", Thử lại gửi lại cùng id', (t) async {
@@ -216,8 +233,9 @@ void main() {
     meal.failWith = null;
     await t.tap(find.widgetWithText(SnackBarAction, 'Thử lại'));
     await t.pumpAndSettle();
-    expect(meal.calls, hasLength(2));
-    expect(meal.calls[1]['clientRequestId'], meal.calls[0]['clientRequestId']);
+    expect(adds(meal), hasLength(2));
+    expect((adds(meal)[1].$2 as (LogRequest, String)).$2,
+        (adds(meal)[0].$2 as (LogRequest, String)).$2);
     expect(find.textContaining('Đã thêm 1 phần vào bữa'), findsOneWidget);
   });
 
@@ -225,23 +243,30 @@ void main() {
     phone(t);
     final meal = FakeMealLogRepository()..failWith = const MealLogOffline();
     final catalog = RecipeCatalog(repo: repo);
+    final store = storeFor(meal);
     await t.pumpWidget(MaterialApp(
-      home: RecipeScope(
+      home: DiaryScope(
+        store: store,
+        child: RecipeScope(
         catalog: catalog,
         child: Builder(
           builder: (context) => Scaffold(
             body: Center(
               child: TextButton(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => RecipeScope(
-                    catalog: catalog,
-                    child: RecipeDetailScreen(id: 'r1', mealLogs: meal),
+                  builder: (_) => DiaryScope(
+                    store: store,
+                    child: RecipeScope(
+                      catalog: catalog,
+                      child: const RecipeDetailScreen(id: 'r1'),
+                    ),
                   ),
                 )),
                 child: const Text('Mở món'),
               ),
             ),
           ),
+        ),
         ),
       ),
     ));
@@ -258,7 +283,7 @@ void main() {
     expect(find.text('Mở món'), findsOneWidget);
     expect(find.text('Không có kết nối'), findsNothing);
     expect(find.widgetWithText(SnackBarAction, 'Thử lại'), findsNothing);
-    expect(meal.calls, hasLength(1));
+    expect(adds(meal), hasLength(1));
   });
 
   testWidgets('chưa có hồ sơ → SnackBar "Bạn cần hoàn tất hồ sơ trước"', (t) async {

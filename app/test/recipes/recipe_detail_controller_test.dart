@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:elytra/core/meal_time.dart';
+import 'package:elytra/features/meal_logs/diary_store.dart';
+import 'package:elytra/features/meal_logs/meal_log_models.dart';
 import 'package:elytra/features/meal_logs/meal_log_repository.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
@@ -16,18 +18,29 @@ void main() {
   late RecipeCatalog catalog;
   late FakeMealLogRepository meal;
   late RecipeDetailController c;
+  late DiaryStore store;
 
   RecipeDetailController make({Recipe? initial, DateTime Function()? now}) {
     var n = 0;
+    final clock = now ?? () => DateTime.utc(2026, 10, 28, 12);
+    store = DiaryStore(repo: meal, scheduleMidnight: false, now: clock);
+    addTearDown(store.dispose);
     return RecipeDetailController(
       id: 'r1',
       initial: initial,
       catalog: catalog,
-      mealLogs: meal,
-      now: now ?? () => DateTime.utc(2026, 10, 28, 12),
+      store: store,
+      now: clock,
       newRequestId: () => 'id-${++n}',
     );
   }
+
+  // clientRequestId của từng lần gọi add.
+  List<String> reqIds() =>
+      [
+        for (final c in meal.calls)
+          if (c.$1 == 'add') (c.$2 as (LogRequest, String)).$2
+      ];
 
   setUp(() {
     repo = FakeRecipeRepository();
@@ -86,10 +99,11 @@ void main() {
   test('gửi đúng body, thành công thì lần sau id mới', () async {
     expect(await c.addOneServing(), isA<AddMealSuccess>());
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-2']);
-    expect(meal.calls.first['mealType'], MealType.lunch);
-    expect(meal.calls.first['date'], '2026-10-28');
-    expect(meal.calls.first['recipeId'], 'r1');
+    expect(reqIds(), ['id-1', 'id-2']);
+    expect(
+        (meal.calls.firstWhere((x) => x.$1 == 'add').$2 as (LogRequest, String)).$1,
+        const LogRequest.recipe(
+            refId: 'r1', servings: 1, meal: MealType.lunch, date: '2026-10-28'));
   });
 
   test('mất mạng thì thử lại dùng lại id cũ', () async {
@@ -97,7 +111,7 @@ void main() {
     expect(await c.addOneServing(), isA<AddMealOffline>());
     meal.failWith = null;
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-1']);
+    expect(reqIds(), ['id-1', 'id-1']);
   });
 
   test('PROFILE_NOT_FOUND', () async {
@@ -110,7 +124,15 @@ void main() {
     expect(await c.addOneServing(), isA<AddMealFailed>());
     meal.failWith = null;
     await c.addOneServing();
-    expect(meal.calls.map((x) => x['clientRequestId']), ['id-1', 'id-1']);
+    expect(reqIds(), ['id-1', 'id-1']);
+  });
+
+  test('IDEMPOTENCY_CONFLICT → AddMealFailed, lần sau dùng id mới', () async {
+    meal.failWith = MealLogFailed('IDEMPOTENCY_CONFLICT');
+    expect(await c.addOneServing(), isA<AddMealFailed>());
+    meal.failWith = null;
+    await c.addOneServing();
+    expect(reqIds(), ['id-1', 'id-2']);
   });
 
   test('bấm hai lần khi đang gửi → một request', () async {
@@ -121,7 +143,33 @@ void main() {
     meal.gate!.complete();
     await first;
     expect(c.sending, isFalse);
-    expect(meal.calls, hasLength(1));
+    expect(reqIds(), hasLength(1));
+  });
+
+  test('thêm từ Chi tiết món: store thấy số mới', () async {
+    await c.load();
+    await store.ensureDay(c.logDate);
+    expect(await c.addOneServing(), isA<AddMealSuccess>());
+    expect(store.day(c.logDate).log!.budget.consumed.kcal, 100);
+  });
+
+  test('retry sau lỗi mạng giữ khoá', () async {
+    meal.failOnce['add'] = const MealLogOffline();
+    await c.load();
+    await c.addOneServing();
+    await c.addOneServing();
+    expect(reqIds().toSet(), hasLength(1));
+    expect(reqIds(), hasLength(2));
+  });
+
+  test('dispose sau lỗi mạng làm mới ngày', () async {
+    meal.failWith = const MealLogOffline();
+    expect(await c.addOneServing(), isA<AddMealOffline>());
+    meal.failWith = null;
+    c.dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(meal.calls.where((x) => x.$1 == 'getDay' && x.$2 == c.logDate),
+        isNotEmpty);
   });
 
   test('cảnh báo dị ứng có cờ gia vị, kể cả khi chip lọc tắt', () async {

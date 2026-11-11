@@ -4,17 +4,21 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:elytra/core/app_shell.dart';
-import 'package:elytra/core/coming_soon_screen.dart';
+import 'package:elytra/core/edit_window.dart';
+import 'package:elytra/core/meal_time.dart';
 import 'package:elytra/core/pending_onboarding.dart';
 import 'package:elytra/features/auth/login_screen.dart';
 import 'package:elytra/features/auth/profile_gate.dart';
 import 'package:elytra/features/auth/register_screen.dart';
 import 'package:elytra/features/auth/reset_password_screen.dart';
-import 'package:elytra/features/home/home_placeholder.dart';
+import 'package:elytra/features/diary/diary_screen.dart';
+import 'package:elytra/features/home/dashboard_screen.dart';
+import 'package:elytra/features/meal_logs/log_meal_screen.dart';
 import 'package:elytra/features/nutrition/result_screen.dart';
 import 'package:elytra/features/onboarding/body_info.dart';
 import 'package:elytra/features/onboarding/body_info_screen.dart';
 import 'package:elytra/features/onboarding/welcome_screen.dart';
+import 'package:elytra/features/profile/profile_screen.dart';
 import 'package:elytra/features/recipes/recipe.dart';
 import 'package:elytra/features/recipes/recipe_detail_screen.dart';
 import 'package:elytra/features/recipes/recipe_search_screen.dart';
@@ -56,6 +60,16 @@ const publicRoutes = {'/welcome', '/onboarding', '/result', '/register', '/login
 /// Màn chỉ dành cho người chưa đăng nhập
 const guestOnlyRoutes = {'/welcome', '/register', '/login'};
 
+/// Đọc tham số của `/log?meal=…&date=…`. Bữa sai thì lấy theo giờ [now];
+/// ngày sai dạng hoặc ngoài cửa sổ 30 ngày thì lấy hôm nay.
+({MealType meal, String date}) parseLogParams(Map<String, String> q, DateTime now) {
+  final today = isoDate(now);
+  final meal = MealType.values.asNameMap()[q['meal']] ?? mealTypeAt(now);
+  final d = q['date'];
+  final date = d != null && withinEditWindow(d, today) ? d : today;
+  return (meal: meal, date: date);
+}
+
 GoRouter buildRouter({
   required AuthGate auth,
   String initialLocation = '/welcome',
@@ -94,6 +108,15 @@ GoRouter buildRouter({
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/reset-password', builder: (_, _) => const ResetPasswordScreen()),
       GoRoute(path: '/gate', builder: (_, _) => const ProfileGate()),
+      // Ghi bữa ăn: nằm trên root navigator để che thanh tab
+      GoRoute(
+        path: '/log',
+        parentNavigatorKey: rootKey,
+        builder: (_, state) {
+          final p = parseLogParams(state.uri.queryParameters, vnNow());
+          return LogMealScreen(meal: p.meal, date: p.date);
+        },
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AppShell(navigationShell: shell),
         branches: [
@@ -101,13 +124,13 @@ GoRouter buildRouter({
             GoRoute(
               path: '/home',
               builder: (context, _) =>
-                  homeBuilder?.call(context) ?? const HomePlaceholder(),
+                  homeBuilder?.call(context) ?? const DashboardScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/diary',
-              builder: (_, _) => const ComingSoonScreen(title: 'Nhật ký'),
+              builder: (_, _) => const DiaryScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -131,7 +154,7 @@ GoRouter buildRouter({
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/profile',
-              builder: (_, _) => const ComingSoonScreen(title: 'Cá nhân'),
+              builder: (_, _) => const ProfileScreen(),
             ),
           ]),
         ],
