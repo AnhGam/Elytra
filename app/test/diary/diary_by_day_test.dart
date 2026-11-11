@@ -31,8 +31,11 @@ void main() {
   });
   tearDown(() => store.dispose());
 
-  Future<void> pumpDiary(WidgetTester t,
-      {DiaryViewRequest? request, double width = 390}) async {
+  Future<void> pumpDiary(
+    WidgetTester t, {
+    DiaryViewRequest? request,
+    double width = 390,
+  }) async {
     t.view.physicalSize = Size(width, 2400);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
@@ -309,15 +312,26 @@ void main() {
 
   testWidgets('màn hẹp 320: dải ngày và món không tràn', (t) async {
     lunch(today, [
-      item(id: 'g', name: 'Cơm tấm sườn bì chả trứng', source: LogSource.dish, amountG: 1250, kcal: 1234),
+      item(
+        id: 'g',
+        name: 'Cơm tấm sườn bì chả trứng',
+        source: LogSource.dish,
+        amountG: 1250,
+        kcal: 1234,
+      ),
     ]);
     await pumpDiary(t, width: 320);
     expect(t.takeException(), isNull);
     expect(find.text('H.nay'), findsOneWidget);
   });
 
-  for (final err in const <MealLogException>[MealLogFailed('X'), MealLogOffline()]) {
-    testWidgets('Xoá trong sheet lỗi (${err.runtimeType}): câu riêng cho xoá', (t) async {
+  for (final err in const <MealLogException>[
+    MealLogFailed('X'),
+    MealLogOffline(),
+  ]) {
+    testWidgets('Xoá trong sheet lỗi (${err.runtimeType}): câu riêng cho xoá', (
+      t,
+    ) async {
       lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
       repo.failOnce['delete'] = err;
       await pumpDiary(t);
@@ -331,7 +345,9 @@ void main() {
     });
   }
 
-  testWidgets('sheet sửa món mở trên root navigator (che thanh tab)', (t) async {
+  testWidgets('sheet sửa món mở trên root navigator (che thanh tab)', (
+    t,
+  ) async {
     lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
     final rootKey = GlobalKey<NavigatorState>();
     final catalog = RecipeCatalog(repo: FakeRecipeRepository());
@@ -340,25 +356,65 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
     // Giống StatefulShellRoute: màn nằm trong navigator con, thanh tab ở ngoài
-    await t.pumpWidget(MaterialApp(
-      navigatorKey: rootKey,
-      builder: (_, child) => DiaryScope(
-        store: store,
-        child: RecipeScope(catalog: catalog, child: child!),
-      ),
-      home: Scaffold(
-        body: Navigator(
-          onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const DiaryScreen()),
+    await t.pumpWidget(
+      MaterialApp(
+        navigatorKey: rootKey,
+        builder: (_, child) => DiaryScope(
+          store: store,
+          child: RecipeScope(catalog: catalog, child: child!),
         ),
-        bottomNavigationBar: const SizedBox(height: 80, child: Text('THANH TAB')),
+        home: Scaffold(
+          body: Navigator(
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => const DiaryScreen()),
+          ),
+          bottomNavigationBar: const SizedBox(
+            height: 80,
+            child: Text('THANH TAB'),
+          ),
+        ),
       ),
-    ));
+    );
     await t.pumpAndSettle();
     await t.tap(find.text('Cơm trắng'));
     await t.pumpAndSettle();
     final nav = t.state<NavigatorState>(
-      find.ancestor(of: find.text('Lưu thay đổi'), matching: find.byType(Navigator)).first,
+      find
+          .ancestor(
+            of: find.text('Lưu thay đổi'),
+            matching: find.byType(Navigator),
+          )
+          .first,
     );
     expect(nav, same(rootKey.currentState));
+  });
+
+  testWidgets('segmented Theo ngày | Thống kê: vùng chạm cao ≥ 48', (t) async {
+    await pumpDiary(t);
+    for (final label in ['Theo ngày', 'Thống kê']) {
+      final target = find
+          .ancestor(
+            of: find.text(label),
+            matching: find.byType(GestureDetector),
+          )
+          .first;
+      expect(t.getSize(target).height, greaterThanOrEqualTo(48));
+    }
+    // Chạm sát mép dưới vùng chạm (ngoài khối 40 nhìn thấy) vẫn chuyển phân đoạn
+    final r = t.getRect(
+      find
+          .ancestor(
+            of: find.text('Thống kê'),
+            matching: find.byType(GestureDetector),
+          )
+          .first,
+    );
+    await t.tapAt(Offset(r.center.dx, r.bottom - 2));
+    await t.pumpAndSettle();
+    expect(
+      find.text('Calo mỗi ngày').evaluate().isNotEmpty ||
+          find.text('Ghi bữa đầu tiên').evaluate().isNotEmpty,
+      isTrue,
+    );
   });
 }

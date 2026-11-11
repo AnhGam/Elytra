@@ -307,31 +307,37 @@ class _Segmented extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget seg(DiarySegment s, String label) {
+    Widget seg(DiarySegment s, String label, EdgeInsets inset) {
       final selected = s == value;
       return Expanded(
         child: Semantics(
           selected: selected,
           button: true,
+          // Vùng chạm cao 48 (gồm phần đệm 4 quanh khối 40 nhìn thấy)
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => onChanged(s),
-            child: Container(
-              height: 40,
-              alignment: Alignment.center,
-              decoration: selected
-                  ? BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.outline),
-                    )
-                  : null,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? AppColors.textPrimary : AppColors.textMuted,
+            child: Padding(
+              padding: inset,
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                decoration: selected
+                    ? BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.outline),
+                      )
+                    : null,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected
+                        ? AppColors.textPrimary
+                        : AppColors.textMuted,
+                  ),
                 ),
               ),
             ),
@@ -341,15 +347,22 @@ class _Segmented extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          seg(DiarySegment.byDay, 'Theo ngày'),
-          seg(DiarySegment.stats, 'Thống kê'),
+          seg(
+            DiarySegment.byDay,
+            'Theo ngày',
+            const EdgeInsets.fromLTRB(4, 4, 2, 4),
+          ),
+          seg(
+            DiarySegment.stats,
+            'Thống kê',
+            const EdgeInsets.fromLTRB(2, 4, 4, 4),
+          ),
         ],
       ),
     );
