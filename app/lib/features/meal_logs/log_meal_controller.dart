@@ -24,6 +24,7 @@ class FoodTabState {
     this.hits = const [],
     this.hasMore = false,
     this.sectionLabel,
+    this.loadMoreFailed = false,
   });
 
   final SearchStatus status;
@@ -31,6 +32,18 @@ class FoodTabState {
   final List<FoodHit> hits;
   final bool hasMore;
   final String? sectionLabel;
+
+  /// Lần tải trang tiếp theo gần nhất bị lỗi (hiện dòng "Thử lại" cuối danh sách).
+  final bool loadMoreFailed;
+
+  FoodTabState _withLoadMoreFailed(bool v) => FoodTabState(
+    status: status,
+    recipes: recipes,
+    hits: hits,
+    hasMore: hasMore,
+    sectionLabel: sectionLabel,
+    loadMoreFailed: v,
+  );
 }
 
 /// Kết quả của một lần bấm "Thêm".
@@ -76,7 +89,11 @@ class LogMealController extends ChangeNotifier {
     RequestKeys? keys,
   }) : keys = keys ?? RequestKeys() {
     catalog.addListener(_notify);
-    _ensureTab(_tab);
+    // Hoãn một nhịp: controller thường được tạo trong lúc build, catalog báo
+    // listener ngay khi bắt đầu tải sẽ gây lỗi markNeedsBuild during build.
+    scheduleMicrotask(() {
+      if (!_disposed) _ensureTab(_tab);
+    });
   }
 
   final DiaryStore store;
@@ -86,6 +103,7 @@ class LogMealController extends ChangeNotifier {
   final RequestKeys keys;
 
   MealType _meal;
+
   /// Ngày ghi món (`YYYY-MM-DD`).
   final String date;
   FoodTab _tab = FoodTab.recipes;
@@ -156,8 +174,8 @@ class LogMealController extends ChangeNotifier {
       recipes: status != SearchStatus.ready
           ? const []
           : empty
-              ? catalog.recipes
-              : RecipeQuery.apply(catalog.recipes, query: _applied),
+          ? catalog.recipes
+          : RecipeQuery.apply(catalog.recipes, query: _applied),
       sectionLabel: empty ? _labelSuggest : null,
     );
   }
@@ -237,12 +255,19 @@ class LogMealController extends ChangeNotifier {
     }
     final seq = _seq;
     _loadingMore.add(t);
+    if (cur.loadMoreFailed) {
+      _states[t] = cur._withLoadMoreFailed(false);
+      _notify();
+    }
     try {
       final offset = cur.hits.length;
       final page = t == FoodTab.dishes
           ? await search.searchDishes(_applied, offset: offset)
-          : await search.searchIngredients(_applied,
-              featured: _ingredientFeatured, offset: offset);
+          : await search.searchIngredients(
+              _applied,
+              featured: _ingredientFeatured,
+              offset: offset,
+            );
       if (seq != _seq || _disposed) return;
       _states[t] = FoodTabState(
         status: SearchStatus.ready,
@@ -252,7 +277,11 @@ class LogMealController extends ChangeNotifier {
       );
       _notify();
     } catch (_) {
-      // Giữ nguyên trạng thái
+      // Giữ danh sách hiện có, chỉ bật cờ để UI hiện nút "Thử lại"
+      if (seq == _seq && !_disposed) {
+        _states[t] = cur._withLoadMoreFailed(true);
+        _notify();
+      }
     } finally {
       if (seq == _seq) _loadingMore.remove(t);
     }
@@ -312,7 +341,12 @@ class LogMealController extends ChangeNotifier {
     // Rời màn sau lỗi mạng (chưa đóng sheet): làm mới ngày để món đã lên server hiện ra
     if (keys.hadNetworkError) {
       keys.clearNetworkError();
-      unawaited(store.refreshDay(date).catchError((Object _) {}));
+      // Hoãn một nhịp: dispose chạy lúc cây widget đang gỡ, store báo listener ngay
+      // khi chuyển sang loading sẽ gây lỗi "framework is locked".
+      final store = this.store, date = this.date;
+      scheduleMicrotask(
+        () => unawaited(store.refreshDay(date).catchError((Object _) {})),
+      );
     }
     catalog.removeListener(_notify);
     super.dispose();

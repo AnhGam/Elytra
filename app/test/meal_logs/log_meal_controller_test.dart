@@ -120,6 +120,9 @@ void main() {
       await c.submit(req);
       repo.calls.clear();
       c.dispose();
+      // Hoãn một nhịp: không báo listener của store trong lúc cây widget đang gỡ
+      expect(repo.calls.where((x) => x.$1 == 'getDay'), isEmpty);
+      await pumpEventQueue();
       expect(repo.calls.where((x) => x.$1 == 'getDay' && x.$2 == '2026-11-11'), hasLength(1));
       // tearDown cần một controller chưa dispose
       c = LogMealController(
@@ -185,6 +188,24 @@ void main() {
       expect(c.stateOf(FoodTab.ingredients).hits, hasLength(25));
       expect(c.stateOf(FoodTab.ingredients).hasMore, isFalse);
       expect(search.calls.map((x) => (x.$3, x.$4)), [(true, 0), (null, 0), (null, 20)]);
+    });
+
+    test('loadMore lỗi thì bật loadMoreFailed, giữ danh sách; thử lại thành công thì tắt',
+        () async {
+      search.dishes = [for (var i = 0; i < 25; i++) hit('Món ${i.toString().padLeft(2, '0')}')];
+      c.setTab(FoodTab.dishes);
+      await pumpEventQueue();
+      search.failWith = const FoodSearchOffline();
+      await c.loadMore();
+      var st = c.stateOf(FoodTab.dishes);
+      expect(st.loadMoreFailed, isTrue);
+      expect(st.hits, hasLength(20));
+      expect(st.hasMore, isTrue);
+      search.failWith = null;
+      await c.loadMore();
+      st = c.stateOf(FoodTab.dishes);
+      expect(st.loadMoreFailed, isFalse);
+      expect(st.hits, hasLength(25));
     });
 
     test('Món ăn sẵn: nhãn A–Z, phân trang 20, gõ không dấu', () async {
