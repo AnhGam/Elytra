@@ -417,4 +417,50 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('sheet sửa món: không lưu thì vuốt xuống để đóng', (t) async {
+    lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
+    await pumpDiary(t);
+    await t.tap(find.text('Cơm trắng'));
+    await t.pumpAndSettle();
+    expect(find.text('Lưu thay đổi'), findsOneWidget);
+    await t.drag(find.text('Khẩu phần (0,25 – 10)'), const Offset(0, 700));
+    await t.pumpAndSettle();
+    expect(find.text('Lưu thay đổi'), findsNothing);
+  });
+
+  testWidgets('sheet sửa món: đang lưu thì vuốt không đóng', (t) async {
+    lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
+    await pumpDiary(t);
+    await t.tap(find.text('Cơm trắng'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Thêm phần'));
+    await t.pump();
+    repo.gate = Completer();
+    await t.tap(find.text('Lưu thay đổi'));
+    await t.pump();
+    await t.drag(find.text('Khẩu phần (0,25 – 10)'), const Offset(0, 700));
+    await t.pumpAndSettle();
+    expect(find.text('Đang lưu…'), findsOneWidget);
+    repo.gate!.complete();
+    await t.pumpAndSettle();
+    expect(find.text('Đang lưu…'), findsNothing);
+    expect(find.text('Lưu thay đổi'), findsNothing); // lưu xong thì đóng
+  });
+
+  testWidgets('sheet sửa món: đang xoá thì vuốt không đóng', (t) async {
+    lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
+    await pumpDiary(t);
+    await t.tap(find.text('Cơm trắng'));
+    await t.pumpAndSettle();
+    repo.gate = Completer();
+    await t.tap(find.text('Xoá'));
+    await t.pump();
+    await t.drag(find.text('Khẩu phần (0,25 – 10)'), const Offset(0, 700));
+    await t.pumpAndSettle();
+    expect(find.text('Đang xoá…'), findsOneWidget);
+    repo.gate!.complete();
+    await t.pumpAndSettle();
+    expect(find.text('Đang xoá…'), findsNothing);
+  });
 }

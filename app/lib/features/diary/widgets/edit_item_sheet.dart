@@ -26,8 +26,9 @@ Future<void> showEditItemSheet(
     useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
-    // Như PortionSheet: khoá đóng khi đang lưu/xoá (PopScope), nên không cho kéo
-    enableDrag: false,
+    // Như PortionSheet: vuốt xuống để đóng; lúc đang lưu/xoá sheet tự nuốt kéo dọc,
+    // chạm nền và Back bị PopScope khoá.
+    enableDrag: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -160,89 +161,95 @@ class _EditItemSheetState extends State<EditItemSheet> {
     final canSave = !_busy && _changed && preview != null;
     return PopScope(
       canPop: !_busy,
-      child: PortionSheetFrame(
-        title: _item.name,
-        subtitle:
-            'Bữa ${widget.meal.labelVi} · ${widget.dayLabel} · '
-            'đang ghi ${_item.byServings ? formatServings(_item.servings ?? 1) : '${formatGram(_item.amountG ?? 0)} g'}',
-        onClose: _busy ? null : () => Navigator.of(context).pop(),
-        content: [
-          if (_item.byServings)
-            ServingsStepper(
-              value: _servings,
-              enabled: !_busy,
-              onChanged: (v) => setState(() => _servings = v),
-            )
-          else
-            GramInput(
-              controller: _gram,
-              enabled: !_busy,
-              onChanged: () => setState(() {}),
-            ),
-          const SizedBox(height: 16),
-          MacroPreviewBox(preview: preview, note: _afterSave(preview)),
-          const SizedBox(height: 12),
-          const Text(
-            'Muốn chuyển món sang bữa khác: xoá rồi thêm lại ở bữa đó.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 18 / 13,
-              color: AppColors.textMuted,
-            ),
-          ),
-          if (_error != null) ...[
+      // Đang lưu/xoá: nuốt kéo dọc để BottomSheet không đóng (callback null thì không chặn gì)
+      child: GestureDetector(
+        onVerticalDragStart: _busy ? (_) {} : null,
+        onVerticalDragUpdate: _busy ? (_) {} : null,
+        onVerticalDragEnd: _busy ? (_) {} : null,
+        child: PortionSheetFrame(
+          title: _item.name,
+          subtitle:
+              'Bữa ${widget.meal.labelVi} · ${widget.dayLabel} · '
+              'đang ghi ${_item.byServings ? formatServings(_item.servings ?? 1) : '${formatGram(_item.amountG ?? 0)} g'}',
+          onClose: _busy ? null : () => Navigator.of(context).pop(),
+          content: [
+            if (_item.byServings)
+              ServingsStepper(
+                value: _servings,
+                enabled: !_busy,
+                onChanged: (v) => setState(() => _servings = v),
+              )
+            else
+              GramInput(
+                controller: _gram,
+                enabled: !_busy,
+                onChanged: () => setState(() {}),
+              ),
+            const SizedBox(height: 16),
+            MacroPreviewBox(preview: preview, note: _afterSave(preview)),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 20 / 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onErrorContainer,
+            const Text(
+              'Muốn chuyển món sang bữa khác: xoá rồi thêm lại ở bữa đó.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 18 / 13,
+                color: AppColors.textMuted,
               ),
             ),
-          ],
-        ],
-        footer: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: SizedBox(
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _delete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.onErrorContainer,
-                    side: const BorderSide(color: AppColors.outlineStrong),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(_busy && _deleting ? 'Đang xoá…' : 'Xoá'),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onErrorContainer,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 3,
-              child: SizedBox(
-                height: 52,
-                child: FilledButton(
-                  onPressed: canSave ? _save : null,
-                  style: primarySheetButtonStyle(),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      _busy && !_deleting ? 'Đang lưu…' : 'Lưu thay đổi',
+            ],
+          ],
+          footer: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _busy ? null : _delete,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.onErrorContainer,
+                      side: const BorderSide(color: AppColors.outlineStrong),
+                      shape: const StadiumBorder(),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    icon: const Icon(Icons.delete_outline),
+                    label: Text(_busy && _deleting ? 'Đang xoá…' : 'Xoá'),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: canSave ? _save : null,
+                    style: primarySheetButtonStyle(),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _busy && !_deleting ? 'Đang lưu…' : 'Lưu thay đổi',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
