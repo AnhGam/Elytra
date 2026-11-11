@@ -31,6 +31,7 @@ void main() {
     expect(s.historyView(r.from, r.to)!.days.last.kcal, 0);
     p.undo();
     expect(s.day(s.today).log!.find('a'), isNotNull);
+    expect(s.historyView(r.from, r.to)!.days.last.kcal, 300);
     expect(repo.calls.where((c) => c.$1 == 'delete'), isEmpty);
   });
   test('ngày cũ chỉ có trong /history cũng bị trừ', () async {
