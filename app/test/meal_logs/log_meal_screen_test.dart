@@ -395,4 +395,26 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Đã thêm Phở bò vào bữa tối'), findsNothing);
   });
+
+  testWidgets('không gửi: vuốt sheet xuống thì đóng', (t) async {
+    await openSheetFor(t, 'Cá basa kho tộ');
+    expect(addButton(), findsOneWidget);
+    await t.drag(find.text('Khẩu phần (0,25 – 10)'), const Offset(0, 700));
+    await t.pumpAndSettle();
+    expect(addButton(), findsNothing);
+    expect(find.byType(LogMealScreen), findsOneWidget);
+  });
+
+  testWidgets('đang gửi: vuốt sheet xuống không đóng, xong thì về kèm kết quả', (t) async {
+    repo.gate = Completer();
+    final results = await openSheetFor(t, 'Cá basa kho tộ');
+    await t.tap(addButton());
+    await t.pump();
+    await t.drag(find.text('Khẩu phần (0,25 – 10)'), const Offset(0, 700));
+    await t.pumpAndSettle();
+    expect(find.text('Đang thêm…'), findsOneWidget);
+    repo.gate!.complete();
+    await t.pumpAndSettle();
+    expect(results.single, isA<LogMealResult>());
+  });
 }

@@ -41,9 +41,9 @@ Future<LogOutcome?> showPortionSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    // Kéo xuống không đóng được (đang gửi thì phải khoá đóng sheet); chạm nền và
-    // Back đi qua PopScope trong sheet nên bị khoá khi đang gửi.
-    enableDrag: false,
+    // Vuốt xuống để đóng khi chưa gửi. Cờ này chỉ đọc lúc mở sheet, nên lúc đang gửi
+    // sheet tự nuốt thao tác kéo dọc; chạm nền và Back bị PopScope khoá.
+    enableDrag: !controller.sending,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -149,81 +149,87 @@ class _PortionSheetState extends State<PortionSheet> {
     final day = _c.store.day(_c.date).log;
     return PopScope(
       canPop: !sending,
-      child: PortionSheetFrame(
-        title: _food.name,
-        subtitle: _food.sourceLine,
-        onClose: sending ? null : () => Navigator.of(context).pop(),
-        content: [
-          const SheetLabel('Thêm vào'),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final m in MealType.values)
-                PortionPill(
-                  label: mealShortLabel(m),
-                  selected: m == _meal,
-                  onTap: sending ? null : () => setState(() => _meal = m),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_food.byServings)
-            ServingsStepper(
-              value: _servings,
-              enabled: !sending,
-              onChanged: (v) => setState(() => _servings = v),
-            )
-          else
-            GramInput(
-              controller: _gram,
-              enabled: !sending,
-              onChanged: () => setState(() {}),
-            ),
-          const SizedBox(height: 16),
-          MacroPreviewBox(
-            preview: preview,
-            note: preview == null || day == null
-                ? null
-                : afterAddLabel(
-                    day: day.budget,
-                    meal: day.meals[_meal] ?? MealLog.empty,
-                    type: _meal,
-                    add: preview,
+      // Đang gửi: nuốt kéo dọc để BottomSheet không đóng (callback null thì không chặn gì)
+      child: GestureDetector(
+        onVerticalDragStart: sending ? (_) {} : null,
+        onVerticalDragUpdate: sending ? (_) {} : null,
+        onVerticalDragEnd: sending ? (_) {} : null,
+        child: PortionSheetFrame(
+          title: _food.name,
+          subtitle: _food.sourceLine,
+          onClose: sending ? null : () => Navigator.of(context).pop(),
+          content: [
+            const SheetLabel('Thêm vào'),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final m in MealType.values)
+                  PortionPill(
+                    label: mealShortLabel(m),
+                    selected: m == _meal,
+                    onTap: sending ? null : () => setState(() => _meal = m),
                   ),
-          ),
-          if (_error != null) ...[
+              ],
+            ),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 20 / 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onErrorContainer,
+            if (_food.byServings)
+              ServingsStepper(
+                value: _servings,
+                enabled: !sending,
+                onChanged: (v) => setState(() => _servings = v),
+              )
+            else
+              GramInput(
+                controller: _gram,
+                enabled: !sending,
+                onChanged: () => setState(() {}),
               ),
+            const SizedBox(height: 16),
+            MacroPreviewBox(
+              preview: preview,
+              note: preview == null || day == null
+                  ? null
+                  : afterAddLabel(
+                      day: day.budget,
+                      meal: day.meals[_meal] ?? MealLog.empty,
+                      type: _meal,
+                      add: preview,
+                    ),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onErrorContainer,
+                ),
+              ),
+            ],
           ],
-        ],
-        footer: SizedBox(
-          height: 52,
-          child: FilledButton(
-            onPressed: sending || req == null ? null : _submit,
-            style: primarySheetButtonStyle(),
-            child: sending
-                ? const Text('Đang thêm…')
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.add, size: 20),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Thêm vào bữa ${_meal.labelVi}',
-                          overflow: TextOverflow.ellipsis,
+          footer: SizedBox(
+            height: 52,
+            child: FilledButton(
+              onPressed: sending || req == null ? null : _submit,
+              style: primarySheetButtonStyle(),
+              child: sending
+                  ? const Text('Đang thêm…')
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add, size: 20),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Thêm vào bữa ${_meal.labelVi}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
