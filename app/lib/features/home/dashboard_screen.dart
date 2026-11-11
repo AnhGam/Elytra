@@ -79,24 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       '/log?meal=${meal.apiValue}&date=${store.today}',
     );
     if (r == null || !mounted) return;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 4),
-          content: Text('Đã thêm ${r.name} vào bữa ${meal.labelVi}'),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () => store.undoAdd(r.result).catchError((Object _) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('Không hoàn tác được. Thử lại sau.'),
-                ),
-              );
-            }),
-          ),
-        ),
-      );
+    showLogResultSnackBar(messenger, store, r, meal);
   }
 
   void _openDiary(DiaryViewRequest req) {

@@ -8,6 +8,7 @@ import 'package:elytra/core/theme.dart';
 import 'package:elytra/core/vn_date.dart';
 import 'package:elytra/features/meal_logs/budget_view.dart';
 import 'package:elytra/features/meal_logs/diary_scope.dart';
+import 'package:elytra/features/meal_logs/diary_store.dart';
 import 'package:elytra/features/meal_logs/food_search_repository.dart';
 import 'package:elytra/features/meal_logs/log_meal_controller.dart';
 import 'package:elytra/features/meal_logs/meal_log_models.dart';
@@ -22,6 +23,36 @@ class LogMealResult {
   const LogMealResult({required this.result, required this.name});
   final AddResult result;
   final String name;
+}
+
+/// Snackbar "Đã thêm {tên} vào bữa {bữa}" + "Hoàn tác" (4 giây) sau khi màn Ghi bữa trả về.
+void showLogResultSnackBar(
+  ScaffoldMessengerState messenger,
+  DiaryStore store,
+  LogMealResult r,
+  MealType fallbackMeal,
+) {
+  final meal = r.result.item.mealType ?? fallbackMeal;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        // Có action thì Flutter mặc định giữ snackbar tới khi bấm; spec cần tự đóng sau 4 giây
+        persist: false,
+        content: Text('Đã thêm ${r.name} vào bữa ${meal.labelVi}'),
+        action: SnackBarAction(
+          label: 'Hoàn tác',
+          onPressed: () => store.undoAdd(r.result).catchError((Object _) {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Không hoàn tác được. Thử lại sau.'),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
 }
 
 const _tabLabels = {

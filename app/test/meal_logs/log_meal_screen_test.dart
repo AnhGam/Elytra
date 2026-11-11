@@ -349,4 +349,50 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('Khối lượng ăn được'), findsOneWidget);
   });
+
+  testWidgets('snackbar Đã thêm tự đóng sau 4 giây; Hoàn tác xoá món', (
+    t,
+  ) async {
+    final r = await repo.add(
+      const LogRequest.recipe(refId: 'r1', meal: MealType.dinner, date: today),
+      clientRequestId: 'k',
+    );
+    late ScaffoldMessengerState messenger;
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              messenger = ScaffoldMessenger.of(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+    showLogResultSnackBar(
+      messenger,
+      store,
+      LogMealResult(result: r, name: 'Phở bò'),
+      MealType.lunch,
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Đã thêm Phở bò vào bữa tối'), findsOneWidget);
+    await t.tap(find.text('Hoàn tác'));
+    await t.pumpAndSettle();
+    expect(repo.calls.where((c) => c.$1 == 'delete').map((c) => c.$2), [
+      r.item.id,
+    ]);
+
+    showLogResultSnackBar(
+      messenger,
+      store,
+      LogMealResult(result: r, name: 'Phở bò'),
+      MealType.lunch,
+    );
+    await t.pumpAndSettle();
+    await t.pump(const Duration(seconds: 5));
+    await t.pumpAndSettle();
+    expect(find.text('Đã thêm Phở bò vào bữa tối'), findsNothing);
+  });
 }
