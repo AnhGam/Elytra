@@ -22,6 +22,8 @@ Future<void> showEditItemSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    // Mở trên root navigator để che thanh tab (không đổi tab giữa lúc lưu/xoá)
+    useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
     // Như PortionSheet: khoá đóng khi đang lưu/xoá (PopScope), nên không cho kéo
@@ -109,6 +111,8 @@ class _EditItemSheetState extends State<EditItemSheet> {
 
   String _errorText(Object e) => switch (e) {
     MealLogTooOld() => kTooOldNote,
+    // Xoá lỗi: cùng câu với vuốt xoá, không dùng câu của Lưu
+    _ when _deleting => 'Không xoá được. Thử lại',
     MealLogOffline() => 'Không có mạng. Thử lại',
     MealLogItemNotFound() => 'Món này không còn trong nhật ký.',
     _ => 'Không lưu được. Thử lại sau.',

@@ -315,4 +315,50 @@ void main() {
     expect(t.takeException(), isNull);
     expect(find.text('H.nay'), findsOneWidget);
   });
+
+  for (final err in const <MealLogException>[MealLogFailed('X'), MealLogOffline()]) {
+    testWidgets('Xoá trong sheet lỗi (${err.runtimeType}): câu riêng cho xoá', (t) async {
+      lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
+      repo.failOnce['delete'] = err;
+      await pumpDiary(t);
+      await t.tap(find.text('Cơm trắng'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Xoá'));
+      await t.pumpAndSettle();
+      expect(find.text('Không xoá được. Thử lại'), findsOneWidget);
+      expect(find.textContaining('Không lưu được'), findsNothing);
+      expect(find.text('Lưu thay đổi'), findsOneWidget); // sheet vẫn mở
+    });
+  }
+
+  testWidgets('sheet sửa món mở trên root navigator (che thanh tab)', (t) async {
+    lunch(today, [item(id: 'a', name: 'Cơm trắng')]);
+    final rootKey = GlobalKey<NavigatorState>();
+    final catalog = RecipeCatalog(repo: FakeRecipeRepository());
+    addTearDown(catalog.dispose);
+    t.view.physicalSize = const Size(390, 2400);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    // Giống StatefulShellRoute: màn nằm trong navigator con, thanh tab ở ngoài
+    await t.pumpWidget(MaterialApp(
+      navigatorKey: rootKey,
+      builder: (_, child) => DiaryScope(
+        store: store,
+        child: RecipeScope(catalog: catalog, child: child!),
+      ),
+      home: Scaffold(
+        body: Navigator(
+          onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const DiaryScreen()),
+        ),
+        bottomNavigationBar: const SizedBox(height: 80, child: Text('THANH TAB')),
+      ),
+    ));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Cơm trắng'));
+    await t.pumpAndSettle();
+    final nav = t.state<NavigatorState>(
+      find.ancestor(of: find.text('Lưu thay đổi'), matching: find.byType(Navigator)).first,
+    );
+    expect(nav, same(rootKey.currentState));
+  });
 }
