@@ -114,11 +114,30 @@ abstract class MealLogRepository {
 
 const _timeout = Duration(seconds: 15);
 
+/// Hàm gọi Edge Function (mặc định `supabase.functions.invoke`), tiêm vào để test.
+typedef FunctionInvoker = Future<FunctionResponse> Function(
+  String path, {
+  required HttpMethod method,
+  Map<String, Object>? body,
+  Map<String, String>? query,
+});
+
+Future<FunctionResponse> _supabaseInvoke(
+  String path, {
+  required HttpMethod method,
+  Map<String, Object>? body,
+  Map<String, String>? query,
+}) =>
+    supabase.functions.invoke(path, method: method, body: body, queryParameters: query);
+
 /// Bản gọi Edge Function `meal-logs`. Constructor không chạm `supabase`.
 class SupabaseMealLogRepository implements MealLogRepository {
-  SupabaseMealLogRepository();
+  SupabaseMealLogRepository({FunctionInvoker? invoke}) : _invoke = invoke ?? _supabaseInvoke;
 
-  Future<Map<String, dynamic>> _call(
+  final FunctionInvoker _invoke;
+
+  /// Gọi và trả `data` thô; lỗi quy về [MealLogException].
+  Future<Object?> _send(
     MealLogOp op,
     String path, {
     HttpMethod method = HttpMethod.post,
@@ -126,15 +145,25 @@ class SupabaseMealLogRepository implements MealLogRepository {
     Map<String, String>? query,
   }) async {
     try {
-      final res = await supabase.functions
-          .invoke(path, method: method, body: body, queryParameters: query)
+      final res = await _invoke(path, method: method, body: body, query: query)
           .timeout(_timeout);
-      final data = res.data;
-      if (data is! Map) throw const MealLogFailed('BAD_RESPONSE');
-      return Map<String, dynamic>.from(data);
+      return res.data;
     } catch (e) {
       throw mapMealLogError(e, op: op);
     }
+  }
+
+  /// Như [_send] nhưng bắt buộc thân là JSON object.
+  Future<Map<String, dynamic>> _call(
+    MealLogOp op,
+    String path, {
+    HttpMethod method = HttpMethod.post,
+    Map<String, Object>? body,
+    Map<String, String>? query,
+  }) async {
+    final data = await _send(op, path, method: method, body: body, query: query);
+    if (data is! Map) throw const MealLogFailed('BAD_RESPONSE');
+    return Map<String, dynamic>.from(data);
   }
 
   @override
@@ -178,7 +207,8 @@ class SupabaseMealLogRepository implements MealLogRepository {
 
   @override
   Future<void> deleteItem(String id) async {
-    await _call(MealLogOp.delete, 'meal-logs/items/$id', method: HttpMethod.delete);
+    // Server trả 204 thân rỗng (functions_client đưa ra data = ""): không đọc thân
+    await _send(MealLogOp.delete, 'meal-logs/items/$id', method: HttpMethod.delete);
   }
 
   MealLogItem _item(Map<String, dynamic> j) {

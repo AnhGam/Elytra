@@ -66,4 +66,45 @@ void main() {
     expect(mapMealLogError(const FunctionException(status: 500, details: {'error': 'x'})),
         isA<MealLogFailed>());
   });
+
+  group('SupabaseMealLogRepository (invoke giả)', () {
+    // Ghi lại lời gọi và trả [data] như functions_client trả về
+    SupabaseMealLogRepository repoReturning(Object? data, {int status = 200}) =>
+        SupabaseMealLogRepository(
+          invoke: (path, {required method, body, query}) async =>
+              FunctionResponse(data: data, status: status),
+        );
+
+    test('DELETE 204 thân rỗng (functions_client trả "") là thành công', () async {
+      await repoReturning('', status: 204).deleteItem('a');
+      await repoReturning(null, status: 204).deleteItem('a');
+    });
+
+    test('DELETE gửi đúng đường dẫn và method', () async {
+      final calls = <(String, HttpMethod)>[];
+      final r = SupabaseMealLogRepository(
+        invoke: (path, {required method, body, query}) async {
+          calls.add((path, method));
+          return FunctionResponse(data: '', status: 204);
+        },
+      );
+      await r.deleteItem('item-1');
+      expect(calls, [('meal-logs/items/item-1', HttpMethod.delete)]);
+    });
+
+    test('GET trả thân không phải Map vẫn là BAD_RESPONSE', () async {
+      await expectLater(
+        repoReturning('').getDay('2026-11-11'),
+        throwsA(isA<MealLogFailed>().having((e) => e.code, 'code', 'BAD_RESPONSE')),
+      );
+    });
+
+    test('lỗi transport khi DELETE map thành Offline', () async {
+      final r = SupabaseMealLogRepository(
+        invoke: (path, {required method, body, query}) async =>
+            throw const SocketException('down'),
+      );
+      await expectLater(r.deleteItem('a'), throwsA(isA<MealLogOffline>()));
+    });
+  });
 }
