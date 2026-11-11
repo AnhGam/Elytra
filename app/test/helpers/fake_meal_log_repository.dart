@@ -18,6 +18,9 @@ class FakeMealLogRepository implements MealLogRepository {
   final Map<String, MealLogException> failOnce = {};
   int addCount = 0;
 
+  /// Gọi khi DELETE thành công (sau [gate] và lỗi giả), để kiểm tra thứ tự.
+  void Function(String id)? onDelete;
+
   /// Ngày server ghi món (mặc định = ngày gửi), để giả lập retry sau 0h.
   String Function(LogRequest req)? addDate;
 
@@ -83,5 +86,6 @@ class FakeMealLogRepository implements MealLogRepository {
     for (final e in days.entries.toList()) {
       if (e.value.find(id) != null) days[e.key] = e.value.without(id);
     }
+    onDelete?.call(id);
   }
 }

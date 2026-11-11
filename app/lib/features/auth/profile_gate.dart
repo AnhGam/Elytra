@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:elytra/core/pending_onboarding.dart';
+import 'package:elytra/features/meal_logs/diary_scope.dart';
 import 'package:elytra/features/nutrition/nutrition_repository.dart';
 import 'package:elytra/features/recipes/recipe_catalog.dart';
 import 'package:elytra/main.dart';
@@ -32,8 +33,9 @@ class _ProfileGateState extends State<ProfileGate> {
         await nutritionRepo.save(pending); // ghi thể trạng + mục tiêu vào profiles
         pendingBodyInfo.value = null; // chỉ xóa SAU KHI lưu thành công
         if (!mounted) return;
-        // Mục tiêu vừa đổi: bỏ hồ sơ cũ trong bộ nhớ đệm món ăn để lần sau tải lại
+        // Mục tiêu vừa đổi: bỏ hồ sơ và nhật ký cũ trong bộ nhớ đệm để lần sau tải lại
         RecipeScope.maybeOf(context)?.clear();
+        DiaryScope.maybeOf(context)?.clear();
         context.go('/home');
         return;
       }
