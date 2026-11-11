@@ -11,7 +11,7 @@ Elytra: app Android (Flutter) gợi ý dinh dưỡng và món ăn. Mọi con s�
 - `docs/api-contract.md` – đặc tả request/response của Edge Functions.
 - `/meal-logs` (nhật ký bữa ăn) và các RPC `search_recipes`, `search_dishes`, `search_ingredients` đặc tả ở `docs/api-contract.md` (mục 4) và `supabase/migrations/`.
 - `docs/design/sprint4/README.md` – thiết kế và quy ước màn hình Sprint 4 (Tìm kiếm món, Chi tiết món), kèm node Figma và ảnh trong `screens/`. Thiết kế triển khai đã duyệt: `docs/superpowers/specs/2026-10-28-recipe-search-detail-design.md`.
-- `docs/design/sprint5/README.md` – thiết kế và quy ước màn hình Sprint 5 (Dashboard, Ghi bữa ăn, Nhật ký), kèm node Figma và ảnh trong `screens/`.
+- `docs/design/sprint5/README.md` – thiết kế và quy ước màn hình Sprint 5 (Dashboard, Ghi bữa ăn, Nhật ký), kèm node Figma và ảnh trong `screens/`. Thiết kế triển khai đã duyệt: `docs/superpowers/specs/2026-11-11-dashboard-diary-design.md`.
 
 ## Lệnh (chạy trong `app/`)
 
@@ -31,6 +31,7 @@ flutter run --dart-define-from-file=env.json      # cần app/env.json (copy t�
 - `lib/main.dart` khởi tạo Supabase và export client toàn cục `supabase`; các repository dùng trực tiếp biến này.
 - `lib/core/router.dart`: go_router với `redirect` tập trung. `AuthNotifier` nghe `onAuthStateChange` để redirect chạy lại khi đăng nhập/đăng xuất/khôi phục mật khẩu. `publicRoutes` / `guestOnlyRoutes` quyết định màn nào cần đăng nhập. `/result` nhận `BodyInfo` qua `state.extra`.
 - Luồng onboarding: khai báo thể trạng khi chưa đăng nhập (`/onboarding` → `/result`) → giữ trong `pendingBodyInfo` (`core/pending_onboarding.dart`) → đăng ký/đăng nhập → `ProfileGate` (`/gate`) lưu hồ sơ qua `nutritionRepo` rồi vào `/home`. Bảng `profiles` có sẵn dòng do trigger tạo, nên "đã khai báo" = `target_calories != null`.
+- `DiaryStore` (`features/meal_logs/diary_store.dart`) là nguồn dữ liệu nhật ký duy nhất (cache `DayLog` theo ngày, `History` theo khoảng, món chờ xoá); tạo ở gốc app cạnh `RecipeCatalog`, chia sẻ qua `DiaryScope`, mọi thao tác ghi/sửa/xoá đi qua store.
 - `features/<tên>/`: mỗi tính năng gồm screen, repository (singleton cấp file, vd. `nutritionRepo`), logic thuần (vd. `nutrition_calculator.dart`, `body_info_rules.dart`) và `widgets/`. Unit test nhắm vào logic thuần.
 - `NutritionCalculator` phải khớp công thức trong DB; RLS chỉ cho người dùng sửa dòng `profiles` của chính mình.
 
