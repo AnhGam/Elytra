@@ -16,14 +16,14 @@ const derived = catalog.filter((i) => i.code.startsWith('X'));
 const mapRows = [];
 const allergenRows = new Set();
 for (const r of rows) {
-  const ing = lookupIngredient(r.ingredient_name_raw);
+  const o = OVERRIDES[r.slug]?.[r.raw_text] ?? {};
+  const ing = o.code ? catalog.find((c) => c.code === o.code) : lookupIngredient(r.ingredient_name_raw);
   // Khối lượng đọc lại từ câu gốc (parser cũ đọc '1,5 kg' thành 30 g, '1 muỗng cà phê' thành 30 g...)
   const p = parseIngredientLine(r.raw_text);
-  const o = OVERRIDES[r.slug]?.[r.raw_text] ?? {};
   // Tinh bột chính không ghi lượng -> khẩu phần chuẩn × số khẩu phần của món
   const staple = p.quantity_missing ? staplePerServing(r.ingredient_name_raw) : null;
-  const grams = o.amount_g ?? (staple ? staple * r.servings : p.amount_g);
-  const pct = o.consumed_pct ?? consumedPct(r.ingredient_name_raw, p.unit, ing);
+  const grams = o.amount_g !== undefined ? o.amount_g : (staple ? staple * r.servings : p.amount_g);
+  const pct = o.consumed_pct !== undefined ? o.consumed_pct : consumedPct(r.ingredient_name_raw, p.unit, ing);
   const amount = staple ? r.servings : p.amount, unit = staple ? 'khẩu phần chuẩn' : p.unit;
   mapRows.push(`(${q(r.slug)}, ${r.order_index}, ${ing ? q(ing.code) : 'NULL'}, ${pct}, ${amount}, ${q(unit)}, ${grams})`);
   for (const code of keywordAllergenCodes(r.ingredient_name_raw)) allergenRows.add(`(${q(r.slug)}, ${q(code)}, false)`);

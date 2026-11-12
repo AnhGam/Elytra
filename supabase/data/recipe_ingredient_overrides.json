@@ -2,7 +2,48 @@
   "cach-nau-sup-nui-ga-xe-dac-biet-thom-ngon-dinh-duong": {
     "thịt gà: 1,8 kg": {
       "consumed_pct": 48,
-      "note": "1,8 kg cho 4 người là gà nguyên con (có xương), không phải thịt lọc; dùng tỉ lệ ăn được của gà ta"
+      "note": "1,8 kg gà là gà nguyên con (có xương), dùng tỉ lệ ăn được của gà ta"
+    }
+  },
+  "cach-nau-che-dau-trang-deo-thom-ngot-ngao": {
+    "dừa nạo: 500 gram": {
+      "code": "X03001",
+      "amount_g": 200,
+      "consumed_pct": 100,
+      "note": "500g dừa nạo vắt lấy ~200g nước cốt dừa, không ăn bã dừa nạo khô"
+    },
+    "lá dứa: 1 bó": {
+      "amount_g": 0,
+      "note": "Lá dứa nấu lấy mùi thơm rồi vớt bỏ, không tiêu thụ"
+    },
+    "bột năng: 2 muỗng canh": {
+      "code": "02022",
+      "consumed_pct": 100,
+      "note": "Bột sắn/năng FCT 02022, không phải bánh đa nem"
+    }
+  },
+  "cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon": {
+    "Dầu ăn ngấm khi chiên ngập (~10% nguyên liệu)": {
+      "code": "12001",
+      "amount_g": 20,
+      "consumed_pct": 100,
+      "note": "Dầu ngấm khi chiên 100 g cá + 100 g sả bào (~10% phần chiên). Dòng này do migration 20261106090000 chèn thêm"
+    }
+  },
+  "cach-lam-suon-chien-sa-ot-ngon-het-y": {
+    "Dầu ăn ngấm khi chiên sườn (~8% nguyên liệu)": {
+      "code": "12001",
+      "amount_g": 40,
+      "consumed_pct": 100,
+      "note": "Dầu ngấm khi chiên 700 g sườn tẩm bột bắp (~6%). Dòng này do migration 20261106090000 chèn thêm"
+    }
+  },
+  "ga-rang-muoi-gion-rum-thom-lung-cong-thuc-don-gian-ai-cung-lam-duoc": {
+    "Dầu ăn (đủ để chiên ngập gà)": {
+      "code": "12001",
+      "amount_g": 60,
+      "consumed_pct": 100,
+      "note": "Dầu ngấm khi chiên ngập gà tẩm bột (~10% trọng lượng gà)"
     }
   }
 }

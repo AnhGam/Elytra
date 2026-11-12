@@ -1,4 +1,25 @@
-# API Contract – NutriAI (Draft)
+# API Contract – Elytra
+
+Đặc tả mọi thứ app gọi được ở back-end (Supabase production). **Chỉ ghi những gì đã chạy**; tính năng chưa làm không có ở đây.
+Nguồn sự thật: `supabase/migrations/` (DB, RPC, RLS) và `supabase/functions/` (Edge Functions). Test chứng minh hành vi: `supabase/scripts/test_*`.
+
+## Đọc nhanh: app gọi được gì
+
+| Loại | Tên | Cần đăng nhập | Dùng để | Mục |
+| --- | --- | --- | --- | --- |
+| Edge Function | `POST /calculate-bmr-tdee` | Không (trừ khi lưu hồ sơ) | Tính BMI/BMR/TDEE/calo mục tiêu | 1 |
+| Edge Function | `POST /recommend-ai` | Có | Chat AI: gợi ý món, đổi món, ăn món, hỏi cách nấu, hỏi dinh dưỡng | 2 |
+| Edge Function | `/meal-logs` (POST, GET, PATCH, DELETE) | Có | Nhật ký bữa ăn, Dashboard, lịch sử | 3 |
+| RPC | `search_recipes` | Không | Tìm/lọc/sắp xếp/phân trang món | 4.1 |
+| RPC | `search_dishes` | Không | Tìm món ăn sẵn (phở, xôi...) để ghi bữa | 4.2 |
+| RPC | `search_ingredients`, `get_ingredient_details` | Không | Tìm nguyên liệu, xem chi tiết dinh dưỡng | 4.3 |
+| RPC | `meal_calorie_budget` | Có | Calo cho bữa sắp ăn (theo phần còn lại hôm nay) | 4.4 |
+| Bảng (đọc/ghi thẳng) | `profiles`, `user_allergens`, `user_favorite_recipes` | Có | Hồ sơ, dị ứng, món yêu thích | 5 |
+| Bảng (chỉ đọc) | `recipes`, `recipe_ingredients`, `recipe_allergens`, `allergens`, `ingredients`, `prepared_dishes`… | Không | Dữ liệu món / nguyên liệu | 5 |
+| Bảng (chỉ đọc) | `meal_logs`, `meal_log_items`, `chat_sessions`, `chat_messages` | Có | Lịch sử bữa ăn, lịch sử chat | 5 |
+| Storage | bucket `recipe-images`, `recipe-videos` (public) | Không | Ảnh / video món | 5 |
+
+Không còn: `/recommend` và `/chat` của bản nháp cũ (đã gộp vào `/recommend-ai`); chế độ "nguyên liệu trong tủ lạnh" (ngoài phạm vi đề cương).
 
 ---
 
@@ -7,45 +28,39 @@
 ### Địa chỉ gọi
 
 ```
-https://<project-ref>.supabase.co/functions/v1/<tên-function>
+Edge Function: https://<project-ref>.supabase.co/functions/v1/<tên-function>
+RPC / bảng:    qua supabase-flutter: supabase.rpc(...), supabase.from(...)
 ```
 
-### Header bắt buộc
+### Header bắt buộc (Edge Function)
 
 | Header | Giá trị |
 | --- | --- |
-| `Authorization` | `Bearer <access_token>` lấy từ Supabase Auth sau khi đăng nhập |
+| `Authorization` | `Bearer <access_token>` lấy từ Supabase Auth sau khi đăng nhập (`supabase.functions.invoke` tự gắn) |
 | `Content-Type` | `application/json` |
 
 ### Đơn vị và kiểu dữ liệu
 
-- Năng lượng: `kcal`, số nguyên.
-- Khối lượng chất dinh dưỡng: gam, số thực làm tròn 1 chữ số thập phân.
-- ID: `uuid` dạng chuỗi.
-- Tên trường: `snake_case`.
+- Năng lượng: `kcal`. Khối lượng chất dinh dưỡng: gam, làm tròn 1 chữ số thập phân. Natri: mg.
+- ID: `uuid` dạng chuỗi (riêng `allergens.id` là số nguyên). Tên trường: `snake_case`.
+- "Hôm nay" tính theo giờ Việt Nam (UTC+7). Ngày dạng `YYYY-MM-DD`.
 
 ### Quy ước kết quả
 
-- **Lỗi kỹ thuật hoặc dữ liệu sai** (thiếu token, nhập sai) → trả mã HTTP 4xx/5xx kèm khối `error`.
-- **Kết quả nghiệp vụ bình thường** (đã đủ calo, không có món phù hợp, Gemini lỗi phải dùng fallback) → vẫn trả `200`, phân biệt bằng trường `status` hoặc `mode`. App không coi đây là lỗi.
+- **Lỗi kỹ thuật hoặc dữ liệu sai** (thiếu token, nhập sai) → mã HTTP 4xx/5xx kèm khối `error`.
+- **Kết quả nghiệp vụ bình thường** (đã đủ calo, không có món phù hợp, AI lỗi phải dùng câu mẫu) → vẫn trả `200`, phân biệt bằng `status` / `fallback` / `decision_mode`. App không coi đây là lỗi.
 
 ### Định dạng lỗi chung
 
 ```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Tuổi phải nằm trong khoảng cho phép",
-    "field": "age"
-  }
-}
+{ "error": { "code": "VALIDATION_ERROR", "message": "Tuổi phải nằm trong khoảng cho phép", "field": "age" } }
 ```
 
 | HTTP | `code` | Khi nào | App xử lý |
 | --- | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | Thiếu trường hoặc giá trị ngoài khoảng | Hiện lỗi dưới ô tương ứng với `field` |
 | 401 | `UNAUTHORIZED` | Token thiếu hoặc hết hạn | Chuyển về màn Đăng nhập |
-| 404 | `PROFILE_NOT_FOUND` | Người dùng chưa hoàn tất onboarding | Chuyển sang Onboarding (Luồng 1) |
+| 404 | `PROFILE_NOT_FOUND` | Người dùng chưa hoàn tất onboarding | Chuyển sang Onboarding |
 | 500 | `INTERNAL_ERROR` | Lỗi không lường trước | Hiện thông báo chung, cho thử lại |
 
 ### Kiểu dữ liệu dùng chung
@@ -64,26 +79,9 @@ https://<project-ref>.supabase.co/functions/v1/<tên-function>
 
 **`MealType`**: `"breakfast"` | `"lunch"` | `"dinner"` | `"snack"`
 
-**`RecipeCard`** – dùng chung cho `recommend` và `chat`, để thẻ món ở mọi màn hình giống nhau:
+**Danh mục món (`recipes.category`)**: `mon_an_sang`, `mon_canh`, `mon_chay`, `mon_kho`, `mon_man`, `mon_nuong`, `mon_xao`, `gia_vi_an_kem` (đồ chấm/gia vị: bị ẩn khỏi danh sách và gợi ý). **Độ khó**: `easy`, `medium`.
 
-```json
-{
-  "recipe_id": "8f1c…",
-  "name": "Ức gà áp chảo rau củ",
-  "image_url": "https://…/uc-ga.jpg",
-  "kcal": 420,
-  "protein_g": 38.5,
-  "carbs_g": 30.0,
-  "fat_g": 14.2,
-  "cook_minutes": 25,
-  "score": 0.86,
-  "reasons": ["Nhiều protein", "Vừa với calo còn lại của bữa trưa"],
-  "pantry": null
-}
-```
-
-- `reasons`: lý do do **engine** sinh ra, không phải do AI. Chatbot và giao diện dùng lại trực tiếp.
-- `pantry`: chỉ có giá trị ở Chế độ 2 (xem mục 2), các trường hợp khác là `null`.
+**Chất gây dị ứng (`allergens`)**: `1 seafood`, `2 egg`, `3 dairy`, `4 peanut`, `5 tree_nut`, `6 soy`, `7 gluten`, `8 sesame` (`id code`; tên tiếng Việt ở cột `name_vi`).
 
 ---
 
@@ -156,193 +154,178 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 
 ---
 
-## 2. `POST /recommend` – Gợi ý món ăn
+## 2. `POST /recommend-ai` – Trợ lý dinh dưỡng AI (màn Chat)
 
-**Dùng ở:** nút "Trưa nay ăn gì?" trên Dashboard (Chế độ 1), màn Bộ lọc nâng cao (Chế độ 2). Edge Function `chat` cũng gọi nội bộ.
+**Nguyên tắc:** mọi món và mọi số liệu đều từ DB. AI không bịa món, không tự tính số.
 
-### Request
+- **An toàn:** SQL lọc cứng món chứa chất dị ứng của người dùng, món đã từ chối, đồ chấm/gia vị.
+- **Chọn món:** mô hình quyết định Gemini Decision 1 (kiểu Jev: trả xác suất, không viết chữ) xếp lại 10 ứng viên của SQL.
+- **Lời nói:** Gemini chat chỉ diễn đạt lại dữ liệu đã có.
+- AI lỗi / quá giờ / hết hạn mức → vẫn `200`: thứ tự điểm SQL (`decision_mode: "sql"`) và/hoặc câu mẫu (`fallback: true`).
 
-| Trường | Kiểu | Bắt buộc | Ghi chú |
+Thiết kế chi tiết: `docs/week9-10/01_DECISION_MODEL_RECOMMEND_AND_MODERATION.md`.
+
+### 2.1 Request
+
+| Trường | Kiểu | Bắt buộc | Ràng buộc / ý nghĩa |
 | --- | --- | --- | --- |
-| `mode` | `"quick"` \| `"advanced"` | Có | `quick` = Chế độ 1, `advanced` = Chế độ 2 |
-| `meal_type` | `MealType` | Không | Bữa nào trong ngày, bỏ trống thì server tự suy ra theo giờ hiện tại |
-| `limit` | số nguyên | Không | Mặc định 3, tối đa 10 |
-| `exclude_ids` | `uuid[]` | Không | Các món đã từ chối trong lượt này |
-| `rejected_id` | `uuid` | Không | Món vừa bấm "Đổi món khác". Server ghi `recommendation_logs` = `rejected` và tự thêm món này vào danh sách loại trừ |
-| `filters` | object | Bắt buộc khi `mode = advanced` | Phải có ít nhất 1 tiêu chí |
-| `filters.pantry_ingredient_ids` | `uuid[]` | Không | Nguyên liệu đang có trong tủ lạnh |
-| `filters.kcal_min` / `kcal_max` | số nguyên | Không | Dải calo mỗi khẩu phần |
-| `filters.max_cook_minutes` | số nguyên | Không | |
-| `filters.difficulty` | `"easy"` \| `"medium"` \| `"hard"` | Không | |
-| `filters.category_ids` | `uuid[]` | Không | Nhóm món |
+| `session_id` | `uuid` | Không | Phiên chat. Bỏ trống (hoặc gửi phiên không phải của mình) → server tạo phiên mới và trả `session_id`. App giữ lại và gửi ở các lượt sau |
+| `intent` | `"recommend"` \| `"how_to_cook"` \| `"nutrition"` | Không | Gửi khi người dùng **bấm chip**. Bỏ trống mà có `message` → server tự phân loại câu (2.3) |
+| `recipe_id` | `uuid` | Nên gửi khi `intent` là `how_to_cook`/`nutrition` | Món người dùng hỏi. Không gửi → server lấy món đứng đầu lượt gợi ý gần nhất trong phiên; phiên chưa có gợi ý → 400 |
+| `message` | chuỗi | Không | Câu người dùng gõ, tối đa 500 ký tự |
+| `meal_type` | `MealType` | Không | Mặc định `"lunch"` |
+| `target_calories` | số | Không | 100–2000. Bỏ trống → server tính theo phần calo còn lại hôm nay (2.4) |
+| `rejected_recipe_ids` | `uuid[]` | Không | Tối đa 50. Món đã từ chối **trong phiên này**; app tự giữ danh sách và gửi lại mỗi lượt |
+| `accepted_recipe_id` | `uuid` | Không | Chip "Ăn món này": ghi món vào nhật ký (cùng logic `POST /meal-logs`). Có trường này thì bỏ qua `intent` |
+| `servings` | số | Không | Đi với `accepted_recipe_id`. 0.25–10, mặc định 1 |
+| `client_request_id` | `uuid` | Không (nên gửi) | Đi với `accepted_recipe_id`. Chống ghi trùng khi retry, quy tắc như 3.1 |
 
-### Ví dụ request – Chế độ 1
+Server xử lý theo thứ tự: `accepted_recipe_id` → `intent` → phân loại `message` → mặc định `recommend`.
 
-```json
-{ "mode": "quick", "limit": 3, "exclude_ids": [] }
-```
+Trường có giá trị `null` được coi như không gửi (vd `'session_id': null` ở lượt đầu). `session_id` trong response có thể vắng nếu server không tạo được phiên (hiếm); khi đó lượt sau cứ gửi không có `session_id`.
 
-### Ví dụ request – Chế độ 2
+### 2.2 Chip và request tương ứng
+
+| Chip / hành động | Request |
+| --- | --- |
+| Mở màn Chat / "Gợi ý món" | `{ "meal_type": "lunch" }` |
+| Gõ tự do | `{ "session_id": "…", "meal_type": "lunch", "message": "Muốn ăn món nước, ít dầu mỡ", "rejected_recipe_ids": [...] }` |
+| "Đổi món khác" | Thêm id món đó vào `rejected_recipe_ids` rồi gửi lại: `{ "session_id": "…", "meal_type": "lunch", "rejected_recipe_ids": ["…"] }` |
+| "Ăn món này" | `{ "session_id": "…", "meal_type": "lunch", "accepted_recipe_id": "…", "client_request_id": "<uuid sinh 1 lần>" }` |
+| "Nấu thế nào?" | `{ "session_id": "…", "intent": "how_to_cook", "recipe_id": "…" }` |
+| "Dinh dưỡng" | `{ "session_id": "…", "intent": "nutrition", "recipe_id": "…" }` |
+
+`message` trả về là **Markdown** (in đậm, gạch đầu dòng): app cần hiển thị dạng Markdown.
+
+### 2.3 Phân loại câu gõ tự do
+
+Khi không có `intent` mà có `message`, Gemini Decision 1 phân loại câu thành `recommend` / `how_to_cook` / `nutrition` / `out_of_scope`.
+
+- Hỏi cách nấu / dinh dưỡng mà không gửi `recipe_id` → server lấy **món đứng đầu lượt gợi ý gần nhất** trong phiên. Phiên chưa có gợi ý nào → coi như `recommend`.
+- `out_of_scope` (câu không liên quan ăn uống, mô hình chắc ≥ 0,7) → từ chối lịch sự, không có món.
+- Mô hình lỗi → coi như `recommend`.
+
+### 2.4 Calo cho bữa (`status` khi gợi ý)
+
+Bỏ trống `target_calories` thì server gọi `meal_calorie_budget` (4.4):
+
+- **Chuẩn bữa** = mục tiêu ngày × tỉ lệ bữa (sáng 25%, trưa 35%, tối 30%, phụ 10%).
+- **Calo bữa** = calo còn lại hôm nay × tỉ lệ bữa / tổng tỉ lệ các bữa **chưa ghi** hôm nay. Sau đó kẹp lại theo bảng:
+
+| `status` | Khi nào | Calo bữa | App hiển thị |
+| --- | --- | --- | --- |
+| `ok` | Bình thường | Như công thức | Thẻ món |
+| `low` | Còn ít: < 0,5 × chuẩn | max(công thức, 150) | Thẻ món (đã có câu nhắc "món nhẹ" trong `message`) |
+| `capped` | Các bữa trước ghi nhưng ăn ít: > 1,5 × chuẩn | 1,5 × chuẩn | Thẻ món (đã có câu nhắc trong `message`) |
+| `goal_reached` | Còn < 150 kcal | Không gợi ý | `suggested_recipes` rỗng, lời nhắc đã đạt mục tiêu |
+
+Bữa chưa ghi được coi là còn sẽ ăn, nên quên ghi bữa sáng không làm bữa trưa bị dồn calo.
+
+### 2.5 Response `200`
+
+Mọi response đều có `session_id`, `intent`, `status`, `message`. Phần còn lại tùy `intent`:
+
+**Gợi ý món** (`intent: "recommend"`):
 
 ```json
 {
-  "mode": "advanced",
-  "limit": 5,
-  "filters": {
-    "pantry_ingredient_ids": ["egg-uuid", "tomato-uuid"],
-    "max_cook_minutes": 30
-  }
-}
-```
-
-### Response `200`
-
-```json
-{
+  "session_id": "a1b2…",
+  "intent": "recommend",
   "status": "ok",
-  "meal_type": "lunch",
-  "budget": {
-    "target":    { "kcal": 2092, "protein_g": 156.9, "carbs_g": 209.2, "fat_g": 69.7 },
-    "consumed":  { "kcal": 520,  "protein_g": 30.0,  "carbs_g": 70.0,  "fat_g": 15.0 },
-    "remaining": { "kcal": 1572, "protein_g": 126.9, "carbs_g": 139.2, "fat_g": 54.7 }
-  },
-  "relax_count": 0,
-  "items": [ /* RecipeCard[] */ ]
-}
-```
-
-Ở Chế độ 2, trường `pantry` của mỗi `RecipeCard` có dạng:
-
-```json
-"pantry": {
-  "matched": 4,
-  "total": 5,
-  "missing": [{ "ingredient_id": "…", "name": "Hành lá" }],
-  "label": "Thiếu 1 nguyên liệu"
-}
-```
-
-### Giá trị `status`
-
-| `status` | Ý nghĩa | `items` | App hiển thị |
-| --- | --- | --- | --- |
-| `ok` | Tìm được món bình thường | Có | Thẻ món |
-| `relaxed` | Phải nới rộng dải calo mới tìm được (`relax_count` = 1 hoặc 2) | Có | Thẻ món + dòng nhắc "calo có thể lệch nhiều hơn bình thường" |
-| `fallback_lowest_kcal` | Đã nới lỏng tối đa mà vẫn không có món, trả các món ít calo nhất | Có | Thẻ món + cảnh báo |
-| `goal_reached` | Đã hết calo trong ngày | Rỗng | Thông báo đã đạt mục tiêu, không gợi ý món chính |
-| `no_match` | Chế độ 2 không có món phù hợp | Rỗng | Gợi ý bỏ bớt tiêu chí |
-
-- Số lần nới lỏng tối đa (đề xuất 2) và mức nới mỗi lần.
-- Trọng số chấm điểm (calo, protein, sở thích, tủ lạnh). `S_pantry` = 0 ở Chế độ 1.
-- Món chứa chất dị ứng của người dùng **luôn bị loại**, ở mọi chế độ, kể cả khi nới lỏng.
-
-### Lỗi riêng
-
-| HTTP | `code` | Khi nào |
-| --- | --- | --- |
-| 400 | `FILTER_REQUIRED` | `mode = advanced` nhưng không có tiêu chí nào |
-| 404 | `PROFILE_NOT_FOUND` | Chưa có hồ sơ thể trạng |
-
----
-
-## 3. `POST /chat` – Chatbot AI
-
-**Nguyên tắc:** Mọi số liệu và mọi món ăn đều do engine và database cung cấp. Gemini chỉ viết lời dẫn. Khi Gemini lỗi, quá thời gian chờ, hoặc nhắc món không có trong danh sách ứng viên, API **vẫn trả 200** với `mode = "fallback"` và câu mẫu cố định.
-
-### Request
-
-| Trường | Kiểu | Bắt buộc | Ghi chú |
-| --- | --- | --- | --- |
-| `intent` | xem bảng dưới | Có | |
-| `text` | chuỗi | Khi `intent = message` | Tối đa 500 ký tự |
-| `recipe_id` | `uuid` | Khi `intent` là `accept`, `swap`, `how_to_cook`, `why_fit` | Món trên thẻ người dùng vừa bấm |
-| `exclude_ids` | `uuid[]` | Không | Món đã từ chối trong phiên chat; app tự giữ và gửi lên |
-| `history` | `{role, text}[]` | Không | Tối đa 6 lượt gần nhất, để Gemini hiểu ngữ cảnh |
-
-| `intent` | Nguồn | Server làm gì |
-| --- | --- | --- |
-| `open` | Mở màn Chat | Nạp ngữ cảnh, gọi `recommend` (quick), chào kèm top 3 món |
-| `message` | Người dùng gõ tự do | Kiểm tra phạm vi → nếu có nhắc nguyên liệu thì gọi `recommend` (advanced), nếu không thì xác định ý định |
-| `accept` | Chip "Ăn món này" | Gọi RPC `log_meal` (cùng logic với `POST /meal-logs`, mục 4), ghi log `accepted` |
-| `swap` | Chip "Đổi món khác" | Ghi log `rejected`, gọi `recommend` với món đó bị loại |
-| `how_to_cook` | Chip "Nấu thế nào?" | Đọc `cooking_steps` từ database |
-| `why_fit` | Chip "Vì sao hợp với tôi?" | Dùng `reasons` của engine và ngân sách còn lại |
-
-### Ví dụ request – Đổi món
-
-```json
-{
-  "intent": "swap",
-  "recipe_id": "8f1c…",
-  "exclude_ids": ["3a7d…"]
-}
-```
-
-### Response `200`
-
-```json
-{
-  "mode": "ai",
-  "intent": "swap",
-  "message": "Thử món Cá hồi nướng nhé, ít hơn khoảng 60 kcal mà vẫn đủ đạm cho bữa trưa.",
-  "cards": [ /* RecipeCard[] – lấy từ engine */ ],
-  "chips": ["accept", "swap", "how_to_cook", "why_fit"],
-  "exclude_ids": ["3a7d…", "8f1c…"],
-  "status": "ok",
-  "logged": null,
-  "out_of_scope": false
+  "budget": { "meal_type": "lunch", "status": "ok", "target_kcal": 700, "base_kcal": 700, "remaining_kcal": 2000, "daily_kcal": 2000 },
+  "message": "Elytra đã chọn cho bữa trưa món **Bún riêu cua đồng hải sản**…",
+  "suggested_recipes": [
+    {
+      "id": "8f1c…", "title": "Bún riêu cua đồng hải sản", "slug": "…", "category": "mon_an_sang",
+      "image_url": "https://…", "servings": 4, "prep_time_minutes": 20, "cook_time_minutes": 25,
+      "calories_per_serving": 510.6, "protein_g_per_serving": 51.2, "fat_g_per_serving": 5.7, "carbs_g_per_serving": 63.3,
+      "score": 0.83, "match_reason": "Giàu protein (51.2g), phù hợp phục hồi cơ bắp",
+      "is_favorite": false, "decision_probability": 0.47
+    }
+  ],
+  "rejected_recipe_ids": [],
+  "fallback": false,
+  "decision_mode": "model"
 }
 ```
 
 | Trường | Ý nghĩa |
 | --- | --- |
-| `mode` | `"ai"` = lời dẫn do Gemini viết; `"fallback"` = câu mẫu. App hiện banner "Kết nối AI đang gián đoạn" khi là `fallback` |
-| `message` | Văn bản hiển thị trong bong bóng chat |
-| `cards` | Thẻ món, luôn lấy từ engine, không bao giờ do AI tạo |
-| `chips` | Các nút bấm nhanh cần hiển thị dưới tin nhắn |
-| `exclude_ids` | Danh sách loại trừ đã cập nhật; app lưu lại và gửi lên ở lượt sau |
-| `status` | Lấy nguyên từ `recommend` (`ok`, `relaxed`, `goal_reached`, …) khi lượt này có gọi engine; `null` nếu không |
-| `logged` | Khi `intent = accept`: `{ "meal_log_item_id": "…", "kcal_added": 420 }` để app cập nhật Dashboard |
-| `out_of_scope` | `true` khi câu hỏi ngoài phạm vi dinh dưỡng; khi đó `cards` rỗng |
+| `suggested_recipes` | Tối đa 10 món, **món đầu là món được chọn**. Rỗng khi `goal_reached` hoặc không còn món hợp lệ |
+| `match_reason` | Lý do do engine SQL viết (không phải AI), dùng làm dòng phụ trên thẻ món |
+| `is_favorite` | Món nằm trong yêu thích của người dùng (được cộng 0,1 điểm) |
+| `decision_probability` | Xác suất mô hình chọn món này; `null` khi `decision_mode = "sql"` |
+| `decision_mode` | `"model"` = Gemini Decision 1 xếp hạng; `"sql"` = giữ thứ tự điểm SQL (mô hình lỗi, không có key, hoặc chỉ có 0–1 ứng viên nên không cần chọn); `null` khi `goal_reached` |
+| `fallback` | `true` = Gemini chat lỗi, `message` là câu mẫu. App có thể hiện ghi chú nhỏ "AI đang gián đoạn" |
+| `budget` | Kết quả `meal_calorie_budget`; `null` khi app tự gửi `target_calories` |
 
-### Ví dụ response – Fallback
+**Hỏi cách nấu / dinh dưỡng** (`intent: "how_to_cook"` / `"nutrition"`): `status: "answered"`, số liệu để hiển thị nằm ở `recipe` (lấy từ DB).
 
 ```json
 {
-  "mode": "fallback",
-  "intent": "open",
-  "message": "Kết nối AI đang gián đoạn. Đây là 3 món phù hợp với lượng calo còn lại của bạn:",
-  "cards": [ /* RecipeCard[] */ ],
-  "chips": ["accept", "swap", "how_to_cook", "why_fit"],
-  "exclude_ids": [],
-  "status": "ok",
-  "logged": null,
-  "out_of_scope": false
+  "session_id": "a1b2…", "intent": "how_to_cook", "status": "answered", "fallback": false,
+  "message": "Hướng dẫn nấu **Bún riêu cua đồng hải sản** (4 khẩu phần, ~45 phút)…",
+  "recipe": {
+    "id": "8f1c…", "title": "Bún riêu cua đồng hải sản", "servings": 4, "prep_time_minutes": 20, "cook_time_minutes": 25,
+    "video_url": null,
+    "instructions": [{ "step_number": 1, "title": "Sơ chế", "description": "…" }],
+    "ingredients": ["Cua đồng: 500 g", "…"],
+    "calories_per_serving": 510.6, "protein_g_per_serving": 51.2, "fat_g_per_serving": 5.7, "carbs_g_per_serving": 63.3,
+    "fiber_g_per_serving": 3.1, "sodium_mg_per_serving": 1020.0,
+    "allergens": ["Hải sản (Tôm, Cua, Mực, Cá)"]
+  }
 }
 ```
 
-### Lỗi riêng
+`fallback: true` ở đây nghĩa là `message` là dữ liệu nguyên văn từ DB (nguyên liệu + các bước / bảng số liệu), chưa được AI diễn đạt lại.
 
-| HTTP | `code` | Khi nào |
-| --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Thiếu `text` hoặc `recipe_id` theo `intent`, `text` quá dài |
-| 404 | `RECIPE_NOT_FOUND` | `recipe_id` không tồn tại hoặc chưa được duyệt |
-| 404 | `PROFILE_NOT_FOUND` | Chưa có hồ sơ thể trạng |
-| 429 | `RATE_LIMITED` | Gửi quá nhiều tin trong thời gian ngắn |
+**Ngoài phạm vi**: `{ "session_id": "…", "intent": "out_of_scope", "status": "out_of_scope", "message": "Mình là trợ lý dinh dưỡng…", "suggested_recipes": [], "fallback": false }`
 
-> Gemini lỗi **không** phải là lỗi API. Không có mã lỗi nào cho trường hợp này, vì nó luôn được xử lý bằng `mode = "fallback"`.
+**Ăn món này** (`accepted_recipe_id`):
+
+```json
+{ "session_id": "…", "intent": "accept", "status": "logged", "message": "Đã ghi **Bún riêu cua đồng** (442 kcal) vào bữa trưa.",
+  "logged": { /* MealLogItem, mục 3 */ }, "budget": { /* Budget, mục 3 */ } }
+```
+
+App dùng `budget` để cập nhật Dashboard, không cần gọi lại `GET /meal-logs`.
+
+### 2.6 Lỗi riêng
+
+| HTTP | `code` | `field` | Khi nào |
+| --- | --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | trường sai | Sai `meal_type` / `intent`; uuid sai; `rejected_recipe_ids` không phải mảng uuid hoặc > 50; `message` > 500 ký tự; `target_calories` ngoài 100–2000; chip `how_to_cook`/`nutrition` thiếu `recipe_id` mà phiên chưa có gợi ý; `servings` ngoài khoảng (lỗi này không có `field`) |
+| 401 | `UNAUTHORIZED` | | Thiếu/hết hạn token, hoặc gửi anon key |
+| 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo (khi server phải tự tính calo bữa) |
+| 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Món không tồn tại hoặc chưa duyệt |
+| 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Như 3.1 |
+
+AI (Gemini) lỗi **không** phải lỗi API: luôn xử lý bằng `fallback` / `decision_mode`.
+
+### 2.7 Gọi từ Flutter
+
+```dart
+final res = await supabase.functions.invoke('recommend-ai', body: {
+  'session_id': sessionId,            // null ở lượt đầu (null = không gửi)
+  'meal_type': 'lunch',
+  'message': text,
+  'rejected_recipe_ids': rejectedIds, // app tự giữ trong phiên
+});
+final data = res.data as Map<String, dynamic>;
+sessionId = data['session_id'];
+```
 
 ---
 
-## 4. `/meal-logs` – Nhật ký bữa ăn
+## 3. `/meal-logs` – Nhật ký bữa ăn
 
-**Dùng ở:** Dashboard (đã nạp / còn lại), màn Ghi bữa ăn, Chi tiết món (nút "Ăn món này"), màn Lịch sử + biểu đồ.
+**Dùng ở:** Dashboard (đã nạp / còn lại), màn Ghi bữa ăn, Chi tiết món (nút "Ăn món này"); màn Chat dùng `/recommend-ai` (cùng logic ghi), màn Lịch sử + biểu đồ.
 
-- Mọi nơi ghi bữa ăn đều đi qua endpoint này (hoặc RPC `log_meal` mà nó gọi). App **không** insert thẳng vào bảng: RLS chỉ cho đọc và xóa.
+- Mọi nơi ghi bữa ăn đều đi qua endpoint này (hoặc RPC `log_meal` mà nó gọi). App **không** ghi/sửa/xóa thẳng vào bảng: RLS chỉ cho đọc.
 - Dinh dưỡng được **chụp lại lúc ghi** (snapshot). Sau này sửa món/nguyên liệu thì lịch sử cũ không đổi.
 - "Hôm nay" tính theo giờ Việt Nam (UTC+7). `date` có dạng `YYYY-MM-DD`.
 
-**`Budget`** – cùng dạng với `budget` của `recommend`. `remaining` có thể **âm** khi đã ăn vượt mục tiêu.
+**`Budget`** – cũng là `budget` trả về khi "Ăn món này" ở `/recommend-ai`. `remaining` có thể **âm** khi đã ăn vượt mục tiêu.
 
 ```json
 {
@@ -376,7 +359,7 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 - `source = "recipe"` → có `servings`, `amount_g = null`. `source = "ingredient"` hoặc `"dish"` (món ăn sẵn) → có `amount_g`, `servings = null`.
 - `recipe_id` / `ingredient_id` / `dish_id` có thể thành `null` nếu món gốc bị xóa; `name` và số liệu vẫn giữ.
 
-### 4.1 `POST /meal-logs` – Ghi 1 món
+### 3.1 `POST /meal-logs` – Ghi 1 món
 
 | Trường | Kiểu | Bắt buộc | Ràng buộc |
 | --- | --- | --- | --- |
@@ -407,7 +390,7 @@ App dùng luôn `budget` để cập nhật Dashboard, không cần gọi lại 
 - Cùng key + khác nội dung (so với request gốc, không phải trạng thái hiện tại) → `422 IDEMPOTENCY_CONFLICT` (lỗi lập trình phía app).
 - Không gửi key → mỗi request là một lần ghi mới (retry có thể ghi trùng).
 
-### 4.2 `GET /meal-logs?date=YYYY-MM-DD` – Tổng hợp 1 ngày
+### 3.2 `GET /meal-logs?date=YYYY-MM-DD` – Tổng hợp 1 ngày
 
 Bỏ `date` = hôm nay.
 
@@ -426,7 +409,7 @@ Bỏ `date` = hôm nay.
 
 Luôn có đủ 4 bữa; bữa chưa ăn có `items` rỗng.
 
-### 4.3 `GET /meal-logs/history?from=YYYY-MM-DD&to=YYYY-MM-DD` – Lịch sử theo ngày
+### 3.3 `GET /meal-logs/history?from=YYYY-MM-DD&to=YYYY-MM-DD` – Lịch sử theo ngày
 
 Cho biểu đồ. Tối đa 31 ngày mỗi lần. Trả **đủ mọi ngày** trong khoảng, ngày không ghi có giá trị 0. Xem chi tiết từng ngày bằng `GET /meal-logs?date=`.
 
@@ -446,9 +429,9 @@ Cho biểu đồ. Tối đa 31 ngày mỗi lần. Trả **đủ mọi ngày** tr
 - `target_kcal` ở ngoài: mục tiêu hiện tại.
 - Quy tắc chung cho `budget.target` của `GET /meal-logs?date=` và `days[].target_kcal`: **ngày đã qua** dùng mục tiêu lúc ghi bữa đầu tiên trong ngày (cả kcal và macro), **hôm nay** dùng hồ sơ hiện tại.
 
-### 4.4 `PATCH /meal-logs/items/:id` – Sửa khẩu phần / khối lượng
+### 3.4 `PATCH /meal-logs/items/:id` – Sửa khẩu phần / khối lượng
 
-Gửi `servings` nếu món là `recipe`, `amount_g` nếu là `ingredient` (cùng khoảng như 4.1), chỉ với món trong 30 ngày gần nhất. Dinh dưỡng được nhân theo tỉ lệ trên **snapshot cũ**, không đọc lại món gốc.
+Gửi `servings` nếu món là `recipe`, `amount_g` nếu là `ingredient` (cùng khoảng như 3.1), chỉ với món trong 30 ngày gần nhất. Dinh dưỡng được nhân theo tỉ lệ trên **snapshot cũ**, không đọc lại món gốc.
 
 ```json
 { "servings": 2 }
@@ -458,7 +441,7 @@ Response `200`: `{ "item": { /* MealLogItem */ "meal_type": "lunch", "date": "20
 
 Đặt giá trị tuyệt đối nên retry an toàn. Không đổi được bữa/ngày: muốn chuyển bữa thì xóa rồi ghi lại.
 
-### 4.5 `DELETE /meal-logs/items/:id` – Xóa 1 món
+### 3.5 `DELETE /meal-logs/items/:id` – Xóa 1 món
 
 Response `204`, không có body. Chỉ xóa được món trong 30 ngày gần nhất. Idempotent: món không tồn tại hoặc đã xóa vẫn trả `204`. Xóa món cuối cùng của một bữa thì bữa đó cũng được dọn. Gọi lại `GET /meal-logs?date=` để cập nhật Dashboard.
 
@@ -474,7 +457,7 @@ Response `204`, không có body. Chỉ xóa được món trong 30 ngày gần n
 | 400 | `VALIDATION_ERROR` | `date` | PATCH hoặc DELETE món cũ hơn 30 ngày |
 | 401 | `UNAUTHORIZED` | | Token không phải của user đã đăng nhập (vd gửi anon key) |
 | 404 | `ITEM_NOT_FOUND` | `id` | PATCH món không tồn tại hoặc của người khác |
-| 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Xem 4.1 |
+| 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Xem 3.1 |
 
 ### Gọi từ Flutter
 
@@ -487,12 +470,111 @@ await supabase.functions.invoke('meal-logs/items/$id', method: HttpMethod.patch,
 await supabase.functions.invoke('meal-logs/items/$id', method: HttpMethod.delete);
 ```
 
+
 ---
 
-## 5. Cần xác định
+## 4. RPC (gọi bằng `supabase.rpc`)
 
-1. Khoảng hợp lệ của tuổi, chiều cao, cân nặng.
-2. Thời gian chờ Gemini trước khi chuyển fallback.
-3. `exclude_ids` do app giữ hay lưu ở server theo phiên chat.
-4. ~~Ghi bữa ăn từ ngoài màn Chatbot~~ → Đã chốt: mục 4 `/meal-logs`.
-5. Danh sách giá trị của `diet_type` và `difficulty`.
+### 4.1 `search_recipes` – Tìm, lọc, sắp xếp, phân trang món
+
+Chỉ trả món đã duyệt. Mặc định ẩn đồ chấm/gia vị (`gia_vi_an_kem`), trừ khi có từ khóa hoặc `p_include_condiments = true`.
+
+| Tham số | Kiểu | Mặc định | Ý nghĩa |
+| --- | --- | --- | --- |
+| `p_query` | `text` | `null` | Từ khóa theo tên món hoặc tên nguyên liệu, không phân biệt dấu |
+| `p_category` | `text` | `null` | Danh mục món (mục 0) |
+| `p_is_vegetarian` | `boolean` | `null` | `true` = chỉ `mon_chay`, `false` = bỏ `mon_chay` |
+| `p_min_calories` / `p_max_calories` | `numeric` | `null` | Dải kcal mỗi khẩu phần |
+| `p_max_total_time` | `integer` | `null` | Chuẩn bị + nấu tối đa (phút) |
+| `p_difficulty` | `text` | `null` | `easy` / `medium` |
+| `p_exclude_allergen_ids` | `int[]` | `null` | Loại món chứa các chất dị ứng này (kể cả dị ứng đến từ gia vị) |
+| `p_include_condiments` | `boolean` | `false` | Hiện cả đồ chấm/gia vị |
+| `p_sort` | `text` | `'title_asc'` | `title_asc`, `calories_asc`, `calories_desc`, `time_asc` |
+| `p_page` / `p_page_size` | `integer` | `1` / `20` | Phân trang, trang bắt đầu từ 1, tối đa 100 dòng/trang |
+| `p_limit` / `p_offset` | `integer` | `null` | Kiểu cũ (app hiện dùng `p_limit: 100`). Có giá trị thì thay cho `p_page_size` / `p_page` |
+
+Mỗi dòng: `id, title, slug, description, image_url, video_url, category, cuisine, servings, prep_time_minutes, cook_time_minutes, difficulty, calories_per_serving, protein_g_per_serving, fat_g_per_serving, carbs_g_per_serving, fiber_g_per_serving, sodium_mg_per_serving, is_vegetarian, allergens, condiment_allergens, total_count`.
+
+- `allergens`: mọi id chất dị ứng của món, vd `[1, 6, 8]`. `condiment_allergens`: phần **chỉ** đến từ gia vị (nước mắm, xì dầu…), vd `[1]` → món vẫn bị lọc khi người dùng dị ứng, nhưng không gọi là "món hải sản".
+- `total_count`: tổng số món khớp bộ lọc (giống nhau ở mọi dòng) → `totalPages = (total_count / p_page_size).ceil()`.
+
+```dart
+await supabase.rpc('search_recipes', params: {'p_query': 'bun', 'p_max_calories': 600, 'p_page': 1, 'p_page_size': 20});
+```
+
+### 4.2 `search_dishes` – Món ăn sẵn để ghi bữa
+
+`p_query`, `p_limit` (20), `p_offset` (0). Món ăn sẵn từ Bảng thành phần thực phẩm VN 2017 (phở, xôi, bún chả…), số liệu **trên 100 g**: `id, code, name_vi, name_en, calories_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, sodium_mg, allergens` (`allergens` = `[{id, code, name_vi}]`). Ghi bữa bằng `POST /meal-logs` với `dish_id` + `amount_g`.
+
+### 4.3 `search_ingredients`, `get_ingredient_details` – Nguyên liệu
+
+- `search_ingredients(p_query, p_category_id, p_is_featured, p_limit = 20, p_offset = 0)` → `id, code, name_vi, name_en, category_id, category_name, calories/protein/fat/carbs/fiber_per_100g, sodium_mg, edible_portion_pct, density_g_per_ml, is_featured, allergens`.
+- `get_ingredient_details(p_ingredient_id)` → JSON: `macros_per_100g`, `minerals_per_100g`, `vitamins_per_100g`, `allergens`, `category_name`, `edible_portion_pct`, `density_g_per_ml`…
+
+### 4.4 `meal_calorie_budget(p_meal_type)` – Calo cho bữa sắp ăn
+
+Cần đăng nhập. Trả `{ meal_type, status, target_kcal, base_kcal, remaining_kcal, daily_kcal }`, quy tắc như 2.4 (`target_kcal = null` khi `goal_reached`). Lỗi: `PROFILE_NOT_FOUND`, `VALIDATION_ERROR` (sai `meal_type`). `/recommend-ai` đã gọi sẵn; app chỉ cần nếu muốn hiện "bữa này nên ăn ~X kcal" mà không gọi AI.
+
+RPC khác (`log_meal`, `get_daily_nutrition`, `get_nutrition_history`, `update_meal_log_item`, `delete_meal_log_item`, `recommend_dishes_for_user`) là phần bên trong của các Edge Function: app gọi qua Edge Function, không gọi thẳng.
+
+---
+
+## 5. Bảng và Storage (gọi bằng `supabase.from`)
+
+Mọi bảng đều bật RLS. Bảng nào không ghi quyền ghi ở đây thì app **không** ghi được.
+
+| Bảng | App được | Ghi chú |
+| --- | --- | --- |
+| `profiles` | Xem / tạo / sửa **dòng của mình** | Dòng được trigger tạo sẵn khi đăng ký. "Đã onboarding" = `target_calories != null` |
+| `user_allergens` | Xem / thêm / xóa **của mình** | `{ user_id, allergen_id }`. Dùng cho bộ lọc gợi ý món |
+| `user_favorite_recipes` | Xem / thêm / xóa **của mình** | Xem 5.1 |
+| `recipes`, `recipe_ingredients`, `recipe_allergens` | Chỉ xem (món đã duyệt) | `recipes.instructions` = `[{step_number, title, description}]` |
+| `allergens`, `ingredients`, `ingredient_categories`, `ingredient_allergens`, `prepared_dishes`, `prepared_dish_allergens` | Chỉ xem | |
+| `meal_logs`, `meal_log_items` | Chỉ xem **của mình** | Ghi/sửa/xóa qua `/meal-logs` |
+| `chat_sessions`, `chat_messages` | Xem **của mình** | Ghi qua `/recommend-ai` (5.2) |
+| Storage `recipe-images`, `recipe-videos` | Xem (public) | Không upload được từ app |
+
+### 5.1 Món yêu thích (`user_favorite_recipes`)
+
+- Chỉ xem/thêm/xóa của chính mình: `user_id` tự lấy từ token (không cần gửi), gửi `user_id` của người khác bị từ chối. Không có quyền sửa; anon key không làm gì được.
+- Chỉ thêm được món đã duyệt. Thêm trùng → lỗi `409` (khóa chính `user_id, recipe_id`): app coi như đã thích.
+- Món yêu thích được +0,1 điểm khi gợi ý và có `is_favorite: true` trong `suggested_recipes`.
+
+```dart
+await supabase.from('user_favorite_recipes').insert({'recipe_id': id});                       // thích
+await supabase.from('user_favorite_recipes').delete().eq('recipe_id', id);                    // bỏ thích
+final favs = await supabase.from('user_favorite_recipes').select('recipe_id, created_at, recipes(*)'); // danh sách
+```
+
+### 5.2 Lịch sử chat (`chat_sessions`, `chat_messages`)
+
+- `chat_sessions`: `id, user_id, meal_type, target_kcal, target_protein_g, target_fat_g, target_carbs_g, created_at, updated_at` (3 cột `target_*_g` hiện luôn `null`).
+- `chat_messages`: `id, session_id, user_id, role, content, suggested_recipe_ids, rejected_recipe_ids, metadata, created_at`. `role` là `'user'` hoặc `'assistant'` (schema cho phép `'system'` nhưng server không ghi). Sắp theo `created_at` để dựng lại hội thoại.
+- `metadata` (lượt user luôn có `intent`):
+
+| Lượt | `metadata` của lượt assistant |
+| --- | --- |
+| Gợi ý món | `{ intent, fallback, chat_error, meal_type, budget_status, decision_mode, decision_probabilities: { recipe_id: xác suất } }` |
+| `goal_reached` | `{ intent, meal_type, budget_status }` |
+| Cách nấu / dinh dưỡng | `{ intent, recipe_id, fallback, chat_error }` |
+| Ngoài phạm vi | `{ intent }` |
+| Ăn món này | `{ logged_item_id, replayed }` (lượt user: `{ intent: "accept", accepted_recipe_id, meal_type }`) |
+
+`chat_error` (chỉ để theo dõi, app không cần đọc): lý do Gemini chat không trả lời khi `fallback = true`, vd `"timeout"`, `"HTTP 503: … high demand …"` (Google quá tải), `"HTTP 429: …"` (hết hạn mức), `"no key"`.
+- RLS kỹ thuật cho phép app ghi thẳng 2 bảng này (Edge Function ghi bằng token của người dùng), nhưng **app không ghi**: dữ liệu nhận/từ chối món dùng để hiệu chỉnh mô hình về sau.
+
+```dart
+final history = await supabase.from('chat_messages').select().eq('session_id', sessionId).order('created_at');
+```
+
+---
+
+## 6. Quyết định đã chốt
+
+1. **Khoảng hợp lệ của thể trạng:** tuổi 18–80; chiều cao 120–220 cm; cân nặng 30–200 kg.
+2. **AI không bao giờ làm hỏng luồng:** Gemini Decision 1 timeout 3 s → thứ tự SQL; Gemini chat timeout 6,5 s → câu mẫu. Không có mã lỗi nào cho AI lỗi.
+3. **Danh sách món từ chối:** app giữ trong phiên và gửi `rejected_recipe_ids` mỗi lượt; server lưu thêm vào `chat_messages.rejected_recipe_ids`.
+4. **Phân trang:** `p_page` (từ 1) + `p_page_size`, kèm `total_count` (đếm bằng window function, 1 lần quét).
+5. **Mô hình quyết định:** Gemini Decision 1 (gói miễn phí AI Studio). Không dùng Jev qua OpenRouter (trả phí).
+6. **Đồ chấm/gia vị** (`gia_vi_an_kem`: Muối tôm khô, Tỏi ngâm giấm) không bao giờ được gợi ý như món chính.
+7. **Món mới tạo** (`create_recipe_with_nutrition`, chỉ `service_role`) mặc định **chưa duyệt** (`is_verified = false`), không hiện ra cho app tới khi được duyệt.

@@ -12,3 +12,8 @@ Thumbs.db
 # Claude Code: cai dat rieng tung may
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Build artifacts
+dist/
+
+node_modules/

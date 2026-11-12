@@ -14,7 +14,7 @@ Elytra ước tính nhu cầu năng lượng hằng ngày (BMR, TDEE, macro) t�
 | Cơ sở dữ liệu | Supabase PostgreSQL, bảo vệ bằng Row Level Security |
 | Lưu trữ ảnh | Supabase Storage |
 | Xử lý phía server | Supabase Edge Functions (TypeScript / Deno) |
-| AI chatbot | Gemini API (gọi từ Edge Function, không nằm trong app) |
+| AI chatbot | Gemini Decision 1 (chọn món, phân loại câu hỏi) + Gemini (viết lời), gọi từ Edge Function `recommend-ai`, không nằm trong app |
 
 ## Cấu trúc thư mục
 

@@ -1,0 +1,49 @@
+name: Backend Tests
+
+# Test back-end không cần key hay mạng tới Supabase/Gemini (AI được giả lập, DB dựng bằng Postgres WASM).
+# Test E2E trên Supabase thật (test_*_e2e.mjs) cần service_role key nên chạy tay, không chạy ở CI.
+on:
+  pull_request:
+    branches: [ main ]
+    paths: [ 'supabase/**', '.github/workflows/backend-tests.yml' ]
+  push:
+    branches: [ main, feat/*, fix/* ]
+    paths: [ 'supabase/**', '.github/workflows/backend-tests.yml' ]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Unit + Migration Replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Node ≥ 23 chạy thẳng file .ts của Edge Function (test_recommend_ai_unit.mjs)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install PGlite (Postgres WASM)
+        run: npm i --no-save --no-package-lock @electric-sql/pglite@0.2
+
+      - name: Edge Function recommend-ai (chọn món, phân loại câu, fallback)
+        run: node supabase/scripts/test_recommend_ai_unit.mjs
+
+      - name: Chấm điểm gợi ý + câu fallback
+        run: node supabase/scripts/test_recommendation_flow.js
+
+      - name: Parser nguyên liệu + tên món
+        run: |
+          node supabase/scripts/test_ingredient_parser.js
+          node supabase/scripts/test_dish_name.js
+
+      - name: Dựng lại DB từ toàn bộ migrations
+        run: |
+          node supabase/scripts/test_migrations_replay.mjs
+          node supabase/scripts/test_meal_logs_sql.mjs
