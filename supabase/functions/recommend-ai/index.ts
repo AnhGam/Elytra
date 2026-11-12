@@ -169,7 +169,10 @@ Deno.serve(async (req: Request) => {
   // deno-lint-ignore no-explicit-any
   const saveMessages = async (...rows: any[]) => {
     if (!sessionId) return;
-    for (const r of rows) await supabase.from("chat_messages").insert({ session_id: sessionId, user_id: user.id, ...r });
+    for (const r of rows) {
+      const { error } = await supabase.from("chat_messages").insert({ session_id: sessionId, user_id: user.id, ...r });
+      if (error) console.error("Không lưu được chat_messages:", error); // lịch sử thiếu lượt nhưng vẫn trả lời người dùng
+    }
   };
 
   // 4. "Ăn món này": ghi nhật ký qua log_meal + lưu lượt nhận món
@@ -224,13 +227,14 @@ Deno.serve(async (req: Request) => {
     const task = intent === "how_to_cook"
       ? "Hướng dẫn nấu món dưới đây theo từng bước, ngắn gọn, dễ làm theo. CHỈ dùng nguyên liệu và các bước có trong dữ liệu, không thêm bước hay nguyên liệu, không đổi định lượng."
       : "Giải thích thông tin dinh dưỡng của món dưới đây và món này hợp với người đang ăn kiêng hay không. CHỈ dùng số liệu có trong dữ liệu, không tự tính hay thêm số liệu khác.";
-    const reply = geminiApiKey
+    const chat = geminiApiKey
       ? await askGemini(geminiApiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
-      : "";
+      : { text: "", error: "no key" };
+    const reply = chat.text;
     const message = reply || facts;
     await saveMessages(
       { role: "user", content: userMessage, metadata: { intent, recipe_id: recipeId } },
-      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply } },
+      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply, chat_error: chat.error } },
     );
     return json({ session_id: sessionId, intent, status: "answered", message, recipe, fallback: !reply });
   }
@@ -291,11 +295,12 @@ Deno.serve(async (req: Request) => {
 
   // Gemini chat chỉ viết lời giải thích cho món đã chọn
   let reply = "";
+  let chatError: string | null = geminiApiKey ? null : "no key";
   if (geminiApiKey && recipeList.length > 0) {
     const summary = recipeList.slice(0, 3).map((r, i) =>
       `${i + 1}. Món: ${r.title} | ${r.calories_per_serving} kcal | Protein: ${r.protein_g_per_serving}g | Fat: ${r.fat_g_per_serving}g | Carbs: ${r.carbs_g_per_serving}g | Lý do: ${r.match_reason}`
     ).join("\n");
-    reply = await askGemini(geminiApiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
+    ({ text: reply, error: chatError } = await askGemini(geminiApiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
 Quy tắc:
 1. Món số 1 là món hệ thống chọn. Giới thiệu món số 1 và giải thích vì sao hợp với mục tiêu calo của người dùng. Món 2-3 chỉ nhắc ngắn làm phương án khác.
 2. TUYỆT ĐỐI không nhắc món ngoài danh sách, không đổi thứ tự, không thay đổi số liệu dinh dưỡng.
@@ -304,7 +309,7 @@ Quy tắc:
 ${BUDGET_NOTES[budgetStatus] ? `5. Nhắc người dùng: ${BUDGET_NOTES[budgetStatus]}\n` : ""}
 Danh sách món (đã xếp theo lựa chọn của hệ thống):
 ${summary}
-Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal)} kcal).`, userMessage);
+Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal)} kcal).`, userMessage));
   }
   const isFallback = !reply;
   const message = reply || fallbackRecommend(mealType, targetCal, recipeList, rejectedRecipeIds.length > 0, budgetStatus);
@@ -319,6 +324,7 @@ Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal
       metadata: {
         intent,
         fallback: isFallback,
+        chat_error: chatError,
         meal_type: mealType,
         budget_status: budgetStatus,
         decision_mode: probs ? "model" : "sql",

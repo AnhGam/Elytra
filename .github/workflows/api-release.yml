@@ -9,9 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for release (ví dụ: v1.2.0)'
+        description: 'Tag phát hành (vd v1.3.0). Bỏ trống = api-latest'
         required: false
-        default: 'v1.2.0'
 
 permissions:
   contents: write
@@ -52,20 +51,26 @@ jobs:
 
       - name: Determine Release Tag
         id: release_info
+        # Input đi qua env, không chèn thẳng vào lệnh shell
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag_name }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            TAG="${{ github.event.inputs.tag_name }}"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "prerelease=false" >> $GITHUB_OUTPUT
+            PRE=false
+          elif [ -n "$INPUT_TAG" ]; then
+            [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag phải dạng vX.Y.Z"; exit 1; }
+            TAG="$INPUT_TAG"
+            PRE=false
           else
             TAG="api-latest"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "prerelease=true" >> $GITHUB_OUTPUT
+            PRE=true
+            # action-gh-release không dời tag đã có: tự dời api-latest sang commit hiện tại
+            git tag -f api-latest
+            git push -f origin api-latest
           fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "prerelease=$PRE" >> $GITHUB_OUTPUT
 
       - name: Publish API Release Asset to GitHub
         uses: softprops/action-gh-release@v2

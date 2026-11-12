@@ -1,5 +1,5 @@
 // Gemini chat: CHỈ diễn đạt lại dữ liệu đã có (món đã chọn, bước nấu, số liệu dinh dưỡng từ DB).
-// Lỗi / timeout / trả rỗng → "" để người gọi dùng câu mẫu (fallback) bên dưới. Không import Deno để test bằng Node.
+// Lỗi / timeout / trả rỗng → text "" (người gọi dùng câu mẫu bên dưới) + error để ghi vào lịch sử chat. Không import Deno để test bằng Node.
 import { GEMINI_API, type RecipeCandidate } from "./decision.ts";
 
 export const CHAT_MODEL = "gemini-flash-lite-latest";
@@ -11,7 +11,7 @@ export async function askGemini(
   systemPrompt: string,
   userMessage: string,
   fetchFn: typeof fetch = fetch,
-): Promise<string> {
+): Promise<{ text: string; error: string | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6500);
   try {
@@ -22,18 +22,23 @@ export async function askGemini(
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: userMessage }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { temperature: 0.6, maxOutputTokens: 800 },
+        // Suy nghĩ ở mức thấp nhất: chỉ diễn đạt lại dữ liệu có sẵn (thinkingBudget bị từ chối HTTP 400, đo 12/11/2026)
+        generationConfig: { temperature: 0.6, maxOutputTokens: 800, thinkingConfig: { thinkingLevel: "minimal" } },
       }),
     });
     if (!res.ok) {
       console.warn(`Gemini chat HTTP ${res.status}, dùng câu mẫu`);
-      return "";
+      return { text: "", error: `HTTP ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}` };
     }
     const body = await res.json();
-    return body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+    // Bỏ phần "thought" (model có suy nghĩ), chỉ lấy câu trả lời
+    // deno-lint-ignore no-explicit-any
+    const parts: any[] = body?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts.filter((p) => !p.thought).map((p) => p.text ?? "").join("").trim();
+    return text ? { text, error: null } : { text: "", error: `empty (finishReason ${body?.candidates?.[0]?.finishReason ?? "none"})` };
   } catch (e) {
     console.warn("Gemini chat lỗi/timeout, dùng câu mẫu:", e);
-    return "";
+    return { text: "", error: controller.signal.aborted ? "timeout" : String(e) };
   } finally {
     clearTimeout(timer);
   }

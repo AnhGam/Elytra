@@ -554,11 +554,13 @@ final favs = await supabase.from('user_favorite_recipes').select('recipe_id, cre
 
 | Lượt | `metadata` của lượt assistant |
 | --- | --- |
-| Gợi ý món | `{ intent, fallback, meal_type, budget_status, decision_mode, decision_probabilities: { recipe_id: xác suất } }` |
+| Gợi ý món | `{ intent, fallback, chat_error, meal_type, budget_status, decision_mode, decision_probabilities: { recipe_id: xác suất } }` |
 | `goal_reached` | `{ intent, meal_type, budget_status }` |
-| Cách nấu / dinh dưỡng | `{ intent, recipe_id, fallback }` |
+| Cách nấu / dinh dưỡng | `{ intent, recipe_id, fallback, chat_error }` |
 | Ngoài phạm vi | `{ intent }` |
 | Ăn món này | `{ logged_item_id, replayed }` (lượt user: `{ intent: "accept", accepted_recipe_id, meal_type }`) |
+
+`chat_error` (chỉ để theo dõi, app không cần đọc): lý do Gemini chat không trả lời khi `fallback = true`, vd `"timeout"`, `"HTTP 503: … high demand …"` (Google quá tải), `"HTTP 429: …"` (hết hạn mức), `"no key"`.
 - RLS kỹ thuật cho phép app ghi thẳng 2 bảng này (Edge Function ghi bằng token của người dùng), nhưng **app không ghi**: dữ liệu nhận/từ chối món dùng để hiệu chỉnh mô hình về sau.
 
 ```dart

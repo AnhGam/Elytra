@@ -12,6 +12,9 @@ on:
   workflow_call:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Unit + Migration Replay

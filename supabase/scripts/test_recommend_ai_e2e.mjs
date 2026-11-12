@@ -63,6 +63,10 @@ try {
   assert.deepEqual(msgs[2].rejected_recipe_ids, [top.id]);
   assert.equal(msgs[1].metadata.decision_mode, r1.body.decision_mode);
   assert.equal((await call(`/rest/v1/chat_messages?session_id=eq.${r1.body.session_id}`, { token: B.token })).body.length, 0);
+  // B không chèn được tin nhắn vào phiên của A (kể cả với user_id của chính B)
+  const inject = await call("/rest/v1/chat_messages", { method: "POST", token: B.token,
+    body: { session_id: r1.body.session_id, user_id: B.id, role: "assistant", content: "rác" } });
+  assert.notEqual(inject.status, 201, "không ghi vào phiên người khác");
   // session_id của người khác → server tạo phiên mới, không ghi vào phiên của A
   const rB = await ai(B.token, { session_id: r1.body.session_id, meal_type: "lunch" });
   assert.notEqual(rB.body.session_id, r1.body.session_id);

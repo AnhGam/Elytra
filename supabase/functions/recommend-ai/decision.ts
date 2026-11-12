@@ -113,7 +113,7 @@ export async function classifyIntent(apiKey: string, message: string, fetchFn: t
     },
   }, fetchFn);
   const p = answers?.intent?.probabilities;
-  if (!p) return "recommend";
+  if (!p || !Object.keys(p).length) return "recommend";
   const best = (Object.keys(p) as Intent[]).reduce((a, b) => (p[b] > p[a] ? b : a));
   if (best === "out_of_scope" && p.out_of_scope < 0.7) return "recommend";
   return best;

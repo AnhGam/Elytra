@@ -210,6 +210,13 @@ assert.equal(condiments.length, 2, "Muối tôm khô, Tỏi ngâm giấm: " + co
 const page = await rows(`SELECT id, total_count FROM search_recipes(p_page => 2, p_page_size => 5)`);
 assert.equal(page.length, 5);
 assert.ok(page.every((x) => Number(x.total_count) > 5), "total_count là tổng, không phải số dòng trang");
+const allPaged = [];
+for (let p = 1; p <= Math.ceil(Number(page[0].total_count) / 7); p++) {
+  allPaged.push(...(await rows(`SELECT id FROM search_recipes(p_page => $1, p_page_size => 7)`, [p])).map((x) => x.id));
+}
+assert.equal(new Set(allPaged).size, Number(page[0].total_count), "phân trang không lặp, không mất món");
+const caBong = Number((await one(`SELECT total_fat_g FROM recipes WHERE slug = 'cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon'`)).total_fat_g);
+assert.ok(caBong < 30, "cá bống: dầu ngấm 20 g, chất béo tổng " + caBong);
 assert.ok((await rows(`SELECT category FROM search_recipes(p_limit => 100)`)).every((x) => x.category !== "gia_vi_an_kem"),
   "gia vị không lẫn vào danh sách món");
 assert.equal((await rows(`SELECT 1 FROM search_recipes(p_limit => 100)`)).length,
@@ -254,6 +261,8 @@ assert.deepEqual([b.status, b.target_kcal], ["goal_reached", null]);
 assert.equal((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner')`, [uid2])).length, 0, "đã đủ calo thì không gợi ý món chính");
 assert.equal((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner', 500)`, [uid2])).length, 5, "truyền target thì vẫn gợi ý");
 await assert.rejects(db.query(`SELECT meal_calorie_budget('brunch')`), /VALIDATION_ERROR/);
+await assert.rejects(db.query(`SELECT meal_calorie_budget(NULL)`), /VALIDATION_ERROR/, "NULL không bị tính như bữa phụ");
+assert.equal((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner', 500, p_limit => NULL)`, [uid2])).length, 5, "p_limit NULL → 5");
 await db.query(`SELECT set_config('test.uid', $1, false)`, [uid]);
 
 const newRecipe = (await one(`INSERT INTO recipes (title, slug, category, servings) VALUES ('Món upload', 'mon-upload', 'mon_man', 1)

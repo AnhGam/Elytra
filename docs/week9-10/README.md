@@ -14,6 +14,7 @@ Thiết kế mô hình quyết định: [01_DECISION_MODEL_RECOMMEND_AND_MODERAT
 | `user_favorite_recipes` + RLS (app gọi thẳng) | Phần 4b |
 | `recommend_dishes_for_user`: lọc cứng dị ứng/món từ chối/gia vị, chấm điểm calo-protein-thời gian + món yêu thích; chặn gọi bằng uid người khác | Phần 4c |
 | Món tạo mới mặc định chưa duyệt (`is_verified` = false) | Phần 5 |
+| Sửa sau review: chat_messages chỉ ghi vào phiên của mình, `meal_calorie_budget(NULL)` báo lỗi, `p_limit` NULL → 5, phân trang không lặp món, dầu ngấm cá bống 20 g | `supabase/migrations/20261112120000_sprint6_review_fixes.sql` |
 | Edge Function `recommend-ai`: gợi ý món (SQL → Gemini Decision 1 chọn → Gemini viết lời), đổi món, "Ăn món này" → `log_meal`, hỏi cách nấu, hỏi dinh dưỡng, phân loại câu gõ tự do, từ chối câu ngoài phạm vi; lưu xác suất + món nhận/từ chối | `supabase/functions/recommend-ai/` (`index.ts` định tuyến, `decision.ts` mô hình quyết định, `chat.ts` Gemini chat + câu mẫu) |
 | CI: test back-end ở mọi PR vào `main`; workflow phát hành tài liệu API (OpenAPI) lên GitHub Releases, chỉ chạy khi test qua | `.github/workflows/backend-tests.yml`, `.github/workflows/api-release.yml`, `supabase/scripts/generate_api_spec.js` |
 
@@ -23,6 +24,7 @@ Thiết kế mô hình quyết định: [01_DECISION_MODEL_RECOMMEND_AND_MODERAT
 - **Gemini Decision 1 (gói miễn phí)** thay cho Jev/OpenRouter (trả phí). Lý do và phương án dự phòng: xem file thiết kế.
 - **Fallback 2 tầng:** mô hình quyết định lỗi → thứ tự điểm SQL (`decision_mode: "sql"`), phân loại câu lỗi → coi như gợi ý món; Gemini chat lỗi → câu mẫu / dữ liệu nguyên văn (`fallback: true`). Luôn trả 200.
 - **Ngưỡng calo bữa:** chặn trong [0,5 ; 1,5] × chuẩn bữa; còn < 150 kcal thì không gợi ý món chính. Bữa chưa ghi coi như còn ăn, để quên ghi không làm dồn calo.
+- **Gemini chat lỗi được ghi lại** (`chat_messages.metadata.chat_error`): đo 12/11 thấy `HTTP 503 high demand` (Google quá tải) và timeout; fallback câu mẫu xử lý đúng. `thinkingLevel: "minimal"` để trả lời nhanh nhất.
 - **Lịch sử chat ghi lần lượt từng dòng** để `created_at` khác nhau, dựng lại hội thoại đúng thứ tự.
 
 ## Triển khai

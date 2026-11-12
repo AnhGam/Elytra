@@ -9,7 +9,7 @@ const dish = (id, title, kcal) => ({ id, title, slug: id, category: "mon_man", i
   fat_g_per_serving: 10, carbs_g_per_serving: 50, score: 0.8, match_reason: "x" });
 const sql = [dish("a", "Phở bò", 500), dish("b", "Cơm gà", 600), dish("c", "Bún chả", 650)];
 const ok = (body) => async () => ({ ok: true, json: async () => body });
-const http = (status) => async () => ({ ok: false, status });
+const http = (status) => async () => ({ ok: false, status, text: async () => "quota" });
 const boom = async () => { throw new Error("network"); };
 console.warn = () => {}; // im log cảnh báo của các ca lỗi cố ý
 
@@ -53,15 +53,17 @@ assert.equal(await classifyIntent("KEY", "hmm", intentOf({ how_to_cook: 0.1, nut
   "out_of_scope < 0,7 → vẫn gợi ý, tránh từ chối nhầm");
 assert.equal(await classifyIntent("KEY", "x", http(500)), "recommend", "lỗi → gợi ý món");
 assert.equal(await classifyIntent("KEY", "x", boom), "recommend");
+assert.equal(await classifyIntent("KEY", "x", intentOf({})), "recommend", "probabilities rỗng không ném lỗi");
 
 // 5. Gemini chat: lỗi 429 / mạng / trả rỗng → "" (người gọi dùng câu mẫu)
-assert.equal(await askGemini("KEY", "sys", "hi", ok({ candidates: [{ content: { parts: [{ text: " Chào bạn " }] } }] })), "Chào bạn");
-assert.equal(await askGemini("KEY", "sys", "hi", http(429)), "");
-assert.equal(await askGemini("KEY", "sys", "hi", boom), "");
-assert.equal(await askGemini("KEY", "sys", "hi", ok({ candidates: [] })), "");
-assert.equal(await askGemini("KEY", "sys", "hi", async (_u, { signal }) => {
+assert.deepEqual(await askGemini("KEY", "sys", "hi", ok({ candidates: [{ content: { parts: [{ text: " Chào bạn " }] } }] })), { text: "Chào bạn", error: null });
+assert.equal((await askGemini("KEY", "sys", "hi", ok({ candidates: [{ content: { parts: [{ text: "nghĩ...", thought: true }, { text: "Trả lời" }] } }] }))).text, "Trả lời", "bỏ phần thought");
+assert.match((await askGemini("KEY", "sys", "hi", http(429))).error, /^HTTP 429/);
+assert.equal((await askGemini("KEY", "sys", "hi", boom)).text, "");
+assert.match((await askGemini("KEY", "sys", "hi", ok({ candidates: [] }))).error, /^empty/);
+assert.equal((await askGemini("KEY", "sys", "hi", async (_u, { signal }) => {
   await new Promise((_, rej) => signal.addEventListener("abort", () => rej(new Error("aborted"))));
-}), "", "timeout 6,5 s → câu mẫu"); // chạy hết 6,5 s thật
+})).error, "timeout", "timeout 6,5 s → câu mẫu"); // chạy hết 6,5 s thật
 
 // 6. Câu mẫu: lấy đúng số liệu, đúng thứ tự bước, không bịa
 const fb = fallbackRecommend("lunch", 700, sql, true, "low");

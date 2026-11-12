@@ -23,19 +23,19 @@
     }
   },
   "cach-lam-ca-bong-chay-chien-sa-gion-gion-cuc-ngon": {
-    "Dầu ăn": {
+    "Dầu ăn ngấm khi chiên ngập (~10% nguyên liệu)": {
       "code": "12001",
-      "amount_g": 30,
+      "amount_g": 20,
       "consumed_pct": 100,
-      "note": "Dầu ngấm khi chiên ngập cá bống chay (~10% trọng lượng)"
+      "note": "Dầu ngấm khi chiên 100 g cá + 100 g sả bào (~10% phần chiên). Dòng này do migration 20261106090000 chèn thêm"
     }
   },
   "cach-lam-suon-chien-sa-ot-ngon-het-y": {
-    "dầu ăn": {
+    "Dầu ăn ngấm khi chiên sườn (~8% nguyên liệu)": {
       "code": "12001",
       "amount_g": 40,
       "consumed_pct": 100,
-      "note": "Dầu ngấm khi chiên sườn (~8-10% trọng lượng)"
+      "note": "Dầu ngấm khi chiên 700 g sườn tẩm bột bắp (~6%). Dòng này do migration 20261106090000 chèn thêm"
     }
   },
   "ga-rang-muoi-gion-rum-thom-lung-cong-thuc-don-gian-ai-cung-lam-duoc": {
