@@ -203,4 +203,61 @@ assert.ok(kcal["Lẩu gà lá giang"] > 400 && kcal["Cá chim kho thơm"] > 200 
 const macroOff = await one(`SELECT count(*)::int AS n FROM recipes WHERE abs(4*protein_g_per_serving + 4*carbs_g_per_serving + 9*fat_g_per_serving - calories_per_serving) > calories_per_serving * 0.2`);
 assert.equal(macroOff.n, 0, "kcal khớp macro");
 
+// Sprint 6: calo đã sửa tay, gia vị tách khỏi món chính, phân trang, gợi ý món
+assert.ok(kcal["Chè đậu trắng"] < 500, "chè đậu trắng chia 10 phần, dùng nước cốt dừa: " + kcal["Chè đậu trắng"]);
+const condiments = (await rows(`SELECT title FROM recipes WHERE category = 'gia_vi_an_kem'`)).map((x) => x.title);
+assert.equal(condiments.length, 2, "Muối tôm khô, Tỏi ngâm giấm: " + condiments);
+const page = await rows(`SELECT id, total_count FROM search_recipes(p_page => 2, p_page_size => 5)`);
+assert.equal(page.length, 5);
+assert.ok(page.every((x) => Number(x.total_count) > 5), "total_count là tổng, không phải số dòng trang");
+assert.ok((await rows(`SELECT category FROM search_recipes(p_limit => 100)`)).every((x) => x.category !== "gia_vi_an_kem"),
+  "gia vị không lẫn vào danh sách món");
+assert.equal((await rows(`SELECT 1 FROM search_recipes(p_limit => 100)`)).length,
+  Math.min(100, Number(page[0].total_count)), "p_limit cũ của app vẫn chạy");
+const recs = await rows(`SELECT id, category FROM recommend_dishes_for_user($1, 'lunch', p_limit => 10)`, [uid]);
+assert.equal(recs.length, 10);
+assert.ok(recs.every((x) => x.category !== "gia_vi_an_kem"));
+const skip = await rows(`SELECT id FROM recommend_dishes_for_user($1, 'lunch', p_exclude_recipe_ids => $2::uuid[], p_limit => 10)`,
+  [uid, [recs[0].id]]);
+assert.ok(!skip.some((x) => x.id === recs[0].id), "món bị từ chối không quay lại");
+await assert.rejects(db.query(`SELECT * FROM recommend_dishes_for_user('00000000-0000-0000-0000-0000000000bb', 'lunch')`),
+  /UNAUTHORIZED/, "không gọi được bằng uid người khác");
+// Món yêu thích được cộng điểm và gắn cờ
+await db.query(`INSERT INTO user_favorite_recipes (recipe_id) VALUES ($1)`, [recs[9].id]);
+const favRow = (await rows(`SELECT id, is_favorite FROM recommend_dishes_for_user($1, 'lunch', p_limit => 20)`, [uid]))
+  .find((x) => x.id === recs[9].id);
+assert.ok(favRow?.is_favorite, "món yêu thích có is_favorite và vẫn nằm trong top 20");
+await assert.rejects(db.query(`INSERT INTO user_favorite_recipes (recipe_id) VALUES ($1)`, [recs[9].id]), /duplicate key/,
+  "bấm yêu thích 2 lần không nhân bản");
+
+// Ngân sách calo bữa: chặn 2 đầu theo phần còn lại (user mới, mục tiêu 2.000 kcal, trứng 150 kcal/100 g)
+const uid2 = "00000000-0000-0000-0000-0000000000cc";
+await db.query(`INSERT INTO auth.users VALUES ($1, 'c@x.test', '{}')`, [uid2]);
+await db.query(`UPDATE profiles SET target_calories = 2000, target_protein_g = 100, target_carbs_g = 200, target_fat_g = 60 WHERE id = $1`, [uid2]);
+await db.query(`SELECT set_config('test.uid', $1, false)`, [uid2]);
+const budget = async (meal) => (await one(`SELECT meal_calorie_budget($1) AS b`, [meal])).b;
+let b = await budget("dinner");
+assert.deepEqual([b.status, Number(b.target_kcal)], ["ok", 600], "bữa chưa ghi coi như còn ăn: không dồn cả ngày vào bữa tối");
+b = await budget("breakfast");
+assert.deepEqual([b.status, Number(b.target_kcal)], ["ok", 500]);
+await db.query(`SELECT log_meal('breakfast', p_ingredient_id => $1, p_amount_g => 50)`, [egg]); // 75 kcal
+await db.query(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 50)`, [egg]);     // 75 kcal
+b = await budget("dinner");
+assert.deepEqual([b.status, Number(b.target_kcal)], ["capped", 900], "sáng+trưa ăn ít: 1850×0,3/0,4 = 1388 → chặn ở 1,5×600");
+await db.query(`SELECT log_meal('lunch', p_ingredient_id => $1, p_amount_g => 1000)`, [egg]);   // +1.500 kcal
+b = await budget("dinner");
+assert.deepEqual([b.status, Number(b.target_kcal)], ["low", 263], "còn 350: 350×0,3/0,4 = 263 < 0,5×600");
+assert.ok((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner', p_limit => 3)`, [uid2])).length > 0);
+await db.query(`SELECT log_meal('snack', p_ingredient_id => $1, p_amount_g => 200)`, [egg]);    // +300 → còn 50
+b = await budget("dinner");
+assert.deepEqual([b.status, b.target_kcal], ["goal_reached", null]);
+assert.equal((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner')`, [uid2])).length, 0, "đã đủ calo thì không gợi ý món chính");
+assert.equal((await rows(`SELECT 1 FROM recommend_dishes_for_user($1, 'dinner', 500)`, [uid2])).length, 5, "truyền target thì vẫn gợi ý");
+await assert.rejects(db.query(`SELECT meal_calorie_budget('brunch')`), /VALIDATION_ERROR/);
+await db.query(`SELECT set_config('test.uid', $1, false)`, [uid]);
+
+const newRecipe = (await one(`INSERT INTO recipes (title, slug, category, servings) VALUES ('Món upload', 'mon-upload', 'mon_man', 1)
+  RETURNING is_verified`)).is_verified;
+assert.equal(newRecipe, false, "món upload mặc định chưa duyệt");
+
 console.log("migrations replay + audit fixes: all checks passed");

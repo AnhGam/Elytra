@@ -7,9 +7,9 @@ Elytra: app Android (Flutter) gợi ý dinh dưỡng và món ăn. Mọi con s�
 ## Bố cục repo
 
 - `app/` – ứng dụng Flutter (mọi lệnh `flutter` chạy trong thư mục này).
-- `supabase/` – back-end (migrations, Edge Functions). Back-end là **Supabase production**; nhánh này **KHÔNG sửa `supabase/`**.
-- `docs/api-contract.md` – đặc tả request/response của Edge Functions.
-- RPC `search_recipes`, cột `recipe_allergens.via_condiment` và `/meal-logs` đã chạy trên production nhưng migration/đặc tả chỉ có ở nhánh PR #4 (chưa merge, không merge vào đây): đọc bằng `git show origin/feat/meal-logs-sprint-5:<đường dẫn>` (vd `docs/api-contract.md` mục 4).
+- `supabase/` – back-end chạy trên **Supabase production**: `migrations/` (DB, RPC, RLS), `functions/` (Edge Functions `calculate-bmr-tdee`, `meal-logs`, `recommend-ai`), `scripts/` (test + công cụ dữ liệu). Nhánh làm UI không sửa `supabase/`.
+- `docs/api-contract.md` – **đọc trước khi gọi back-end**: mục "Đọc nhanh" liệt kê mọi Edge Function, RPC, bảng app gọi được và quyền của app trên từng bảng. Chỉ ghi những gì đã chạy.
+- `docs/week*/README.md` – back-end đã làm theo từng sprint (file nào, quyết định gì, cách test). Màn Chat AI: `docs/api-contract.md` mục 2 + `docs/week9-10/`.
 - `docs/design/sprint4/README.md` – thiết kế và quy ước màn hình Sprint 4 (Tìm kiếm món, Chi tiết món), kèm node Figma và ảnh trong `screens/`. Thiết kế triển khai đã duyệt: `docs/superpowers/specs/2026-10-28-recipe-search-detail-design.md`.
 
 ## Lệnh (chạy trong `app/`)
