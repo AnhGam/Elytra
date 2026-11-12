@@ -1,6 +1,6 @@
 // Gemini chat: CHỈ diễn đạt lại dữ liệu đã có (món đã chọn, bước nấu, số liệu dinh dưỡng từ DB).
 // Lỗi / timeout / trả rỗng → text "" (người gọi dùng câu mẫu bên dưới) + error để ghi vào lịch sử chat. Không import Deno để test bằng Node.
-import { GEMINI_API, type RecipeCandidate } from "./decision.ts";
+import { GEMINI_API, type RecipeCandidate } from "../_shared/decision.ts";
 
 export const CHAT_MODEL = "gemini-flash-lite-latest";
 

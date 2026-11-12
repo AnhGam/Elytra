@@ -13,7 +13,8 @@ await db.exec(`
   CREATE SCHEMA auth; CREATE SCHEMA storage; CREATE SCHEMA extensions;
   CREATE TABLE auth.users (id uuid PRIMARY KEY, email text, raw_user_meta_data jsonb);
   CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('test.uid', true), '')::uuid $$;
-  CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public bool);
+  CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public bool, file_size_limit bigint, allowed_mime_types text[]);
+  CREATE FUNCTION storage.foldername(name text) RETURNS text[] LANGUAGE sql AS $$ SELECT (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
   CREATE TABLE storage.objects (id uuid DEFAULT gen_random_uuid(), bucket_id text, name text);
   ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY; ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
   CREATE FUNCTION f_unaccent(text) RETURNS text LANGUAGE sql AS $$ SELECT $1 $$;
@@ -268,5 +269,138 @@ await db.query(`SELECT set_config('test.uid', $1, false)`, [uid]);
 const newRecipe = (await one(`INSERT INTO recipes (title, slug, category, servings) VALUES ('Món upload', 'mon-upload', 'mon_man', 1)
   RETURNING is_verified`)).is_verified;
 assert.equal(newRecipe, false, "món upload mặc định chưa duyệt");
+
+
+// ===== Sprint 7: cộng đồng + admin (quyền kiểm trong RPC theo auth.uid(); RLS kiểm ở E2E vì PGlite chạy quyền superuser) =====
+const asUser = (id) => db.query(`SELECT set_config('test.uid', $1, false)`, [id]);
+const err = async (sql, params, re, msg) => assert.rejects(db.query(sql, params), re, msg);
+const author = "00000000-0000-0000-0000-0000000000d1", other = "00000000-0000-0000-0000-0000000000d2", admin = "00000000-0000-0000-0000-0000000000d3";
+for (const [id, mail] of [[author, "d1@x.test"], [other, "d2@x.test"], [admin, "d3@x.test"]]) {
+  await db.query(`INSERT INTO auth.users VALUES ($1, $2, '{}')`, [id, mail]);
+}
+await db.query(`UPDATE profiles SET full_name = 'Bếp Nhà Lan' WHERE id = $1`, [author]);
+const rice = await one(`SELECT id, calories_per_100g::float AS k FROM ingredients WHERE is_active AND id <> $1 AND NOT EXISTS
+  (SELECT 1 FROM ingredient_allergens ia WHERE ia.ingredient_id = ingredients.id) ORDER BY code LIMIT 1`, [egg]);
+const goodIngr = JSON.stringify([{ ingredient_id: egg, amount: 200, unit: "g" }, { ingredient_id: rice.id, amount: 100 }]);
+const steps = JSON.stringify([{ title: "Sơ chế", description: "Đánh trứng" }, { description: "Chiên vàng" }]);
+const submitSql = `SELECT submit_recipe($1, 'mon_man', 2, $2::jsonb, $3::jsonb) AS r`;
+
+// Chưa đăng nhập → UNAUTHORIZED; user thường gọi mọi thao tác admin → FORBIDDEN
+await asUser("");
+await err(submitSql, ["Trứng chiên", goodIngr, steps], /UNAUTHORIZED/);
+assert.equal((await one(`SELECT is_admin() AS a`)).a, false);
+await asUser(author);
+assert.equal((await one(`SELECT is_admin() AS a`)).a, false);
+for (const [sql, p] of [[`SELECT admin_list_pending_recipes()`, []], [`SELECT admin_review_recipe(gen_random_uuid(), true, now())`, []],
+  [`SELECT admin_save_ingredient('Thử', 1, 10, 1, 1, 1)`, []], [`SELECT admin_set_ingredient_active($1, false)`, [egg]],
+  [`SELECT admin_delete_ingredient($1)`, [egg]]]) {
+  await err(sql, p, /FORBIDDEN/, "user thường: " + sql);
+}
+
+// Kiểm tra dữ liệu gửi lên
+const bad = (ingr) => JSON.stringify(ingr);
+await err(submitSql, ["Tr", goodIngr, steps], /VALIDATION_ERROR/, "tiêu đề quá ngắn");
+await err(`SELECT submit_recipe('Trứng chiên', 'mon_la', 2, $1::jsonb, $2::jsonb)`, [goodIngr, steps], /VALIDATION_ERROR/);
+await err(`SELECT submit_recipe('Trứng chiên', 'mon_man', 0, $1::jsonb, $2::jsonb)`, [goodIngr, steps], /VALIDATION_ERROR/);
+await err(submitSql, ["Trứng chiên", bad([{ ingredient_id: egg, amount: 200 }]), steps], /VALIDATION_ERROR/, "1 nguyên liệu");
+await err(submitSql, ["Trứng chiên", bad([{ ingredient_id: egg }, { ingredient_id: rice.id, amount: 1 }]), steps], /VALIDATION_ERROR/, "thiếu amount");
+await err(submitSql, ["Trứng chiên", bad([{ amount: 5 }, { ingredient_id: rice.id, amount: 1 }]), steps], /VALIDATION_ERROR/, "thiếu ingredient_id");
+await err(submitSql, ["Trứng chiên", bad([{ ingredient_id: egg, amount: 9000 }, { ingredient_id: rice.id, amount: 1 }]), steps], /VALIDATION_ERROR/);
+await err(submitSql, ["Trứng chiên", bad([{ ingredient_id: crypto.randomUUID(), amount: 5 }, { ingredient_id: rice.id, amount: 1 }]), steps], /INGREDIENT_NOT_FOUND/);
+await err(submitSql, ["Trứng chiên", goodIngr, "[]"], /VALIDATION_ERROR/, "không có bước nấu");
+// Ảnh: đúng project (app_config), đúng thư mục của mình, tên file đơn giản, file phải tồn tại
+await db.query(`UPDATE app_config SET value = 'https://x.supabase.co' WHERE key = 'storage_public_base'`);
+const base = "https://x.supabase.co/storage/v1/object/public/user-recipe-images/";
+for (const name of [`${author}/a.jpg`, `${other}/a.jpg`]) {
+  await db.query(`INSERT INTO storage.objects (bucket_id, name) VALUES ('user-recipe-images', $1)`, [name]);
+}
+const imgSql = `SELECT submit_recipe('Trứng chiên', 'mon_man', 2, $1::jsonb, $2::jsonb, p_image_url => $3)`;
+for (const [url, why] of [
+  [base + `${other}/a.jpg`, "ảnh trong thư mục người khác"],
+  [`https://evil.com/x.jpg?/storage/v1/object/public/user-recipe-images/${author}/a.jpg`, "host lạ, lách bằng query string"],
+  [`https://evil.com/storage/v1/object/public/user-recipe-images/${author}/a.jpg`, "host lạ"],
+  [base + `${author}/../${other}/a.jpg`, "'..' sang thư mục người khác"],
+  [base + `${author}/a.jpg?x=1`, "query string"],
+  [base + `${author}/khong-co.jpg`, "file chưa upload"],
+  [base + `${author}/a.gif`, "đuôi không phải ảnh cho phép"],
+]) await err(imgSql, [goodIngr, steps, url], /VALIDATION_ERROR/, why);
+
+// Gửi thành công: pending, dinh dưỡng tự tính, dị ứng kế thừa từ nguyên liệu, chưa lộ ra tìm kiếm
+const sub = (await one(`SELECT submit_recipe('Trứng chiên cơm', 'mon_man', 2, $1::jsonb, $2::jsonb, p_image_url => $3) AS r`,
+  [goodIngr, steps, base + `${author}/a.jpg`])).r;
+assert.equal(sub.status, "pending");
+assert.ok(Math.abs(Number(sub.calories_per_serving) - (300 + rice.k) / 2) < 0.2, "kcal = (200 g trứng + 100 g nguyên liệu 2) / 2 khẩu phần");
+assert.ok(sub.allergens.includes(2), "kế thừa dị ứng trứng");
+const subRow = await one(`SELECT is_verified, created_by, instructions FROM recipes WHERE id = $1`, [sub.id]);
+assert.equal(subRow.is_verified, false);
+assert.equal(subRow.created_by, author);
+assert.deepEqual(subRow.instructions.map((s) => s.step_number), [1, 2]);
+assert.equal((await rows(`SELECT 1 FROM search_recipes(p_query => 'Trứng chiên cơm')`)).length, 0, "pending không lộ ra tìm kiếm");
+
+// Người khác không sửa/xóa được; tối đa 5 món mới mỗi ngày
+await asUser(other);
+await err(`SELECT submit_recipe('Sửa hộ', 'mon_man', 2, $1::jsonb, $2::jsonb, p_recipe_id => $3)`, [goodIngr, steps, sub.id], /RECIPE_NOT_FOUND/);
+await err(`SELECT delete_my_recipe($1)`, [sub.id], /RECIPE_NOT_FOUND/);
+await asUser(author);
+for (let i = 2; i <= 5; i++) await db.query(submitSql, ["Món thử " + i, goodIngr, steps]);
+await err(submitSql, ["Món thứ sáu", goodIngr, steps], /RATE_LIMITED/);
+// Xóa món không trả lại lượt gửi trong ngày
+const spare = (await one(`SELECT id FROM recipes WHERE created_by = $1 AND title = 'Món thử 5'`, [author])).id;
+await db.query(`SELECT delete_my_recipe($1)`, [spare]);
+await err(submitSql, ["Món thứ sáu", goodIngr, steps], /RATE_LIMITED/, "xóa rồi tạo lại vẫn bị giới hạn");
+
+// Admin: hàng chờ, từ chối phải có lý do, nhật ký
+await db.query(`INSERT INTO admins (user_id, note) VALUES ($1, 'test')`, [admin]);
+await asUser(admin);
+assert.equal((await one(`SELECT is_admin() AS a`)).a, true);
+const queue = await rows(`SELECT * FROM admin_list_pending_recipes()`);
+assert.equal(queue[0].id, sub.id, "cũ nhất trước");
+assert.equal(queue[0].author_name, "Bếp Nhà Lan");
+const seen = queue[0].submitted_at;
+await err(`SELECT admin_review_recipe($1, false, $2)`, [sub.id, seen], /VALIDATION_ERROR/, "từ chối phải có lý do");
+await err(`SELECT admin_review_recipe($1, true, NULL)`, [sub.id], /RECIPE_CHANGED/, "phải gửi submitted_at đã xem");
+await db.query(`SELECT admin_review_recipe($1, false, $2, 'Thiếu lượng dầu chiên')`, [sub.id, seen]);
+await err(`SELECT admin_review_recipe($1, true, $2)`, [sub.id, seen], /RECIPE_NOT_PENDING/, "đã xử lý thì không duyệt lại");
+assert.equal((await one(`SELECT count(*)::int AS n FROM admin_audit_log WHERE admin_id = $1 AND action = 'recipe.reject'`, [admin])).n, 1);
+
+// Tác giả sửa + gửi lại → pending, giữ lý do cũ; admin duyệt → hiện ra tìm kiếm + cộng đồng
+await asUser(author);
+const re = (await one(`SELECT submit_recipe('Trứng chiên cơm', 'mon_man', 2, $1::jsonb, $2::jsonb, p_recipe_id => $3) AS r`,
+  [bad([{ ingredient_id: egg, amount: 200 }, { ingredient_id: rice.id, amount: 100 }, { ingredient_id: rice.id, amount: 10, unit: "ml" }]), steps, sub.id])).r;
+assert.equal(re.status, "pending");
+assert.equal((await one(`SELECT reject_reason FROM recipes WHERE id = $1`, [sub.id])).reject_reason, "Thiếu lượng dầu chiên");
+assert.equal((await one(`SELECT count(*)::int AS n FROM recipe_ingredients WHERE recipe_id = $1`, [sub.id])).n, 3, "nguyên liệu thay mới, không cộng dồn");
+await asUser(admin);
+// Duyệt bằng submitted_at cũ (bản trước khi user gửi lại) → RECIPE_CHANGED, không duyệt nhầm bản admin chưa xem
+await err(`SELECT admin_review_recipe($1, true, $2)`, [sub.id, seen], /RECIPE_CHANGED/, "user đổi nội dung lúc admin đang xem");
+const seen2 = (await rows(`SELECT id, submitted_at FROM admin_list_pending_recipes()`)).find((x) => x.id === sub.id).submitted_at;
+await db.query(`SELECT admin_review_recipe($1, true, $2)`, [sub.id, seen2]);
+const appr = await one(`SELECT is_verified, reject_reason, reviewed_by FROM recipes WHERE id = $1`, [sub.id]);
+assert.deepEqual([appr.is_verified, appr.reject_reason, appr.reviewed_by], [true, null, admin]);
+assert.equal((await rows(`SELECT 1 FROM search_recipes(p_query => 'Trứng chiên cơm')`)).length, 1);
+const comm = await rows(`SELECT id, author_name FROM list_community_recipes()`);
+assert.deepEqual(comm.map((x) => [x.id, x.author_name]), [[sub.id, "Bếp Nhà Lan"]], "chỉ món cộng đồng đã duyệt, có tên tác giả");
+await asUser(author);
+await err(`SELECT submit_recipe('Đổi tên', 'mon_man', 2, $1::jsonb, $2::jsonb, p_recipe_id => $3)`, [goodIngr, steps, sub.id], /RECIPE_LOCKED/, "món đã duyệt không sửa");
+await err(`SELECT delete_my_recipe($1)`, [sub.id], /RECIPE_LOCKED/);
+const draft = (await rows(`SELECT id FROM recipes WHERE created_by = $1 AND status = 'pending'`, [author]))[0].id;
+await db.query(`SELECT delete_my_recipe($1)`, [draft]);
+assert.equal((await rows(`SELECT 1 FROM recipes WHERE id = $1`, [draft])).length, 0);
+
+// Admin quản lý nguyên liệu
+await asUser(admin);
+await err(`SELECT admin_save_ingredient('Bột thử', 1, 300, 60, 30, 20)`, [], /VALIDATION_ERROR/, "đạm+béo+bột > 100 g");
+await err(`SELECT admin_save_ingredient('Phở thử', 15, 100, 5, 1, 10)`, [], /VALIDATION_ERROR/, "nhóm 15 là món ăn sẵn");
+await err(`SELECT admin_save_ingredient('Hạt thử', 1, 500, 20, 40, 20, p_allergen_ids => ARRAY[99])`, [], /VALIDATION_ERROR/);
+const newIng = (await one(`SELECT admin_save_ingredient('Hạt chia', 1, 486, 16.5, 30.7, 7.7, 34.4, p_allergen_ids => ARRAY[5]) AS r`)).r;
+assert.match(newIng.code, /^A\d{5}$/);
+assert.equal((await one(`SELECT count(*)::int AS n FROM ingredient_allergens WHERE ingredient_id = $1`, [newIng.id])).n, 1);
+await db.query(`SELECT admin_save_ingredient('Hạt chia đen', 1, 486, 16.5, 30.7, 7.7, 34.4, p_id => $1)`, [newIng.id]);
+assert.equal((await one(`SELECT name_vi FROM ingredients WHERE id = $1`, [newIng.id])).name_vi, "Hạt chia đen");
+assert.equal((await one(`SELECT admin_delete_ingredient($1) AS r`, [egg])).r.action, "deactivated", "trứng đã có công thức dùng → vô hiệu hóa");
+assert.equal((await one(`SELECT is_active FROM ingredients WHERE id = $1`, [egg])).is_active, false);
+assert.equal((await one(`SELECT admin_delete_ingredient($1) AS r`, [newIng.id])).r.action, "deleted");
+await db.query(`SELECT admin_set_ingredient_active($1, true)`, [egg]);
+assert.ok((await one(`SELECT count(*)::int AS n FROM admin_audit_log WHERE admin_id = $1`, [admin])).n >= 6, "mọi thao tác admin có nhật ký");
 
 console.log("migrations replay + audit fixes: all checks passed");

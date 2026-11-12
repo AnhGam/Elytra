@@ -7,7 +7,7 @@ Elytra: app Android (Flutter) gợi ý dinh dưỡng và món ăn. Mọi con s�
 ## Bố cục repo
 
 - `app/` – ứng dụng Flutter (mọi lệnh `flutter` chạy trong thư mục này).
-- `supabase/` – back-end chạy trên **Supabase production**: `migrations/` (DB, RPC, RLS), `functions/` (Edge Functions `calculate-bmr-tdee`, `meal-logs`, `recommend-ai`), `scripts/` (test + công cụ dữ liệu). Nhánh làm UI không sửa `supabase/`.
+- `supabase/` – back-end chạy trên **Supabase production**: `migrations/` (DB, RPC, RLS), `functions/` (Edge Functions `calculate-bmr-tdee`, `meal-logs`, `recommend-ai`, `recipe-review-assist`; code dùng chung ở `_shared/`), `scripts/` (test + công cụ dữ liệu). Nhánh làm UI không sửa `supabase/`.
 - `docs/api-contract.md` – **đọc trước khi gọi back-end**: mục "Đọc nhanh" liệt kê mọi Edge Function, RPC, bảng app gọi được và quyền của app trên từng bảng. Chỉ ghi những gì đã chạy.
 - `docs/BACKEND_ROADMAP.md` – kế hoạch back-end còn lại (chưa làm; đừng coi là API đã có).
 - `docs/week*/README.md` – back-end đã làm theo từng sprint (file nào, quyết định gì, cách test). Màn Chat AI: `docs/api-contract.md` mục 2 + `docs/week9-10/`.

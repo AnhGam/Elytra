@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { classifyIntent, decideDish, type Intent, rankByDecision, type RecipeCandidate } from "./decision.ts";
+import { classifyIntent, decideDish, type Intent, rankByDecision, type RecipeCandidate } from "../_shared/decision.ts";
 import {
   askGemini,
   BUDGET_NOTES,

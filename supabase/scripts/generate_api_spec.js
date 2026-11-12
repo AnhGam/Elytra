@@ -283,6 +283,46 @@ const openApiSpec = {
         }
       }
     },
+    "/recipe-review-assist": {
+      post: {
+        summary: "AI chấm sẵn món cộng đồng chờ duyệt (chỉ admin)",
+        description: "Gemini Decision 1: có phải món thật, danh mục, calo hợp lý, dị ứng. Lưu recipes.ai_review. Chỉ tham khảo, không tự duyệt.",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["recipe_id"], properties: { recipe_id: { type: "string", format: "uuid" } } } } } },
+        responses: {
+          "200": { description: "ai_review (null khi AI lỗi)" },
+          "403": { description: "FORBIDDEN: không phải admin" },
+          "404": { description: "RECIPE_NOT_FOUND" },
+          "409": { description: "RECIPE_NOT_PENDING" }
+        }
+      }
+    },
+    "/rpc/submit_recipe": {
+      post: {
+        summary: "User gửi / sửa công thức (tự tính dinh dưỡng, chờ admin duyệt)",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", required: ["p_title", "p_category", "p_servings", "p_ingredients", "p_instructions"],
+            properties: {
+              p_title: { type: "string", minLength: 3, maxLength: 120 },
+              p_category: { type: "string" },
+              p_servings: { type: "integer", minimum: 1, maximum: 20 },
+              p_ingredients: { type: "array", minItems: 2, maxItems: 40, items: { type: "object", properties: { ingredient_id: { type: "string", format: "uuid" }, amount: { type: "number" }, unit: { type: "string", enum: ["g", "ml"] } } } },
+              p_instructions: { type: "array", minItems: 1, maxItems: 30, items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } } } },
+              p_image_url: { type: "string" },
+              p_recipe_id: { type: "string", format: "uuid", description: "Có = sửa + gửi lại món của mình đang pending/rejected" }
+            } } } }
+        },
+        responses: { "200": { description: "{ id, status: pending, calories_per_serving, …, allergens }" } }
+      }
+    },
+    "/rpc/admin_review_recipe": {
+      post: {
+        summary: "Admin duyệt / từ chối công thức (từ chối bắt buộc lý do; p_submitted_at = bản đã xem, lệch → RECIPE_CHANGED)",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["p_recipe_id", "p_approve", "p_submitted_at"],
+          properties: { p_recipe_id: { type: "string", format: "uuid" }, p_approve: { type: "boolean" }, p_submitted_at: { type: "string", format: "date-time" }, p_reason: { type: "string", minLength: 5, maxLength: 500 } } } } } },
+        responses: { "200": { description: "{ id, status }" } }
+      }
+    },
     "/rpc/search_recipes": {
       post: {
         summary: "Tìm kiếm công thức nấu ăn nâng cao có phân trang (RPC)",
