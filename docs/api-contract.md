@@ -14,10 +14,16 @@ Nguồn sự thật: `supabase/migrations/` (DB, RPC, RLS) và `supabase/functio
 | RPC | `search_dishes` | Không | Tìm món ăn sẵn (phở, xôi...) để ghi bữa | 4.2 |
 | RPC | `search_ingredients`, `get_ingredient_details` | Không | Tìm nguyên liệu, xem chi tiết dinh dưỡng | 4.3 |
 | RPC | `meal_calorie_budget` | Có | Calo cho bữa sắp ăn (theo phần còn lại hôm nay) | 4.4 |
+| RPC | `submit_recipe`, `delete_my_recipe` | Có | Đóng góp / sửa / xóa công thức của mình | 6 |
+| RPC | `list_community_recipes` | Không | Công thức cộng đồng đã duyệt + tên người đóng góp | 6.3 |
+| RPC | `is_admin` | Không | App biết có hiện tab Admin không | 7 |
+| RPC (chỉ admin) | `admin_list_pending_recipes`, `admin_review_recipe`, `admin_save_ingredient`, `admin_set_ingredient_active`, `admin_delete_ingredient` | Có + admin | Duyệt công thức, quản lý nguyên liệu | 7 |
+| Edge Function (chỉ admin) | `POST /recipe-review-assist` | Có + admin | AI chấm sẵn món chờ duyệt | 7.2 |
 | Bảng (đọc/ghi thẳng) | `profiles`, `user_allergens`, `user_favorite_recipes` | Có | Hồ sơ, dị ứng, món yêu thích | 5 |
 | Bảng (chỉ đọc) | `recipes`, `recipe_ingredients`, `recipe_allergens`, `allergens`, `ingredients`, `prepared_dishes`… | Không | Dữ liệu món / nguyên liệu | 5 |
 | Bảng (chỉ đọc) | `meal_logs`, `meal_log_items`, `chat_sessions`, `chat_messages` | Có | Lịch sử bữa ăn, lịch sử chat | 5 |
 | Storage | bucket `recipe-images`, `recipe-videos` (public) | Không | Ảnh / video món | 5 |
+| Storage | bucket `user-recipe-images` (public) | Có (để upload) | Ảnh món user đóng góp, mỗi user một thư mục | 6.2 |
 
 Không còn: `/recommend` và `/chat` của bản nháp cũ (đã gộp vào `/recommend-ai`); chế độ "nguyên liệu trong tủ lạnh" (ngoài phạm vi đề cương).
 
@@ -528,11 +534,14 @@ Mọi bảng đều bật RLS. Bảng nào không ghi quyền ghi ở đây thì
 | `profiles` | Xem / tạo / sửa **dòng của mình** | Dòng được trigger tạo sẵn khi đăng ký. "Đã onboarding" = `target_calories != null` |
 | `user_allergens` | Xem / thêm / xóa **của mình** | `{ user_id, allergen_id }`. Dùng cho bộ lọc gợi ý món |
 | `user_favorite_recipes` | Xem / thêm / xóa **của mình** | Xem 5.1 |
-| `recipes`, `recipe_ingredients`, `recipe_allergens` | Chỉ xem (món đã duyệt) | `recipes.instructions` = `[{step_number, title, description}]` |
-| `allergens`, `ingredients`, `ingredient_categories`, `ingredient_allergens`, `prepared_dishes`, `prepared_dish_allergens` | Chỉ xem | |
+| `recipes`, `recipe_ingredients`, `recipe_allergens` | Chỉ xem: món đã duyệt (ai cũng xem); món **của mình** ở mọi trạng thái; admin xem tất cả | `recipes.instructions` = `[{step_number, title, description}]`. Cột cộng đồng: `created_by`, `status`, `reject_reason`, `submitted_at`, `reviewed_at`, `ai_review`. Ghi qua RPC mục 6–7 |
+| `allergens`, `ingredients`, `ingredient_categories`, `ingredient_allergens`, `prepared_dishes`, `prepared_dish_allergens` | Chỉ xem | `ingredients`: chỉ nguyên liệu đang hoạt động; admin xem cả nguyên liệu đã tắt |
+| `admin_audit_log` | Admin xem | Nhật ký mọi thao tác admin (ai, làm gì, lúc nào). User thường đọc ra rỗng |
+| `admins` | Không | Danh sách admin, chỉ thêm qua Supabase Dashboard. App hỏi quyền bằng RPC `is_admin` |
 | `meal_logs`, `meal_log_items` | Chỉ xem **của mình** | Ghi/sửa/xóa qua `/meal-logs` |
 | `chat_sessions`, `chat_messages` | Xem **của mình** | Ghi qua `/recommend-ai` (5.2) |
 | Storage `recipe-images`, `recipe-videos` | Xem (public) | Không upload được từ app |
+| Storage `user-recipe-images` | Xem (public); upload / sửa / xóa trong thư mục `<user_id>/` **của mình** | Xem 6.2 |
 
 ### 5.1 Món yêu thích (`user_favorite_recipes`)
 
@@ -569,7 +578,130 @@ final history = await supabase.from('chat_messages').select().eq('session_id', s
 
 ---
 
-## 6. Quyết định đã chốt
+## 6. Cộng đồng đóng góp công thức
+
+Luồng: user chọn nguyên liệu + nhập khối lượng → hệ thống tự tính dinh dưỡng và dị ứng → món ở trạng thái `pending` (chưa ai thấy ngoài tác giả và admin) → admin duyệt (`approved`, hiện ra tìm kiếm, gợi ý, danh sách cộng đồng) hoặc từ chối kèm lý do (`rejected`) → user sửa và gửi lại (về `pending`).
+
+**Lỗi của RPC** (gọi bằng `supabase.rpc`): `PostgrestException.message` là mã lỗi (vd `VALIDATION_ERROR`, `FORBIDDEN`), `hint` là trường sai (vd `title`, `ingredients`). Gọi khi chưa đăng nhập: HTTP 401, `message` = `permission denied…`.
+
+| `message` | Khi nào |
+| --- | --- |
+| `UNAUTHORIZED` | Chưa đăng nhập |
+| `PROFILE_NOT_FOUND` | Chưa có hồ sơ |
+| `VALIDATION_ERROR` | Dữ liệu sai, `hint` cho biết trường |
+| `INGREDIENT_NOT_FOUND` | Nguyên liệu không tồn tại hoặc đã bị tắt |
+| `RECIPE_NOT_FOUND` | Món không tồn tại hoặc không phải của mình |
+| `RECIPE_LOCKED` | Món đã duyệt: không sửa / xóa được (muốn đổi thì tạo món mới) |
+| `RECIPE_CHANGED` | (admin) Món đã được user gửi lại sau khi admin mở xem |
+| `RATE_LIMITED` | Quá 5 lượt gửi món mới trong ngày (giờ Việt Nam). Xóa món không trả lại lượt; sửa / gửi lại món cũ không tính lượt |
+
+### 6.1 `submit_recipe` – Gửi / sửa công thức
+
+| Tham số | Kiểu | Bắt buộc | Ràng buộc |
+| --- | --- | --- | --- |
+| `p_title` | text | Có | 3–120 ký tự |
+| `p_category` | text | Có | Danh mục món (mục 0) |
+| `p_servings` | int | Có | 1–20 |
+| `p_ingredients` | JSON | Có | 2–40 dòng `{ "ingredient_id": uuid, "amount": số, "unit": "g" \| "ml" }` (`unit` mặc định `g`; 0 < `amount` ≤ 5000). **Khối lượng phần ăn được, đã sơ chế** (không tính xương, vỏ). `ml` đổi ra gam theo tỷ trọng của nguyên liệu. Nguyên liệu tìm bằng `search_ingredients` |
+| `p_instructions` | JSON | Có | 1–30 bước `{ "title"?: chuỗi ≤ 120, "description": chuỗi 1–1000 }`; thứ tự trong mảng = thứ tự bước |
+| `p_description` | text | Không | ≤ 2000 ký tự |
+| `p_prep_time_minutes`, `p_cook_time_minutes` | int | Không | 0–600, mặc định 15 / 30 |
+| `p_difficulty` | text | Không | `easy` (mặc định) / `medium` / `hard` |
+| `p_image_url` | text | Không | URL lấy từ `getPublicUrl` của ảnh **đã upload** vào thư mục của mình ở bucket `user-recipe-images` (6.2). URL khác project, thư mục người khác, có `?`/`#`/`..`, hoặc file chưa upload → `VALIDATION_ERROR`, `hint = image_url` |
+| `p_recipe_id` | uuid | Không | Bỏ trống = tạo mới. Có = sửa + gửi duyệt lại món **của mình** đang `pending`/`rejected` (thay toàn bộ nội dung, nguyên liệu) |
+
+Trả về: `{ id, status: "pending", slug, servings, calories_per_serving, protein_g_per_serving, fat_g_per_serving, carbs_g_per_serving, allergens: [id…] }` để app hiện ngay số liệu hệ thống tính.
+
+- Gửi lại sau khi bị từ chối: `reject_reason` cũ được **giữ** để user thấy lần trước sai ở đâu; bị xóa khi được duyệt.
+- Dị ứng kế thừa từ nguyên liệu (giống món của hệ thống).
+
+```dart
+final r = await supabase.rpc('submit_recipe', params: {
+  'p_title': 'Trứng chiên cà chua', 'p_category': 'mon_man', 'p_servings': 2,
+  'p_ingredients': [{'ingredient_id': eggId, 'amount': 150}, {'ingredient_id': tomatoId, 'amount': 200}],
+  'p_instructions': [{'title': 'Sơ chế', 'description': 'Đánh trứng, thái cà chua'}, {'description': 'Xào cà chua rồi đổ trứng'}],
+  'p_image_url': imageUrl, // tùy chọn
+});
+```
+
+**Món của tôi:** đọc thẳng bảng, RLS chỉ trả món của mình:
+
+```dart
+final mine = await supabase.from('recipes')
+    .select('id, title, status, reject_reason, submitted_at, calories_per_serving')
+    .eq('created_by', supabase.auth.currentUser!.id).order('submitted_at', ascending: false);
+```
+
+**`delete_my_recipe(p_recipe_id)`**: xóa món của mình đang `pending`/`rejected`. Món đã duyệt → `RECIPE_LOCKED`.
+
+### 6.2 Ảnh món (Storage `user-recipe-images`)
+
+- Đường dẫn: `<user_id>/<tên file>.<jpg|jpeg|png|webp>`, tên file chỉ gồm chữ không dấu, số, `_`, `-` (≤ 100 ký tự), vd `<user_id>/1731400000.jpg`. Thư mục người khác bị từ chối.
+- Chỉ JPG / PNG / WebP, tối đa 5 MB. Ai cũng xem được qua URL công khai; chỉ chủ thư mục liệt kê / xóa được ảnh của mình.
+- Upload trước, rồi gửi URL công khai vào `p_image_url`.
+
+```dart
+final path = '${supabase.auth.currentUser!.id}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+await supabase.storage.from('user-recipe-images').uploadBinary(path, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg'));
+final imageUrl = supabase.storage.from('user-recipe-images').getPublicUrl(path);
+```
+
+### 6.3 `list_community_recipes(p_page = 1, p_page_size = 20)` – Công thức cộng đồng
+
+Không cần đăng nhập. Chỉ món user đóng góp đã duyệt, mới duyệt trước. Mỗi dòng: `id, title, slug, image_url, category, servings, prep_time_minutes, cook_time_minutes, difficulty, calories_per_serving, protein_g_per_serving, fat_g_per_serving, carbs_g_per_serving, author_name, submitted_at, total_count`.
+
+- `author_name` = `profiles.full_name`; chưa đặt tên → `"Người dùng Elytra"`. **Không bao giờ trả email.**
+- Chi tiết món: đọc như món thường (bảng `recipes` / `search_recipes`); món cộng đồng đã duyệt cũng xuất hiện trong tìm kiếm và gợi ý.
+
+---
+
+## 7. Admin
+
+Tài khoản admin dùng cùng app; app gọi `supabase.rpc('is_admin')` (trả `true`/`false`) để quyết định hiện tab Admin. **Quyền kiểm trong DB, không dựa vào việc app ẩn/hiện tab:**
+
+- Mọi thao tác admin là RPC tự kiểm `is_admin()`; user thường gọi → `FORBIDDEN`, anon → HTTP 401.
+- Không có cách nào từ app để tự thành admin (bảng `admins` không có quyền ghi; chỉ thêm qua Supabase Dashboard: `insert into admins (user_id, note) values ('<uuid>', '<ghi chú>')`).
+- Mọi thao tác admin ghi vào `admin_audit_log`.
+- Admin **không sửa nội dung món** của user: chỉ duyệt hoặc từ chối kèm lý do.
+
+### 7.1 Duyệt công thức
+
+- `admin_list_pending_recipes(p_page = 1, p_page_size = 20)` → hàng chờ, gửi trước hiện trước: `id, title, category, servings, image_url, calories/protein/fat/carbs_per_serving, author_id, author_name, submitted_at, reject_reason (lý do lần trước nếu là gửi lại), ai_review, total_count`. Xem chi tiết nguyên liệu/bước: đọc thẳng `recipes` / `recipe_ingredients` (admin đọc được mọi món).
+- `admin_review_recipe(p_recipe_id, p_approve, p_submitted_at, p_reason)`: `p_approve = true` → duyệt; `false` → từ chối, **bắt buộc** `p_reason` 5–500 ký tự. `p_submitted_at` = giá trị `submitted_at` của bản admin **đang xem** (lấy từ hàng chờ): nếu user đã gửi lại bản khác trong lúc đó → `RECIPE_CHANGED`, app tải lại hàng chờ để admin xem bản mới. Món không còn `pending` → `RECIPE_NOT_PENDING`. Trả `{ id, status }`.
+
+### 7.2 `POST /recipe-review-assist` – AI chấm sẵn (Edge Function, chỉ admin)
+
+Body `{ "recipe_id": uuid }`, món phải đang `pending`. Gemini Decision 1 trả lời: có phải món ăn thật không, danh mục phù hợp, calo/khẩu phần có hợp lý không, có chứa từng chất dị ứng không. Kết quả lưu vào `recipes.ai_review` (hàng chờ trả kèm) và trả về:
+
+```json
+{ "recipe_id": "…", "ai_review": {
+  "model": "models/gemini-decision-1", "reviewed_at": "…",
+  "is_dish": 0.97,
+  "category": { "suggested": "mon_xao", "probability": 0.82, "matches_submitted": false },
+  "kcal_plausibility": { "level": 2, "probabilities": { "0": 0.01, "1": 0.1, "2": 0.8, "3": 0.08, "4": 0.01 } },
+  "allergens": { "seafood": 0.91, "egg": 0.98, "…": 0.01 },
+  "warnings": ["Danh mục có thể là \"mon_xao\" thay vì \"mon_man\"", "Có thể chứa Hải sản nhưng nguyên liệu chưa gắn dị ứng này"] } }
+```
+
+- `kcal_plausibility.level`: 0 quá thấp, 1 thấp, 2 bình thường, 3 cao, 4 quá cao (cho 1 khẩu phần).
+- `warnings`: câu tiếng Việt để hiện cho admin. **Chỉ để tham khảo**: không tự duyệt, admin vẫn duyệt 100%. Tiêu đề và các bước do user viết nên có thể cố tình "lừa" AI (prompt injection): không tin tuyệt đối vào điểm AI.
+- Điểm chỉ được lưu nếu món chưa bị gửi lại trong lúc AI đang chấm.
+- AI lỗi / hết hạn mức → `200` với `ai_review: null` và `message`; admin duyệt tay như bình thường.
+- Lỗi: `401` chưa đăng nhập, `403 FORBIDDEN` không phải admin, `400 VALIDATION_ERROR` sai `recipe_id`, `404 RECIPE_NOT_FOUND`, `409 RECIPE_NOT_PENDING`.
+
+### 7.3 Quản lý nguyên liệu
+
+| RPC | Làm gì |
+| --- | --- |
+| `admin_save_ingredient(p_name_vi, p_category_id, p_calories_per_100g, p_protein_per_100g, p_fat_per_100g, p_carbs_per_100g, p_fiber_per_100g = 0, p_sodium_mg, p_edible_portion_pct = 100, p_density_g_per_ml = 1, p_name_en, p_is_featured = false, p_allergen_ids = {}, p_id)` | `p_id` trống = thêm mới (mã tự cấp `A00001`…); có = sửa. Trả `{ id, code }` |
+| `admin_set_ingredient_active(p_id, p_active)` | Bật / tắt. Nguyên liệu tắt không chọn được khi tạo công thức hay ghi bữa |
+| `admin_delete_ingredient(p_id)` | Chưa ai dùng → xóa (`action: "deleted"`); đã có công thức hoặc nhật ký dùng → **chỉ tắt** (`action: "deactivated"`) |
+
+Ràng buộc `admin_save_ingredient` (`VALIDATION_ERROR`, `hint` = trường): tên 2–150 ký tự; kcal 0–900; đạm/béo/bột/xơ 0–100 g và tổng ≤ 100 g; natri 0–40000 mg; phần ăn được 1–100 %; tỷ trọng 0,1–3 g/ml; `p_category_id` phải tồn tại và khác 15 (nhóm 15 là món ăn sẵn); `p_allergen_ids` phải là id có thật. Sửa nguyên liệu **không** làm đổi số liệu các công thức đã tạo (công thức lưu số liệu lúc tạo).
+
+---
+
+## 8. Quyết định đã chốt
 
 1. **Khoảng hợp lệ của thể trạng:** tuổi 18–80; chiều cao 120–220 cm; cân nặng 30–200 kg.
 2. **AI không bao giờ làm hỏng luồng:** Gemini Decision 1 timeout 3 s → thứ tự SQL; Gemini chat timeout 6,5 s → câu mẫu. Không có mã lỗi nào cho AI lỗi.
@@ -577,4 +709,6 @@ final history = await supabase.from('chat_messages').select().eq('session_id', s
 4. **Phân trang:** `p_page` (từ 1) + `p_page_size`, kèm `total_count` (đếm bằng window function, 1 lần quét).
 5. **Mô hình quyết định:** Gemini Decision 1 (gói miễn phí AI Studio). Không dùng Jev qua OpenRouter (trả phí).
 6. **Đồ chấm/gia vị** (`gia_vi_an_kem`: Muối tôm khô, Tỏi ngâm giấm) không bao giờ được gợi ý như món chính.
-7. **Món mới tạo** (`create_recipe_with_nutrition`, chỉ `service_role`) mặc định **chưa duyệt** (`is_verified = false`), không hiện ra cho app tới khi được duyệt.
+7. **Món mới tạo** mặc định **chưa duyệt**, không hiện ra cho app tới khi được duyệt. `is_verified` luôn bằng `status = 'approved'` (tự đồng bộ).
+8. **Cộng đồng:** món bị từ chối sửa rồi gửi lại được; món đã duyệt không sửa/xóa được; tối đa 5 món mới/ngày; ảnh ≤ 5 MB JPG/PNG/WebP; 2–40 nguyên liệu; tên tác giả hiện `full_name` hoặc "Người dùng Elytra", không lộ email.
+9. **Admin:** giao diện trong app Flutter; quyền kiểm trong DB; admin không sửa nội dung món; AI chấm sẵn nhưng admin duyệt 100% tới khi đo xong bộ ~100 món gắn nhãn.

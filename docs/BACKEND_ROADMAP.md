@@ -1,6 +1,6 @@
 # Back-end: việc còn lại tới khi hoàn thiện
 
-Theo đề cương (Sprint 7–9). Trạng thái lúc lập: 12/11/2026, Sprint 3–6 xong (Sprint 6 chờ merge PR #7).
+Theo đề cương (Sprint 7–9). Lập 12/11/2026. Cập nhật 12/11/2026: Sprint 3–6 xong (PR #7 đã merge); Sprint 7 back-end xong (xem `docs/week11-12/README.md`).
 File này là **kế hoạch**, chưa phải tính năng đã có. Cái gì đã chạy thì xem `docs/api-contract.md`.
 
 ## Quyết định đã chốt (12/11/2026)
@@ -14,7 +14,9 @@ File này là **kế hoạch**, chưa phải tính năng đã có. Cái gì đã
 | Giới hạn gọi AI | `recommend-ai`: 30 lượt/giờ/user, vượt trả `429 RATE_LIMITED` |
 | Kiểm duyệt món cộng đồng | Gemini Decision 1 chấm sẵn; admin duyệt 100% tới khi đo xong bộ ~100 món gắn nhãn (ngưỡng tự duyệt 0,9) |
 
-## Sprint 7 (25/11 – 9/12): Cộng đồng + Admin
+## Sprint 7 (25/11 – 9/12): Cộng đồng + Admin — back-end ĐÃ XONG 12/11/2026
+
+Đã chạy: xem `docs/week11-12/README.md` và `docs/api-contract.md` mục 6–7. Bảng dưới giữ lại để đối chiếu.
 
 | # | Việc |
 | --- | --- |
@@ -48,5 +50,5 @@ File này là **kế hoạch**, chưa phải tính năng đã có. Cái gì đã
 
 ## Việc nợ
 
-- Duyệt + merge PR #7.
+- ~~Duyệt + merge PR #7~~ (đã merge 12/11/2026).
 - CI Flutter đỏ: Flutter stable mới đánh dấu `package:flutter/material.dart` là deprecated (phần FE).

@@ -35,6 +35,9 @@ jobs:
       - name: Edge Function recommend-ai (chọn món, phân loại câu, fallback)
         run: node supabase/scripts/test_recommend_ai_unit.mjs
 
+      - name: Edge Function recipe-review-assist (AI chấm sẵn món chờ duyệt)
+        run: node supabase/scripts/test_recipe_review_unit.mjs
+
       - name: Chấm điểm gợi ý + câu fallback
         run: node supabase/scripts/test_recommendation_flow.js
 

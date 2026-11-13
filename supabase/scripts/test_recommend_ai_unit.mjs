@@ -1,7 +1,7 @@
 // Unit test Edge Function recommend-ai (decision.ts, chat.ts) với fetch giả: không gọi API thật, không cần key.
 // Chạy: node supabase/scripts/test_recommend_ai_unit.mjs   (Node ≥ 23 chạy thẳng .ts)
 import assert from "node:assert/strict";
-import { classifyIntent, decideDish, rankByDecision } from "../functions/recommend-ai/decision.ts";
+import { classifyIntent, decideDish, rankByDecision } from "../functions/_shared/decision.ts";
 import { askGemini, fallbackHowToCook, fallbackNutrition, fallbackRecommend } from "../functions/recommend-ai/chat.ts";
 
 const dish = (id, title, kcal) => ({ id, title, slug: id, category: "mon_man", image_url: null, servings: 1,

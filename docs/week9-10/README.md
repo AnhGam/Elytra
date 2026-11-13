@@ -15,7 +15,7 @@ Thiết kế mô hình quyết định: [01_DECISION_MODEL_RECOMMEND_AND_MODERAT
 | `recommend_dishes_for_user`: lọc cứng dị ứng/món từ chối/gia vị, chấm điểm calo-protein-thời gian + món yêu thích; chặn gọi bằng uid người khác | Phần 4c |
 | Món tạo mới mặc định chưa duyệt (`is_verified` = false) | Phần 5 |
 | Sửa sau review: chat_messages chỉ ghi vào phiên của mình, `meal_calorie_budget(NULL)` báo lỗi, `p_limit` NULL → 5, phân trang không lặp món, dầu ngấm cá bống 20 g | `supabase/migrations/20261112120000_sprint6_review_fixes.sql` |
-| Edge Function `recommend-ai`: gợi ý món (SQL → Gemini Decision 1 chọn → Gemini viết lời), đổi món, "Ăn món này" → `log_meal`, hỏi cách nấu, hỏi dinh dưỡng, phân loại câu gõ tự do, từ chối câu ngoài phạm vi; lưu xác suất + món nhận/từ chối | `supabase/functions/recommend-ai/` (`index.ts` định tuyến, `decision.ts` mô hình quyết định, `chat.ts` Gemini chat + câu mẫu) |
+| Edge Function `recommend-ai`: gợi ý món (SQL → Gemini Decision 1 chọn → Gemini viết lời), đổi món, "Ăn món này" → `log_meal`, hỏi cách nấu, hỏi dinh dưỡng, phân loại câu gõ tự do, từ chối câu ngoài phạm vi; lưu xác suất + món nhận/từ chối | `supabase/functions/recommend-ai/` (`index.ts` định tuyến, `chat.ts` Gemini chat + câu mẫu) + `supabase/functions/_shared/decision.ts` (mô hình quyết định) |
 | CI: test back-end ở mọi PR vào `main`; workflow phát hành tài liệu API (OpenAPI) lên GitHub Releases, chỉ chạy khi test qua | `.github/workflows/backend-tests.yml`, `.github/workflows/api-release.yml`, `supabase/scripts/generate_api_spec.js` |
 
 ## Quyết định thiết kế

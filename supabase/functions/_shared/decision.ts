@@ -1,5 +1,6 @@
 // Mô hình quyết định (Gemini Decision 1, kiểu Jev): không sinh chữ, trả xác suất cho từng lựa chọn.
-// Dùng để (1) chọn món trong các ứng viên SQL, (2) phân loại câu người dùng gõ tự do.
+// Dùng để (1) chọn món trong các ứng viên SQL, (2) phân loại câu người dùng gõ tự do (recommend-ai),
+// (3) chấm sẵn món cộng đồng chờ duyệt (recipe-review-assist).
 // Không import gì của Deno để test được bằng Node (supabase/scripts/test_recommend_ai_unit.mjs).
 
 export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
@@ -25,7 +26,7 @@ export interface RecipeCandidate {
 }
 
 // Gọi Decisions API (POST /v1beta/decisions). Trả answers hoặc null khi lỗi/timeout (người gọi tự fallback).
-async function decide(
+export async function decide(
   apiKey: string,
   input: string,
   questions: Record<string, unknown>,
