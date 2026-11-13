@@ -41,6 +41,10 @@ try {
   const seeAdmins = await call("/rest/v1/admins", { token: A.token });
   assert.ok(seeAdmins.status !== 200 || seeAdmins.body.length === 0, "user không xem được danh sách admin");
   assert.equal((await rpc("is_admin", A.token)).body, false);
+  // app_config (gốc URL dùng kiểm ảnh): app không đọc / ghi / gọi được, kể cả user đăng nhập
+  assert.notEqual((await call("/rest/v1/app_config", { token: A.token })).status, 200);
+  assert.notEqual((await call("/rest/v1/app_config?key=eq.storage_public_base", { method: "PATCH", token: A.token, body: { value: "https://evil.com" } })).status, 204);
+  assert.notEqual((await rpc("storage_public_base", A.token)).status, 200);
   assert.equal((await rpc("is_admin", AD.token)).body, true);
   assert.equal((await rpc("is_admin", ANON_KEY)).body, false, "anon gọi được is_admin (dùng trong RLS) và nhận false");
 

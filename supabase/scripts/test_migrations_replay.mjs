@@ -324,6 +324,12 @@ for (const [url, why] of [
   [base + `${author}/khong-co.jpg`, "file chưa upload"],
   [base + `${author}/a.gif`, "đuôi không phải ảnh cho phép"],
 ]) await err(imgSql, [goodIngr, steps, url], /VALIDATION_ERROR/, why);
+// app_config thiếu / sai giá trị → từ chối mọi ảnh (đóng an toàn), không mở toang
+await db.query(`DELETE FROM app_config WHERE key = 'storage_public_base'`);
+await err(imgSql, [goodIngr, steps, base + `${author}/a.jpg`], /VALIDATION_ERROR/, "thiếu cấu hình → từ chối");
+await db.query(`INSERT INTO app_config (key, value) VALUES ('storage_public_base', 'https://khac.supabase.co')`);
+await err(imgSql, [goodIngr, steps, base + `${author}/a.jpg`], /VALIDATION_ERROR/, "cấu hình sai project → từ chối");
+await db.query(`UPDATE app_config SET value = 'https://x.supabase.co' WHERE key = 'storage_public_base'`);
 
 // Gửi thành công: pending, dinh dưỡng tự tính, dị ứng kế thừa từ nguyên liệu, chưa lộ ra tìm kiếm
 const sub = (await one(`SELECT submit_recipe('Trứng chiên cơm', 'mon_man', 2, $1::jsonb, $2::jsonb, p_image_url => $3) AS r`,
