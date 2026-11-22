@@ -97,7 +97,10 @@ try {
   assert.equal((await ai(A.token, { accepted_recipe_id: crypto.randomUUID() })).status, 404);
 
   // 7. Món yêu thích: RLS
-  const fav = r1.body.suggested_recipes[5].id;
+  // Chọn món yêu thích từ lượt gợi ý NGAY LÚC NÀY (thứ tự gợi ý đổi theo calo còn lại trong ngày)
+  const beforeFav = await ai(A.token, { meal_type: "lunch" });
+  assert.equal(beforeFav.status, 200);
+  const fav = beforeFav.body.suggested_recipes[0].id;
   assert.equal((await call("/rest/v1/user_favorite_recipes", { method: "POST", token: A.token, body: { recipe_id: fav } })).status, 201);
   assert.equal((await call("/rest/v1/user_favorite_recipes", { method: "POST", token: A.token, body: { recipe_id: fav } })).status, 409, "không nhân bản");
   assert.equal((await call("/rest/v1/user_favorite_recipes", { token: B.token })).body.length, 0, "B không thấy yêu thích của A");

@@ -85,6 +85,8 @@ RPC / bảng:    qua supabase-flutter: supabase.rpc(...), supabase.from(...)
 
 **`MealType`**: `"breakfast"` | `"lunch"` | `"dinner"` | `"snack"`
 
+**`DietaryPreference`** (`profiles.dietary_preference`): `"none"` (mặc định) | `"vegetarian"` (chỉ gợi ý món `mon_chay`).
+
 **Danh mục món (`recipes.category`)**: `mon_an_sang`, `mon_canh`, `mon_chay`, `mon_kho`, `mon_man`, `mon_nuong`, `mon_xao`, `gia_vi_an_kem` (đồ chấm/gia vị: bị ẩn khỏi danh sách và gợi ý). **Độ khó**: `easy`, `medium`.
 
 **Chất gây dị ứng (`allergens`)**: `1 seafood`, `2 egg`, `3 dairy`, `4 peanut`, `5 tree_nut`, `6 soy`, `7 gluten`, `8 sesame` (`id code`; tên tiếng Việt ở cột `name_vi`).
@@ -259,6 +261,7 @@ Mọi response đều có `session_id`, `intent`, `status`, `message`. Phần c�
 | --- | --- |
 | `suggested_recipes` | Tối đa 10 món, **món đầu là món được chọn**. Rỗng khi `goal_reached` hoặc không còn món hợp lệ |
 | `match_reason` | Lý do do engine SQL viết (không phải AI), dùng làm dòng phụ trên thẻ món |
+| `score` | 0–1. 0,40 × độ khớp calo bữa + 0,30 × độ khớp đạm + 0,15 × chất béo (chỉ trừ khi vượt mức béo của bữa) + 0,15 × thời gian nấu, +0,10 nếu là món yêu thích |
 | `is_favorite` | Món nằm trong yêu thích của người dùng (được cộng 0,1 điểm) |
 | `decision_probability` | Xác suất mô hình chọn món này; `null` khi `decision_mode = "sql"` |
 | `decision_mode` | `"model"` = Gemini Decision 1 xếp hạng; `"sql"` = giữ thứ tự điểm SQL (mô hình lỗi, không có key, hoặc chỉ có 0–1 ứng viên nên không cần chọn); `null` khi `goal_reached` |
@@ -532,7 +535,7 @@ Mọi bảng đều bật RLS. Bảng nào không ghi quyền ghi ở đây thì
 
 | Bảng | App được | Ghi chú |
 | --- | --- | --- |
-| `profiles` | Xem / tạo / sửa **dòng của mình** | Dòng được trigger tạo sẵn khi đăng ký. "Đã onboarding" = `target_calories != null` |
+| `profiles` | Xem / tạo / sửa **dòng của mình** | Dòng được trigger tạo sẵn khi đăng ký. "Đã onboarding" = `target_calories != null`. `dietary_preference`: `none` / `vegetarian`, app sửa thẳng (giá trị khác bị DB từ chối) |
 | `user_allergens` | Xem / thêm / xóa **của mình** | `{ user_id, allergen_id }`. Dùng cho bộ lọc gợi ý món |
 | `user_favorite_recipes` | Xem / thêm / xóa **của mình** | Xem 5.1 |
 | `recipes`, `recipe_ingredients`, `recipe_allergens` | Chỉ xem: món đã duyệt (ai cũng xem); món **của mình** ở mọi trạng thái; admin xem tất cả | `recipes.instructions` = `[{step_number, title, description}]`. Cột cộng đồng: `created_by`, `status`, `reject_reason`, `submitted_at`, `reviewed_at`, `ai_review`. Ghi qua RPC mục 6–7 |
@@ -715,3 +718,4 @@ Ràng buộc `admin_save_ingredient` (`VALIDATION_ERROR`, `hint` = trường): t
 8. **Cộng đồng:** món bị từ chối sửa rồi gửi lại được; món đã duyệt không sửa/xóa được; tối đa 5 món mới/ngày; ảnh ≤ 5 MB JPG/PNG/WebP; 2–40 nguyên liệu; tên tác giả hiện `full_name` hoặc "Người dùng Elytra", không lộ email.
 9. **Admin:** giao diện trong app Flutter; quyền kiểm trong DB; admin không sửa nội dung món; AI chấm sẵn nhưng admin duyệt 100% tới khi đo xong bộ ~100 món gắn nhãn.
 10. **Giới hạn AI:** 30 lượt/giờ/user cho `/recommend-ai` (trừ "Ăn món này"), đếm trong DB (bảng `ai_usage`, app không đọc/ghi được), vượt → 429.
+11. **Sở thích + chất béo:** `dietary_preference` chỉ `none` / `vegetarian` (chay → chỉ `mon_chay`); gợi ý chấm thêm chất béo theo phần còn lại của bữa (đề cương).

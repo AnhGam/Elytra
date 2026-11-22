@@ -17,7 +17,7 @@ console.log('====================================================\n');
 // 1. Kiểm tra công thức xếp hạng món ăn đa mục tiêu (Multi-objective scoring)
 console.log('[1/3] Testing Content-based Nutrition Scoring Algorithm...');
 
-function calculateCandidateScore(recipe, targetCal, targetProt, maxPrepTime = 60) {
+function calculateCandidateScore(recipe, targetCal, targetProt, targetFat, maxPrepTime = 60) {
   // Score calo
   const diffCal = Math.abs(recipe.calories_per_serving - targetCal);
   const scoreCal = Math.max(0, 1.0 - (diffCal / Math.max(targetCal, 100)));
@@ -26,31 +26,41 @@ function calculateCandidateScore(recipe, targetCal, targetProt, maxPrepTime = 60
   const diffProt = Math.abs(recipe.protein_g_per_serving - targetProt);
   const scoreProt = Math.max(0, 1.0 - (diffProt / Math.max(targetProt, 10)));
 
+  // Score chất béo (chỉ phạt khi vượt mức)
+  const scoreFat = recipe.fat_g_per_serving <= targetFat ? 1 : Math.max(0, 1 - (recipe.fat_g_per_serving - targetFat) / Math.max(targetFat, 10));
+
   // Score thời gian
   const totalTime = (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0);
   const scoreTime = totalTime <= 30 ? 1.0 : Math.max(0, 1.0 - ((totalTime - 30) / Math.max(maxPrepTime, 30)));
 
-  // Tổng điểm có trọng số: 45% Calo + 35% Protein + 20% Thời gian
-  const totalScore = (0.45 * scoreCal) + (0.35 * scoreProt) + (0.20 * scoreTime);
+  // Tổng điểm có trọng số: 40% Calo + 30% Protein + 15% Chất béo + 15% Thời gian
+  const totalScore = (0.40 * scoreCal) + (0.30 * scoreProt) + (0.15 * scoreFat) + (0.15 * scoreTime);
   return {
     scoreCal,
     scoreProt,
+    scoreFat,
     scoreTime,
     totalScore: Math.round(totalScore * 100) / 100
   };
 }
 
-// Test case A: Món hoàn hảo (khớp cả calo, protein và thời gian nhanh)
-const perfectDish = { calories_per_serving: 600, protein_g_per_serving: 40, prep_time_minutes: 10, cook_time_minutes: 15 };
-const scoreA = calculateCandidateScore(perfectDish, 600, 40);
+// Test case A: Món hoàn hảo (khớp cả calo, protein, chất béo và thời gian nhanh)
+const perfectDish = { calories_per_serving: 600, protein_g_per_serving: 40, fat_g_per_serving: 15, prep_time_minutes: 10, cook_time_minutes: 15 };
+const scoreA = calculateCandidateScore(perfectDish, 600, 40, 20);
 assert.strictEqual(scoreA.totalScore, 1.0, 'Món khớp hoàn hảo phải đạt 1.0 điểm');
 console.log('  [PASS] Perfect dish score:', scoreA.totalScore);
 
 // Test case B: Món lệch calo nhiều
-const farCalDish = { calories_per_serving: 1200, protein_g_per_serving: 40, prep_time_minutes: 10, cook_time_minutes: 15 };
-const scoreB = calculateCandidateScore(farCalDish, 600, 40);
+const farCalDish = { calories_per_serving: 1200, protein_g_per_serving: 40, fat_g_per_serving: 15, prep_time_minutes: 10, cook_time_minutes: 15 };
+const scoreB = calculateCandidateScore(farCalDish, 600, 40, 20);
 assert(scoreB.totalScore < scoreA.totalScore, 'Món lệch calo phải có điểm thấp hơn');
 console.log('  [PASS] Divergent calorie dish score correctly penalized:', scoreB.totalScore);
+
+// Test case C: Món nhiều chất béo
+const fattyDish = { calories_per_serving: 600, protein_g_per_serving: 40, fat_g_per_serving: 60, prep_time_minutes: 10, cook_time_minutes: 15 };
+const scoreC = calculateCandidateScore(fattyDish, 600, 40, 20);
+assert(scoreC.totalScore < 1.0, 'món nhiều béo bị trừ điểm');
+console.log('  [PASS] High-fat dish score correctly penalized:', scoreC.totalScore);
 
 // 2. Kiểm tra bộ sinh Fallback template khi Gemini API gián đoạn
 console.log('\n[2/3] Testing Intelligent Fallback Response Generation...');
