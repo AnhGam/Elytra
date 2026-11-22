@@ -57,3 +57,5 @@ Thư mục này chứa toàn bộ báo cáo kỹ thuật, tài liệu thiết k�
 - **Kịch bản Tự động hóa & Kiểm thử:**
   - Bucket `recipe-images` / `recipe-videos`, cột `video_url` và link ảnh/video của 45 món: [`20261026100000_recipe_media_and_storage.sql`](../../supabase/migrations/20261026100000_recipe_media_and_storage.sql). Các script upload cũ đã xóa ở Sprint 5 vì dùng `exec_seed_sql` (lỗ hổng). Upload lại từ bản tải về: `supabase storage cp -r supabase/data/recipe_images ss:///recipe-images --linked --experimental`.
   - Kiểm thử RPC Tra cứu nguyên liệu: [`scripts/test_ingredient_management.js`](file:///d:/Antigravity/DA1/Elytra/scripts/test_ingredient_management.js)
+
+> Cập nhật Sprint 8 (23/11/2026): `create_recipe_with_nutrition` đã bị xóa, thay bằng `submit_recipe` (xem `docs/api-contract.md` mục 6).

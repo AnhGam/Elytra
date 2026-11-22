@@ -172,9 +172,10 @@ for (const [plain, accented] of [["bo luc lac", "bò lúc lắc"], ["dau hu", "�
 }
 const phoIng = (await rows(`SELECT name_vi FROM search_ingredients(p_query => 'pho')`)).map((x) => x.name_vi);
 assert.ok(phoIng.indexOf("Bánh phở") >= 0 && phoIng.indexOf("Bánh phở") < phoIng.findIndex((n) => /phồng/.test(n)), "khớp nguyên từ 'phở' xếp trước 'phồng'");
-// f_unaccent có thật -> create_custom_ingredient (admin) chạy được
-await db.query(`SELECT create_custom_ingredient('Rau thử nghiệm', 4, 10, 1, 0, 2)`);
-assert.equal((await one(`SELECT name_unaccented AS n FROM ingredients WHERE name_vi = 'Rau thử nghiệm'`)).n, "rau thu nghiem");
+// f_unaccent có thật (trước đây create_custom_ingredient gọi nó; hàm cũ đã xóa ở Sprint 8)
+assert.equal((await one(`SELECT f_unaccent('Rau thử nghiệm') AS u`)).u, "rau thu nghiem");
+// 2 hàm cũ đã bị xóa
+assert.equal((await one(`SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('create_recipe_with_nutrition', 'create_custom_ingredient')`)).n, 0);
 
 // Tên món đã chuẩn hóa, tiêu đề gốc còn giữ
 assert.equal((await one(`SELECT count(*)::int AS n FROM recipes WHERE title ~* '(^|[^[:alpha:]])(ngon|ghiền|đậm đà|thơm lừng)([^[:alpha:]]|$)'`)).n, 0, "tên món không còn lời quảng cáo");
@@ -408,5 +409,83 @@ assert.equal((await one(`SELECT is_active FROM ingredients WHERE id = $1`, [egg]
 assert.equal((await one(`SELECT admin_delete_ingredient($1) AS r`, [newIng.id])).r.action, "deleted");
 await db.query(`SELECT admin_set_ingredient_active($1, true)`, [egg]);
 assert.ok((await one(`SELECT count(*)::int AS n FROM admin_audit_log WHERE admin_id = $1`, [admin])).n >= 6, "mọi thao tác admin có nhật ký");
+
+// ===== Sprint 8: giới hạn 30 lượt gọi AI/giờ =====
+await asUser("");
+await err("SELECT consume_ai_quota()", [], /UNAUTHORIZED/, "chưa đăng nhập");
+
+await asUser(other);
+for (let i = 1; i <= 30; i++) {
+  const q = (await one(`SELECT consume_ai_quota() AS q`)).q;
+  assert.equal(q.allowed, true);
+  if (i === 1) assert.equal(q.remaining, 29);
+  if (i === 30) assert.equal(q.remaining, 0);
+}
+const blocked = (await one(`SELECT consume_ai_quota() AS q`)).q;
+assert.equal(blocked.allowed, false);
+assert.equal(blocked.remaining, 0);
+assert.ok(blocked.retry_after_seconds >= 1 && blocked.retry_after_seconds <= 3600);
+assert.equal((await one(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id = $1`, [other])).n, 30, "lần bị chặn không ghi thêm");
+
+await asUser(author);
+assert.equal((await one(`SELECT consume_ai_quota() AS q`)).q.allowed, true, "user khác độc lập");
+
+await db.query(`UPDATE ai_usage SET created_at = now() - interval '2 hours' WHERE user_id = $1`, [other]);
+await db.query(`UPDATE ai_usage SET created_at = now() - interval '2 days' WHERE user_id = $1 AND created_at < now() - interval '1 hour'`, [other]);
+await asUser(other);
+assert.equal((await one(`SELECT consume_ai_quota() AS q`)).q.allowed, true, "hết cửa sổ thì được lại");
+assert.equal((await one(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id = $1`, [other])).n, 1, "dòng cũ > 1 ngày bị dọn");
+
+// ===== Sprint 8: sở thích ăn chay + điểm chất béo =====
+const veg = "00000000-0000-0000-0000-0000000000e1";
+await db.query(`INSERT INTO auth.users VALUES ($1, 'veg@x.test', '{}')`, [veg]);
+await db.query(`UPDATE profiles SET target_calories = 2000, target_protein_g = 100, target_carbs_g = 250, target_fat_g = 60 WHERE id = $1`, [veg]);
+await asUser(veg);
+
+// 1. Giá trị lạ bị chặn
+await err(`UPDATE profiles SET dietary_preference = 'keto' WHERE id = $1`, [veg], /profiles_dietary_preference_check/);
+
+// 2. 'none': có món không phải món chay
+const noneRecs = await rows(`SELECT * FROM recommend_dishes_for_user($1, 'lunch', 600, p_limit => 20)`, [veg]);
+assert.ok(noneRecs.length > 0 && noneRecs.some((r) => r.category !== "mon_chay"), "none phải gợi ý cả món mặn");
+
+// 3. 'vegetarian': chỉ món chay
+await db.query(`UPDATE profiles SET dietary_preference = 'vegetarian' WHERE id = $1`, [veg]);
+const vegRecs = await rows(`SELECT * FROM recommend_dishes_for_user($1, 'lunch', 600, p_limit => 20)`, [veg]);
+assert.ok(vegRecs.length > 0 && vegRecs.every((r) => r.category === "mon_chay"), "vegetarian chỉ gợi ý mon_chay");
+
+// 4. Điểm khớp công thức mới (40% calo + 30% đạm + 15% béo + 15% thời gian, +0.1 yêu thích)
+await db.query(`UPDATE profiles SET dietary_preference = 'none' WHERE id = $1`, [veg]);
+const scoredRecs = await rows(`SELECT * FROM recommend_dishes_for_user($1, 'lunch', 700, p_limit => 20)`, [veg]);
+const tProt = Math.round(100 * 700 / 2000);
+const tFat = Math.round(60 * 700 / 2000);
+const parts = (row) => {
+  const kcal = Number(row.calories_per_serving);
+  const p = Number(row.protein_g_per_serving);
+  const f = Number(row.fat_g_per_serving);
+  const prep = Number(row.prep_time_minutes);
+  const cook = Number(row.cook_time_minutes);
+  const cal = Math.max(0, 1 - Math.abs(kcal - 700) / Math.max(700, 100));
+  const prot = Math.max(0, 1 - Math.abs(p - tProt) / Math.max(tProt, 10));
+  const fat = f <= tFat ? 1 : Math.max(0, 1 - (f - tFat) / Math.max(tFat, 10));
+  const t = (prep + cook) <= 30 ? 1 : (prep + cook) <= 45 ? 0.8 : 0.6;
+  return { cal, prot, fat, t };
+};
+for (const row of scoredRecs) {
+  const { cal, prot, fat, t } = parts(row);
+  const expected = Math.min(1, Math.round((0.40 * cal + 0.30 * prot + 0.15 * fat + 0.15 * t + (row.is_favorite ? 0.1 : 0)) * 100) / 100);
+  assert.ok(Math.abs(Number(row.score) - expected) <= 0.011, `score không khớp công thức cho món ${row.title}: got ${row.score}, expected ${expected}`);
+}
+
+// Bước 5: phải có món vượt mức béo, và điểm SQL của nó khớp công thức có phạt béo (không im lặng bỏ qua)
+const all20 = await rows(`SELECT * FROM recommend_dishes_for_user($1, 'lunch', 700, p_limit => 20)`, [veg]);
+const fatty = all20.filter((r) => Number(r.fat_g_per_serving) > tFat);
+assert.ok(fatty.length > 0, "cần ít nhất 1 món vượt " + tFat + " g béo để kiểm phạt béo (dữ liệu hiện có không đủ)");
+const r = fatty[0];
+const { cal, prot, fat, t } = parts(r);
+const oldScore = Math.min(1, Math.round((0.45 * cal + 0.35 * prot + 0.20 * t + (r.is_favorite ? 0.1 : 0)) * 100) / 100);
+const newScore = Math.min(1, Math.round((0.40 * cal + 0.30 * prot + 0.15 * fat + 0.15 * t + (r.is_favorite ? 0.1 : 0)) * 100) / 100);
+assert.ok(Math.abs(Number(r.score) - newScore) <= 0.011, `score món béo ${r.title}: got ${r.score}, expected ${newScore} (oldScore=${oldScore})`);
+assert.ok(fat < 1, `món nhiều béo (${r.title}: ${r.fat_g_per_serving}g > ${tFat}g) phải có fat_score < 1`);
 
 console.log("migrations replay + audit fixes: all checks passed");

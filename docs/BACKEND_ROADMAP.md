@@ -29,7 +29,9 @@ File này là **kế hoạch**, chưa phải tính năng đã có. Cái gì đã
 | 7.7 | Xem công thức cộng đồng: danh sách món đã duyệt kèm người đóng góp; món của mình thấy cả `pending` / `rejected` |
 | 7.8 | Test dựng lại DB + E2E (user không tự duyệt, không sửa món người khác, không gọi được thao tác admin) + cập nhật `api-contract.md` |
 
-## Sprint 8 (9/12 – 23/12): Kiểm thử + vá
+## Sprint 8 (9/12 – 23/12): Kiểm thử + vá — back-end ĐÃ XONG 23/11/2026
+
+Đã chạy: xem `docs/week13-14/README.md`. Còn chờ người dùng: chạy `eval_moderation.mjs` (8.7), xem danh sách calo (8.8).
 
 | # | Việc |
 | --- | --- |
