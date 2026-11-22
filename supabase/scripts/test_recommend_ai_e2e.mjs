@@ -159,6 +159,33 @@ try {
   const peek = await call("/rest/v1/ai_usage?select=id", { token: B.token });
   assert.ok(peek.status !== 200 || peek.body.length === 0, "app không đọc được bảng ai_usage");
 
+  // 12. Quyền bảng chat: app chỉ đọc + xóa cả phiên của mình
+  const sidA = r1.body.session_id;
+  assert.notEqual((await call("/rest/v1/chat_messages", { method: "POST", token: A.token,
+    body: { session_id: sidA, user_id: A.id, role: "assistant", content: "giả" } })).status, 201);
+  assert.notEqual((await call("/rest/v1/chat_sessions", { method: "POST", token: A.token,
+    body: { user_id: A.id, meal_type: "lunch" } })).status, 201);
+  const patchMsg = await call(`/rest/v1/chat_messages?session_id=eq.${sidA}`, {
+    method: "PATCH", token: A.token, body: { content: "sửa" }, headers: { Prefer: "return=representation" },
+  });
+  assert.ok(patchMsg.status >= 400 || patchMsg.body?.length === 0);
+  const afterPatch = (await admin(`/rest/v1/chat_messages?session_id=eq.${sidA}&select=content`)).body;
+  assert.ok(afterPatch.every((m) => m.content !== "sửa"));
+  const delMsg = await call(`/rest/v1/chat_messages?session_id=eq.${sidA}`, {
+    method: "DELETE", token: A.token, headers: { Prefer: "return=representation" },
+  });
+  assert.ok(delMsg.status >= 400 || delMsg.body?.length === 0);
+  assert.ok((await admin(`/rest/v1/chat_messages?session_id=eq.${sidA}&select=id`)).body.length > 0);
+  await call(`/rest/v1/chat_sessions?id=eq.${sidA}`, { method: "DELETE", token: B.token });
+  assert.equal((await admin(`/rest/v1/chat_sessions?id=eq.${sidA}&select=id`)).body.length, 1);
+  assert.equal((await call(`/rest/v1/chat_sessions?id=eq.${sidA}`, { method: "DELETE", token: A.token })).status, 204);
+  assert.equal((await admin(`/rest/v1/chat_sessions?id=eq.${sidA}&select=id`)).body.length, 0);
+  assert.equal((await admin(`/rest/v1/chat_messages?session_id=eq.${sidA}&select=id`)).body.length, 0);
+  const rNew = await ai(A.token, { meal_type: "dinner" });
+  assert.equal(rNew.status, 200);
+  assert.ok(rNew.body.session_id);
+  assert.equal((await call(`/rest/v1/chat_messages?session_id=eq.${rNew.body.session_id}&select=id`, { token: A.token })).body.length, 2);
+
   console.log("recommend-ai e2e: all checks passed");
 } finally {
   for (const id of users) await admin(`/auth/v1/admin/users/${id}`, { method: "DELETE" });

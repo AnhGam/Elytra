@@ -540,7 +540,7 @@ Mọi bảng đều bật RLS. Bảng nào không ghi quyền ghi ở đây thì
 | `admin_audit_log` | Admin xem | Nhật ký mọi thao tác admin (ai, làm gì, lúc nào). User thường đọc ra rỗng |
 | `admins` | Không | Danh sách admin, chỉ thêm qua Supabase Dashboard. App hỏi quyền bằng RPC `is_admin` |
 | `meal_logs`, `meal_log_items` | Chỉ xem **của mình** | Ghi/sửa/xóa qua `/meal-logs` |
-| `chat_sessions`, `chat_messages` | Xem **của mình** | Ghi qua `/recommend-ai` (5.2) |
+| `chat_sessions`, `chat_messages` | Xem **của mình**; xóa **cả phiên** của mình (`chat_sessions`, tin nhắn tự xóa theo) | Chỉ `/recommend-ai` ghi (5.2) |
 | Storage `recipe-images`, `recipe-videos` | Xem (public) | Không upload được từ app |
 | Storage `user-recipe-images` | Xem (public); upload / sửa / xóa trong thư mục `<user_id>/` **của mình** | Xem 6.2 |
 
@@ -571,10 +571,11 @@ final favs = await supabase.from('user_favorite_recipes').select('recipe_id, cre
 | Ăn món này | `{ logged_item_id, replayed }` (lượt user: `{ intent: "accept", accepted_recipe_id, meal_type }`) |
 
 `chat_error` (chỉ để theo dõi, app không cần đọc): lý do Gemini chat không trả lời khi `fallback = true`, vd `"timeout"`, `"HTTP 503: … high demand …"` (Google quá tải), `"HTTP 429: …"` (hết hạn mức), `"no key"`.
-- RLS kỹ thuật cho phép app ghi thẳng 2 bảng này (Edge Function ghi bằng token của người dùng), nhưng **app không ghi**: dữ liệu nhận/từ chối món dùng để hiệu chỉnh mô hình về sau.
+- App chỉ **đọc** và **xóa cả phiên** của mình; không thêm / sửa / xóa từng tin nhắn (bị RLS chặn). Chỉ `/recommend-ai` ghi (bằng quyền server, sau khi xác thực user), để dữ liệu nhận/từ chối món dùng hiệu chỉnh mô hình không bị sửa.
 
 ```dart
 final history = await supabase.from('chat_messages').select().eq('session_id', sessionId).order('created_at');
+await supabase.from('chat_sessions').delete().eq('id', sessionId); // xóa cả phiên + tin nhắn
 ```
 
 ---

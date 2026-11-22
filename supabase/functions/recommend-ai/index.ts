@@ -122,6 +122,10 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return fail("UNAUTHORIZED");
 
+  // Ghi chat bằng service_role: app chỉ được đọc/xóa phiên (RLS), không tự thêm/sửa tin nhắn.
+  // Chỉ dùng client này SAU khi đã xác thực user ở trên, và luôn ghi user_id = user.id.
+  const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
   // 2. Đọc + kiểm tra payload (biên tin cậy: mọi giá trị từ app)
   let payload: RecommendRequest;
   try {
@@ -152,15 +156,14 @@ Deno.serve(async (req: Request) => {
   if (rawMessage.length > 500) return fail("VALIDATION_ERROR", "message tối đa 500 ký tự", "message");
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
 
-  // 3. Phiên chat: session_id của người khác bị RLS chặn → tạo phiên mới
+  // 3. Phiên chat: session_id của người khác bị RLS chặn ở bước đọc → tạo phiên mới
   let sessionId: string | undefined = payload.session_id;
   if (sessionId) {
     const { data } = await supabase.from("chat_sessions").select("id").eq("id", sessionId).maybeSingle();
     if (!data) sessionId = undefined;
   }
   if (!sessionId) {
-    const { data: newSession, error: sessErr } = await supabase
-      .from("chat_sessions")
+    const { data: newSession, error: sessErr } = await service.from("chat_sessions")
       .insert({ user_id: user.id, meal_type: mealType, target_kcal: payload.target_calories ?? null })
       .select("id")
       .single();
@@ -172,7 +175,7 @@ Deno.serve(async (req: Request) => {
   const saveMessages = async (...rows: any[]) => {
     if (!sessionId) return;
     for (const r of rows) {
-      const { error } = await supabase.from("chat_messages").insert({ session_id: sessionId, user_id: user.id, ...r });
+      const { error } = await service.from("chat_messages").insert({ session_id: sessionId, user_id: user.id, ...r });
       if (error) console.error("Không lưu được chat_messages:", error); // lịch sử thiếu lượt nhưng vẫn trả lời người dùng
     }
   };
