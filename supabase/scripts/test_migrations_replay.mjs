@@ -172,9 +172,10 @@ for (const [plain, accented] of [["bo luc lac", "bò lúc lắc"], ["dau hu", "�
 }
 const phoIng = (await rows(`SELECT name_vi FROM search_ingredients(p_query => 'pho')`)).map((x) => x.name_vi);
 assert.ok(phoIng.indexOf("Bánh phở") >= 0 && phoIng.indexOf("Bánh phở") < phoIng.findIndex((n) => /phồng/.test(n)), "khớp nguyên từ 'phở' xếp trước 'phồng'");
-// f_unaccent có thật -> create_custom_ingredient (admin) chạy được
-await db.query(`SELECT create_custom_ingredient('Rau thử nghiệm', 4, 10, 1, 0, 2)`);
-assert.equal((await one(`SELECT name_unaccented AS n FROM ingredients WHERE name_vi = 'Rau thử nghiệm'`)).n, "rau thu nghiem");
+// f_unaccent có thật (trước đây create_custom_ingredient gọi nó; hàm cũ đã xóa ở Sprint 8)
+assert.equal((await one(`SELECT f_unaccent('Rau thử nghiệm') AS u`)).u, "rau thu nghiem");
+// 2 hàm cũ đã bị xóa
+assert.equal((await one(`SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('create_recipe_with_nutrition', 'create_custom_ingredient')`)).n, 0);
 
 // Tên món đã chuẩn hóa, tiêu đề gốc còn giữ
 assert.equal((await one(`SELECT count(*)::int AS n FROM recipes WHERE title ~* '(^|[^[:alpha:]])(ngon|ghiền|đậm đà|thơm lừng)([^[:alpha:]]|$)'`)).n, 0, "tên món không còn lời quảng cáo");

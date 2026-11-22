@@ -63,3 +63,5 @@ node supabase\scripts\test_meal_logs_e2e.mjs
 ```
 
 Cảnh báo advisor còn lại là cố ý: các RPC của `meal-logs` cho `authenticated` gọi (tự lọc theo `auth.uid()`), `search_*` / `get_ingredient_details` chỉ đọc dữ liệu công khai, `rls_auto_enable` do Supabase quản lý.
+
+> Cập nhật Sprint 8 (23/11/2026): `create_recipe_with_nutrition` và `create_custom_ingredient` đã bị xóa, thay bằng `submit_recipe` / `admin_save_ingredient` (xem `docs/api-contract.md` mục 6–7).

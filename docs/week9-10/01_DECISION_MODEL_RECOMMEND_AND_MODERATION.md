@@ -55,7 +55,7 @@ Trước đây toàn bộ món do nhóm tự nhập/crawl rồi sửa tay. Khi m
 
 ```
 Người dùng upload món
-  → create_recipe_with_nutrition (service_role) → is_verified = false (mặc định, migration 20261106090000)
+  → submit_recipe (user, Sprint 7) → status = pending, is_verified = false
   → Gemini Decision 1: 1 request, nhiều câu hỏi
   → Áp ngưỡng
       ≥ 0,9 hợp lệ            → is_verified = true (tự duyệt)
