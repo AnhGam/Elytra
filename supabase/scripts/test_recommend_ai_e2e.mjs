@@ -145,6 +145,20 @@ try {
     assert.equal(freeOut.body.suggested_recipes.length, 0);
   }
 
+  // 11. Giới hạn 30 lượt hỏi AI/giờ: chèn sẵn 30 lượt cho B rồi gọi tiếp
+  const seeded = await admin("/rest/v1/ai_usage", { method: "POST", body: Array.from({ length: 30 }, () => ({ user_id: B.id })) });
+  assert.equal(seeded.status, 201);
+  const limited = await ai(B.token, { meal_type: "lunch" });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.body.error.code, "RATE_LIMITED");
+  assert.ok(limited.body.error.retry_after_seconds > 0);
+  const verifiedDish = (await call("/rest/v1/recipes?select=id&is_verified=eq.true&limit=1", { token: B.token })).body[0];
+  const accepted = await ai(B.token, { meal_type: "snack", accepted_recipe_id: verifiedDish.id });
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.body.status, "logged");
+  const peek = await call("/rest/v1/ai_usage?select=id", { token: B.token });
+  assert.ok(peek.status !== 200 || peek.body.length === 0, "app không đọc được bảng ai_usage");
+
   console.log("recommend-ai e2e: all checks passed");
 } finally {
   for (const id of users) await admin(`/auth/v1/admin/users/${id}`, { method: "DELETE" });

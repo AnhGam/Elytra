@@ -21,6 +21,7 @@ import {
 //   không gửi intent, có message → Gemini Decision 1 phân loại câu (thêm out_of_scope)
 // Mọi số liệu/món đều từ DB; AI lỗi → thứ tự SQL / câu mẫu, vẫn trả 200.
 // Món nhận/từ chối + xác suất lưu vào chat_messages để sau này hiệu chỉnh ngưỡng / tự train mô hình.
+// Giới hạn: 30 lượt/giờ/user (consume_ai_quota), trừ "Ăn món này"; vượt → 429 RATE_LIMITED.
 
 const CANDIDATE_LIMIT = 10;
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
@@ -63,6 +64,7 @@ const STATUS: Record<string, number> = {
   PROFILE_NOT_FOUND: 404,
   RECIPE_NOT_FOUND: 404,
   IDEMPOTENCY_CONFLICT: 422,
+  RATE_LIMITED: 429,
 };
 
 const MESSAGES: Record<string, string> = {
@@ -190,6 +192,19 @@ Deno.serve(async (req: Request) => {
       { role: "assistant", content: message, metadata: { logged_item_id: logged.item.id, replayed: logged.replayed } },
     );
     return json({ session_id: sessionId, intent: "accept", status: "logged", message, logged: logged.item, budget: logged.budget });
+  }
+
+  // Giới hạn 30 lượt hỏi AI/giờ/user (bảo vệ hạn mức Gemini dùng chung). "Ăn món này" ở trên không bị đếm.
+  const { data: quota, error: quotaErr } = await supabase.rpc("consume_ai_quota");
+  if (quotaErr) {
+    console.error("Không kiểm được hạn mức AI, cho qua:", quotaErr);
+  } else if (quota && quota.allowed === false) {
+    const retry = Number(quota.retry_after_seconds) || 60;
+    return new Response(JSON.stringify({ error: {
+      code: "RATE_LIMITED",
+      message: `Bạn đã dùng hết 30 lượt hỏi AI trong 1 giờ. Thử lại sau ${Math.ceil(retry / 60)} phút.`,
+      retry_after_seconds: retry,
+    } }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retry) } });
   }
 
   // 5. Xác định ý định: app gửi intent (bấm chip) hoặc mô hình quyết định phân loại câu gõ tự do

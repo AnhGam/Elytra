@@ -409,4 +409,30 @@ assert.equal((await one(`SELECT admin_delete_ingredient($1) AS r`, [newIng.id]))
 await db.query(`SELECT admin_set_ingredient_active($1, true)`, [egg]);
 assert.ok((await one(`SELECT count(*)::int AS n FROM admin_audit_log WHERE admin_id = $1`, [admin])).n >= 6, "mọi thao tác admin có nhật ký");
 
+// ===== Sprint 8: giới hạn 30 lượt gọi AI/giờ =====
+await asUser("");
+await err("SELECT consume_ai_quota()", [], /UNAUTHORIZED/, "chưa đăng nhập");
+
+await asUser(other);
+for (let i = 1; i <= 30; i++) {
+  const q = (await one(`SELECT consume_ai_quota() AS q`)).q;
+  assert.equal(q.allowed, true);
+  if (i === 1) assert.equal(q.remaining, 29);
+  if (i === 30) assert.equal(q.remaining, 0);
+}
+const blocked = (await one(`SELECT consume_ai_quota() AS q`)).q;
+assert.equal(blocked.allowed, false);
+assert.equal(blocked.remaining, 0);
+assert.ok(blocked.retry_after_seconds >= 1 && blocked.retry_after_seconds <= 3600);
+assert.equal((await one(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id = $1`, [other])).n, 30, "lần bị chặn không ghi thêm");
+
+await asUser(author);
+assert.equal((await one(`SELECT consume_ai_quota() AS q`)).q.allowed, true, "user khác độc lập");
+
+await db.query(`UPDATE ai_usage SET created_at = now() - interval '2 hours' WHERE user_id = $1`, [other]);
+await db.query(`UPDATE ai_usage SET created_at = now() - interval '2 days' WHERE user_id = $1 AND created_at < now() - interval '1 hour'`, [other]);
+await asUser(other);
+assert.equal((await one(`SELECT consume_ai_quota() AS q`)).q.allowed, true, "hết cửa sổ thì được lại");
+assert.equal((await one(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id = $1`, [other])).n, 1, "dòng cũ > 1 ngày bị dọn");
+
 console.log("migrations replay + audit fixes: all checks passed");

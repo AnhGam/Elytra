@@ -305,6 +305,7 @@ App dùng `budget` để cập nhật Dashboard, không cần gọi lại `GET /
 | 404 | `PROFILE_NOT_FOUND` | | Chưa có mục tiêu calo (khi server phải tự tính calo bữa) |
 | 404 | `RECIPE_NOT_FOUND` | `recipe_id` | Món không tồn tại hoặc chưa duyệt |
 | 422 | `IDEMPOTENCY_CONFLICT` | `client_request_id` | Như 3.1 |
+| 429 | `RATE_LIMITED` | | Quá 30 lượt hỏi AI trong 1 giờ (mọi request trừ "Ăn món này"). Body có `retry_after_seconds`, header `Retry-After`. App hiện thông báo trong `message` và khóa nút gửi tới hết thời gian |
 
 AI (Gemini) lỗi **không** phải lỗi API: luôn xử lý bằng `fallback` / `decision_mode`.
 
@@ -712,3 +713,4 @@ Ràng buộc `admin_save_ingredient` (`VALIDATION_ERROR`, `hint` = trường): t
 7. **Món mới tạo** mặc định **chưa duyệt**, không hiện ra cho app tới khi được duyệt. `is_verified` luôn bằng `status = 'approved'` (tự đồng bộ).
 8. **Cộng đồng:** món bị từ chối sửa rồi gửi lại được; món đã duyệt không sửa/xóa được; tối đa 5 món mới/ngày; ảnh ≤ 5 MB JPG/PNG/WebP; 2–40 nguyên liệu; tên tác giả hiện `full_name` hoặc "Người dùng Elytra", không lộ email.
 9. **Admin:** giao diện trong app Flutter; quyền kiểm trong DB; admin không sửa nội dung món; AI chấm sẵn nhưng admin duyệt 100% tới khi đo xong bộ ~100 món gắn nhãn.
+10. **Giới hạn AI:** 30 lượt/giờ/user cho `/recommend-ai` (trừ "Ăn món này"), đếm trong DB (bảng `ai_usage`, app không đọc/ghi được), vượt → 429.
