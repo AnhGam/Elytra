@@ -50,3 +50,4 @@ jobs:
         run: |
           node supabase/scripts/test_migrations_replay.mjs
           node supabase/scripts/test_meal_logs_sql.mjs
+          node supabase/scripts/test_nutrition_targets.mjs
