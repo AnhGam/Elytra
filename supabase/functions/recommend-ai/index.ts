@@ -21,7 +21,7 @@ import {
 //   không gửi intent, có message → Gemini Decision 1 phân loại câu (thêm out_of_scope)
 // Mọi số liệu/món đều từ DB; AI lỗi → thứ tự SQL / câu mẫu, vẫn trả 200.
 // Món nhận/từ chối + xác suất lưu vào chat_messages để sau này hiệu chỉnh ngưỡng / tự train mô hình.
-// Giới hạn: 30 lượt/giờ/user (consume_ai_quota), trừ "Ăn món này"; vượt → 429 RATE_LIMITED.
+// Giới hạn: 30 lượt/giờ/user + trần chung 600/giờ (consume_ai_quota), chỉ trừ khi thật sự gọi Gemini; vượt user → 429, vượt trần chung → câu mẫu.
 
 const CANDIDATE_LIMIT = 10;
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
@@ -155,6 +155,35 @@ Deno.serve(async (req: Request) => {
   const rawMessage = typeof payload.message === "string" ? payload.message.trim() : "";
   if (rawMessage.length > 500) return fail("VALIDATION_ERROR", "message tối đa 500 ký tự", "message");
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+  // Hạn mức AI: chỉ trừ lượt khi request THẬT SỰ sắp gọi Gemini (lỗi 400/404, goal_reached, "Ăn món này" không bị trừ),
+  // tối đa 1 lượt/request. Vượt trần chung cả app → không gọi Gemini, trả lời bằng thứ tự SQL + câu mẫu.
+  let aiKey: string | null = null;
+  let aiChecked = false;
+  let aiBusy = false;
+  const aiGate = async (): Promise<Response | null> => {
+    if (aiChecked || !geminiApiKey) return null;
+    aiChecked = true;
+    const { data: quota, error: quotaErr } = await supabase.rpc("consume_ai_quota");
+    if (quotaErr) {
+      console.error("Không kiểm được hạn mức AI, cho qua:", quotaErr);
+      aiKey = geminiApiKey;
+      return null;
+    }
+    if (quota?.allowed === false) {
+      const retry = Number(quota.retry_after_seconds) || 60;
+      return new Response(JSON.stringify({ error: {
+        code: "RATE_LIMITED",
+        message: `Bạn đã dùng hết 30 lượt hỏi AI trong 1 giờ. Thử lại sau ${Math.ceil(retry / 60)} phút.`,
+        retry_after_seconds: retry,
+      } }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retry) } });
+    }
+    if (quota?.ai_enabled === false) {
+      aiBusy = true;
+      return null;
+    }
+    aiKey = geminiApiKey;
+    return null;
+  };
 
   // 3. Phiên chat: session_id của người khác bị RLS chặn ở bước đọc → tạo phiên mới
   let sessionId: string | undefined = payload.session_id;
@@ -197,22 +226,13 @@ Deno.serve(async (req: Request) => {
     return json({ session_id: sessionId, intent: "accept", status: "logged", message, logged: logged.item, budget: logged.budget });
   }
 
-  // Giới hạn 30 lượt hỏi AI/giờ/user (bảo vệ hạn mức Gemini dùng chung). "Ăn món này" ở trên không bị đếm.
-  const { data: quota, error: quotaErr } = await supabase.rpc("consume_ai_quota");
-  if (quotaErr) {
-    console.error("Không kiểm được hạn mức AI, cho qua:", quotaErr);
-  } else if (quota && quota.allowed === false) {
-    const retry = Number(quota.retry_after_seconds) || 60;
-    return new Response(JSON.stringify({ error: {
-      code: "RATE_LIMITED",
-      message: `Bạn đã dùng hết 30 lượt hỏi AI trong 1 giờ. Thử lại sau ${Math.ceil(retry / 60)} phút.`,
-      retry_after_seconds: retry,
-    } }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retry) } });
-  }
-
   // 5. Xác định ý định: app gửi intent (bấm chip) hoặc mô hình quyết định phân loại câu gõ tự do
-  let intent: Intent = (payload.intent as Intent) ??
-    (rawMessage && geminiApiKey ? await classifyIntent(geminiApiKey, rawMessage) : "recommend");
+  let intent: Intent = (payload.intent as Intent) ?? "recommend";
+  if (!payload.intent && rawMessage && geminiApiKey) {
+    const blocked = await aiGate();
+    if (blocked) return blocked;
+    if (aiKey) intent = await classifyIntent(aiKey, rawMessage);
+  }
   const userMessage = rawMessage || (intent === "how_to_cook" ? "Nấu món này thế nào?"
     : intent === "nutrition" ? "Món này dinh dưỡng thế nào?" : `Gợi ý bữa ${MEAL_NAMES_VI[mealType]}`);
 
@@ -241,13 +261,15 @@ Deno.serve(async (req: Request) => {
   if (intent === "how_to_cook" || intent === "nutrition") {
     const recipe = await loadRecipe(supabase, recipeId!);
     if (!recipe) return fail("RECIPE_NOT_FOUND", MESSAGES.RECIPE_NOT_FOUND, "recipe_id");
+    const blocked = await aiGate();
+    if (blocked) return blocked;
     const facts = intent === "how_to_cook" ? fallbackHowToCook(recipe) : fallbackNutrition(recipe);
     const task = intent === "how_to_cook"
       ? "Hướng dẫn nấu món dưới đây theo từng bước, ngắn gọn, dễ làm theo. CHỈ dùng nguyên liệu và các bước có trong dữ liệu, không thêm bước hay nguyên liệu, không đổi định lượng."
       : "Giải thích thông tin dinh dưỡng của món dưới đây và món này hợp với người đang ăn kiêng hay không. CHỈ dùng số liệu có trong dữ liệu, không tự tính hay thêm số liệu khác.";
-    const chat = geminiApiKey
-      ? await askGemini(geminiApiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
-      : { text: "", error: "no key" };
+    const chat = aiKey
+      ? await askGemini(aiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
+      : { text: "", error: aiBusy ? "ai_busy" : "no key" };
     const reply = chat.text;
     const message = reply || facts;
     await saveMessages(
@@ -289,8 +311,12 @@ Deno.serve(async (req: Request) => {
   const sqlList: RecipeCandidate[] = candidates || [];
 
   // Mô hình quyết định chọn món. Chỉ gửi dữ liệu cần để chọn, không gửi cân nặng/tuổi
+  if (sqlList.length > 0) {
+    const blocked = await aiGate();
+    if (blocked) return blocked;
+  }
   let probs: Record<string, number> | null = null;
-  if (geminiApiKey && sqlList.length > 1) {
+  if (aiKey && sqlList.length > 1) {
     const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
     const [profile, recent, rejected] = await Promise.all([
       supabase.from("profiles").select("goal").eq("id", user.id).maybeSingle(),
@@ -299,7 +325,7 @@ Deno.serve(async (req: Request) => {
         ? supabase.from("recipes").select("title").in("id", rejectedRecipeIds)
         : Promise.resolve({ data: [] as { title: string }[] }),
     ]);
-    probs = await decideDish(geminiApiKey, {
+    probs = await decideDish(aiKey, {
       goal: profile.data?.goal ?? null,
       meal_type: mealType,
       meal_calorie_target: Math.round(targetCal),
@@ -313,12 +339,12 @@ Deno.serve(async (req: Request) => {
 
   // Gemini chat chỉ viết lời giải thích cho món đã chọn
   let reply = "";
-  let chatError: string | null = geminiApiKey ? null : "no key";
-  if (geminiApiKey && recipeList.length > 0) {
+  let chatError: string | null = aiKey ? null : (aiBusy ? "ai_busy" : "no key");
+  if (aiKey && recipeList.length > 0) {
     const summary = recipeList.slice(0, 3).map((r, i) =>
       `${i + 1}. Món: ${r.title} | ${r.calories_per_serving} kcal | Protein: ${r.protein_g_per_serving}g | Fat: ${r.fat_g_per_serving}g | Carbs: ${r.carbs_g_per_serving}g | Lý do: ${r.match_reason}`
     ).join("\n");
-    ({ text: reply, error: chatError } = await askGemini(geminiApiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
+    ({ text: reply, error: chatError } = await askGemini(aiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
 Quy tắc:
 1. Món số 1 là món hệ thống chọn. Giới thiệu món số 1 và giải thích vì sao hợp với mục tiêu calo của người dùng. Món 2-3 chỉ nhắc ngắn làm phương án khác.
 2. TUYỆT ĐỐI không nhắc món ngoài danh sách, không đổi thứ tự, không thay đổi số liệu dinh dưỡng.

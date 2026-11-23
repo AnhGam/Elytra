@@ -151,7 +151,14 @@ try {
   // 11. Giới hạn 30 lượt hỏi AI/giờ: chèn sẵn 30 lượt cho B rồi gọi tiếp
   const seeded = await admin("/rest/v1/ai_usage", { method: "POST", body: Array.from({ length: 30 }, () => ({ user_id: B.id })) });
   assert.equal(seeded.status, 201);
-  const limited = await ai(B.token, { meal_type: "lunch" });
+  // goal_reached không gọi AI → không bị chặn, không bị trừ lượt (B đã ăn đủ calo ở các bước trên)
+  const usageB = async () => (await admin(`/rest/v1/ai_usage?select=id&user_id=eq.${B.id}`)).body.length;
+  const beforeReached = await usageB();
+  const reached = await ai(B.token, { meal_type: "lunch" });
+  assert.equal(reached.status, 200);
+  assert.equal(reached.body.status, "goal_reached");
+  assert.equal(await usageB(), beforeReached, "goal_reached không trừ lượt");
+  const limited = await ai(B.token, { message: "Gợi ý món trưa cho mình" }); // câu gõ tự do → cần AI phân loại → bị chặn
   assert.equal(limited.status, 429);
   assert.equal(limited.body.error.code, "RATE_LIMITED");
   assert.ok(limited.body.error.retry_after_seconds > 0);
@@ -188,6 +195,13 @@ try {
   assert.equal(rNew.status, 200);
   assert.ok(rNew.body.session_id);
   assert.equal((await call(`/rest/v1/chat_messages?session_id=eq.${rNew.body.session_id}&select=id`, { token: A.token })).body.length, 2);
+
+  // 13. Lỗi 400/404 không bị trừ lượt AI (chỉ trừ khi thật sự gọi Gemini)
+  const usageA = async () => (await admin(`/rest/v1/ai_usage?select=id&user_id=eq.${A.id}`)).body.length;
+  const beforeUse = await usageA();
+  assert.equal((await ai(A.token, { intent: "how_to_cook", recipe_id: crypto.randomUUID() })).status, 404);
+  assert.equal((await ai(A.token, { meal_type: "brunch" })).status, 400);
+  assert.equal(await usageA(), beforeUse, "request lỗi không bị trừ lượt");
 
   console.log("recommend-ai e2e: all checks passed");
 } finally {
