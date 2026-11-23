@@ -111,6 +111,11 @@ async function loadRecipe(supabase: SupabaseClient, id: string): Promise<RecipeD
 }
 
 Deno.serve(async (req: Request) => {
+  // Mốc thời gian (ms, cộng dồn từ lúc nhận request) để đo chỗ chậm; ghi vào metadata tin nhắn trợ lý
+  const t0 = performance.now();
+  const timings: Record<string, number> = {};
+  const mark = (step: string) => { timings[step] = Math.round(performance.now() - t0); };
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Chỉ hỗ trợ POST" } }, 405);
 
@@ -121,6 +126,7 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  mark("auth");
   if (authError || !user) return fail("UNAUTHORIZED");
 
   // Ghi chat bằng service_role: app chỉ được đọc/xóa phiên (RLS), không tự thêm/sửa tin nhắn.
@@ -166,6 +172,7 @@ Deno.serve(async (req: Request) => {
     if (aiChecked || !geminiApiKey) return null;
     aiChecked = true;
     const { data: quota, error: quotaErr } = await supabase.rpc("consume_ai_quota");
+    mark("quota");
     if (quotaErr) {
       console.error("Không kiểm được hạn mức AI, cho qua:", quotaErr);
       aiKey = geminiApiKey;
@@ -187,23 +194,29 @@ Deno.serve(async (req: Request) => {
     return null;
   };
 
-  // 3. Phiên chat: session_id của người khác bị RLS chặn ở bước đọc → tạo phiên mới
-  let sessionId: string | undefined = payload.session_id;
-  if (sessionId) {
-    const { data } = await supabase.from("chat_sessions").select("id").eq("id", sessionId).maybeSingle();
-    if (!data) sessionId = undefined;
-  }
-  if (!sessionId) {
-    const { data: newSession, error: sessErr } = await service.from("chat_sessions")
-      .insert({ user_id: user.id, meal_type: mealType, target_kcal: payload.target_calories ?? null })
-      .select("id")
-      .single();
-    if (sessErr) console.error("Không tạo được chat session:", sessErr);
-    sessionId = newSession?.id;
-  }
+  // 3. Phiên chat: session_id của người khác bị RLS chặn ở bước đọc → tạo phiên mới.
+  // Chạy nền song song các bước sau; chỗ nào cần id thì `await sessionReady`.
+  const sessionReady: Promise<string | undefined> = (async () => {
+    let id: string | undefined = payload.session_id;
+    if (id) {
+      const { data } = await supabase.from("chat_sessions").select("id").eq("id", id).maybeSingle();
+      if (!data) id = undefined;
+    }
+    if (!id) {
+      const { data: newSession, error: sessErr } = await service.from("chat_sessions")
+        .insert({ user_id: user.id, meal_type: mealType, target_kcal: payload.target_calories ?? null })
+        .select("id")
+        .single();
+      if (sessErr) console.error("Không tạo được chat session:", sessErr);
+      id = newSession?.id;
+    }
+    mark("session");
+    return id;
+  })().catch((e) => { console.error("Lỗi phiên chat:", e); return undefined; });
   // Ghi lần lượt: cùng 1 lệnh insert thì các dòng trùng created_at, lịch sử chat mất thứ tự
   // deno-lint-ignore no-explicit-any
   const saveMessages = async (...rows: any[]) => {
+    const sessionId = await sessionReady;
     if (!sessionId) return;
     for (const r of rows) {
       const { error } = await service.from("chat_messages").insert({ session_id: sessionId, user_id: user.id, ...r });
@@ -225,7 +238,7 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: "Ăn món này", metadata: { intent: "accept", accepted_recipe_id: payload.accepted_recipe_id, meal_type: mealType } },
       { role: "assistant", content: message, metadata: { logged_item_id: logged.item.id, replayed: logged.replayed } },
     );
-    return json({ session_id: sessionId, intent: "accept", status: "logged", message, logged: logged.item, budget: logged.budget });
+    return json({ session_id: await sessionReady, intent: "accept", status: "logged", message, logged: logged.item, budget: logged.budget });
   }
 
   // 5. Xác định ý định: app gửi intent (bấm chip) hoặc mô hình quyết định phân loại câu gõ tự do
@@ -240,11 +253,14 @@ Deno.serve(async (req: Request) => {
 
   // Hỏi về món: món app gửi, không thì món đứng đầu lượt gợi ý gần nhất của phiên
   let recipeId = payload.recipe_id;
-  if ((intent === "how_to_cook" || intent === "nutrition") && !recipeId && sessionId) {
-    const { data } = await supabase.from("chat_messages").select("suggested_recipe_ids")
-      .eq("session_id", sessionId).eq("role", "assistant").neq("suggested_recipe_ids", "{}")
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    recipeId = data?.suggested_recipe_ids?.[0];
+  if ((intent === "how_to_cook" || intent === "nutrition") && !recipeId) {
+    const sessionId = await sessionReady;
+    if (sessionId) {
+      const { data } = await supabase.from("chat_messages").select("suggested_recipe_ids")
+        .eq("session_id", sessionId).eq("role", "assistant").neq("suggested_recipe_ids", "{}")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      recipeId = data?.suggested_recipe_ids?.[0];
+    }
   }
   if ((intent === "how_to_cook" || intent === "nutrition") && !recipeId) {
     if (payload.intent) return fail("VALIDATION_ERROR", "Cần recipe_id để hỏi về món", "recipe_id");
@@ -256,12 +272,13 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: userMessage, metadata: { intent } },
       { role: "assistant", content: OUT_OF_SCOPE_MESSAGE, metadata: { intent } },
     );
-    return json({ session_id: sessionId, intent, status: "out_of_scope", message: OUT_OF_SCOPE_MESSAGE, suggested_recipes: [], fallback: false });
+    return json({ session_id: await sessionReady, intent, status: "out_of_scope", message: OUT_OF_SCOPE_MESSAGE, suggested_recipes: [], fallback: false });
   }
 
   // 6. Cách nấu / dinh dưỡng: dữ liệu từ DB, Gemini chỉ diễn đạt lại
   if (intent === "how_to_cook" || intent === "nutrition") {
     const recipe = await loadRecipe(supabase, recipeId!);
+    mark("load_recipe");
     if (!recipe) return fail("RECIPE_NOT_FOUND", MESSAGES.RECIPE_NOT_FOUND, "recipe_id");
     const blocked = await aiGate();
     if (blocked) return blocked;
@@ -272,19 +289,33 @@ Deno.serve(async (req: Request) => {
     const chat = aiKey
       ? await askChat(aiKey, omni, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
       : { text: "", error: aiBusy ? "ai_busy" : "no key", model: null };
+    mark("chat");
     const reply = chat.text;
     const message = reply || facts;
+    mark("before_save");
     await saveMessages(
       { role: "user", content: userMessage, metadata: { intent, recipe_id: recipeId } },
-      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply, chat_error: chat.error, chat_model: chat.model } },
+      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply, chat_error: chat.error, chat_model: chat.model, timings_ms: timings } },
     );
-    return json({ session_id: sessionId, intent, status: "answered", message, recipe, fallback: !reply });
+    return json({ session_id: await sessionReady, intent, status: "answered", message, recipe, fallback: !reply });
   }
 
   // 7. Gợi ý món. Calo bữa: theo phần còn lại hôm nay, có ngưỡng (bỏ qua nếu app truyền target_calories)
+  // Dữ liệu cho mô hình quyết định: không phụ thuộc ngân sách/ứng viên → đọc song song từ đầu (chỉ là đọc, bỏ phí nếu không dùng)
+  const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+  const decisionInputs = geminiApiKey
+    ? Promise.all([
+      supabase.from("profiles").select("goal").eq("id", user.id).maybeSingle(),
+      supabase.from("meal_log_items").select("name").eq("user_id", user.id).gte("created_at", since).limit(30),
+      rejectedRecipeIds.length
+        ? supabase.from("recipes").select("title").in("id", rejectedRecipeIds)
+        : Promise.resolve({ data: [] as { title: string }[] }),
+    ])
+    : null;
   let budget: Budget | null = null;
   if (payload.target_calories === undefined) {
     const { data, error } = await supabase.rpc("meal_calorie_budget", { p_meal_type: mealType });
+    mark("budget");
     if (error) return fromDbError(error);
     budget = data as Budget;
   }
@@ -297,7 +328,7 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: userMessage, rejected_recipe_ids: rejectedRecipeIds, metadata: { intent } },
       { role: "assistant", content: message, metadata: { intent, meal_type: mealType, budget_status: budgetStatus } },
     );
-    return json({ session_id: sessionId, intent, status: budgetStatus, budget, message, suggested_recipes: [],
+    return json({ session_id: await sessionReady, intent, status: budgetStatus, budget, message, suggested_recipes: [],
       rejected_recipe_ids: rejectedRecipeIds, fallback: false, decision_mode: null });
   }
 
@@ -309,6 +340,7 @@ Deno.serve(async (req: Request) => {
     p_exclude_recipe_ids: rejectedRecipeIds,
     p_limit: CANDIDATE_LIMIT,
   });
+  mark("sql_candidates");
   if (rpcErr) return fromDbError(rpcErr);
   const sqlList: RecipeCandidate[] = candidates || [];
 
@@ -319,14 +351,8 @@ Deno.serve(async (req: Request) => {
   }
   let probs: Record<string, number> | null = null;
   if (aiKey && sqlList.length > 1) {
-    const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
-    const [profile, recent, rejected] = await Promise.all([
-      supabase.from("profiles").select("goal").eq("id", user.id).maybeSingle(),
-      supabase.from("meal_log_items").select("name").eq("user_id", user.id).gte("created_at", since).limit(30),
-      rejectedRecipeIds.length
-        ? supabase.from("recipes").select("title").in("id", rejectedRecipeIds)
-        : Promise.resolve({ data: [] as { title: string }[] }),
-    ]);
+    const [profile, recent, rejected] = await decisionInputs!;
+    mark("decision_inputs");
     probs = await decideDish(aiKey, {
       goal: profile.data?.goal ?? null,
       meal_type: mealType,
@@ -336,6 +362,7 @@ Deno.serve(async (req: Request) => {
       rejected_dishes: (rejected.data ?? []).map((x: { title: string }) => x.title),
       user_message: rawMessage || null,
     }, sqlList, mealType);
+    mark("decision_model");
   }
   const recipeList = rankByDecision(sqlList, probs);
 
@@ -352,16 +379,18 @@ Quy tắc:
 1. Món số 1 là món hệ thống chọn. Giới thiệu món số 1 và giải thích vì sao hợp với mục tiêu calo của người dùng. Món 2-3 chỉ nhắc ngắn làm phương án khác.
 2. TUYỆT ĐỐI không nhắc món ngoài danh sách, không đổi thứ tự, không thay đổi số liệu dinh dưỡng.
 3. Nếu người dùng vừa từ chối món trước, xác nhận đã đổi món.
-4. Tối đa 2-3 đoạn ngắn, Markdown.
+4. Tối đa 3-4 câu ngắn (1 đoạn), Markdown. Không lặp lại số liệu đã có trên thẻ món ngoài calo của món số 1.
 ${BUDGET_NOTES[budgetStatus] ? `5. Nhắc người dùng: ${BUDGET_NOTES[budgetStatus]}\n` : ""}
 Danh sách món (đã xếp theo lựa chọn của hệ thống):
 ${summary}
 Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal)} kcal).`, userMessage));
+    mark("chat");
   }
   const isFallback = !reply;
   const message = reply || fallbackRecommend(mealType, targetCal, recipeList, rejectedRecipeIds.length > 0, budgetStatus);
 
   // Lưu lượt chat + xác suất của mô hình quyết định (dữ liệu để hiệu chỉnh/tự train sau)
+  mark("before_save");
   await saveMessages(
     { role: "user", content: userMessage, rejected_recipe_ids: rejectedRecipeIds, metadata: { intent } },
     {
@@ -377,12 +406,13 @@ Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal
         budget_status: budgetStatus,
         decision_mode: probs ? "model" : "sql",
         decision_probabilities: probs,
+        timings_ms: timings,
       },
     },
   );
 
   return json({
-    session_id: sessionId,
+    session_id: await sessionReady,
     intent,
     status: budgetStatus,
     budget,
