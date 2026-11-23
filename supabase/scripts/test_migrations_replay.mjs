@@ -494,4 +494,17 @@ assert.equal(bk.public, false, "bucket sao lưu phải riêng tư");
 assert.equal(Number(bk.lim), 52428800);
 assert.equal((await one(`SELECT count(*)::int AS n FROM pg_policies WHERE schemaname = 'storage' AND (qual ILIKE '%db-backups%' OR with_check ILIKE '%db-backups%')`)).n, 0, "không policy nào mở bucket sao lưu");
 
+// ===== Sprint 9: trần chung AI 600 lượt/giờ =====
+const g1 = "00000000-0000-0000-0000-0000000000f1", g2 = "00000000-0000-0000-0000-0000000000f2";
+for (const [id, m] of [[g1, "g1@x.test"], [g2, "g2@x.test"]]) await db.query(`INSERT INTO auth.users VALUES ($1, $2, '{}')`, [id, m]);
+await db.query(`DELETE FROM ai_usage`);
+await db.query(`INSERT INTO ai_usage (user_id) SELECT $1 FROM generate_series(1, 600)`, [g1]);
+await asUser(g2);
+let gq = (await one(`SELECT consume_ai_quota() AS q`)).q;
+assert.deepEqual([gq.allowed, gq.ai_enabled, gq.remaining], [true, false, 30], "vượt trần chung: vẫn cho qua nhưng tắt AI");
+assert.equal((await one(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id = $1`, [g2])).n, 0, "tắt AI thì không trừ lượt");
+await db.query(`DELETE FROM ai_usage WHERE user_id = $1`, [g1]);
+gq = (await one(`SELECT consume_ai_quota() AS q`)).q;
+assert.deepEqual([gq.allowed, gq.ai_enabled, gq.remaining], [true, true, 29], "dưới trần chung: bật AI");
+
 console.log("migrations replay + audit fixes: all checks passed");
