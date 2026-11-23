@@ -18,7 +18,7 @@ void main() {
       ..setAge(10)
       ..setHeight(300);
     expect(d.age, 18);
-    expect(d.heightCm, 220);
+    expect(d.heightCm, 250);
   });
 
   test('Chọn Giảm cân → 6 bước, mục tiêu mặc định 60 kg', () {

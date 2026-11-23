@@ -261,7 +261,7 @@ class StepperRow extends StatelessWidget {
   }
 }
 
-/// Thanh trượt xanh + nhãn hai đầu (vd. "18 tuổi" … "80 tuổi")
+/// Thanh trượt xanh + nhãn hai đầu (vd. "18 tuổi" … "100 tuổi")
 class LabeledSlider extends StatelessWidget {
   const LabeledSlider({
     super.key,

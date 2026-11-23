@@ -9,15 +9,15 @@ class BodyInfoLimits {
 
   // Bước 1: tuổi
   static const minAge = 18;
-  static const maxAge = 80;
+  static const maxAge = 100;
   static const defaultAge = 25;
 
   // Bước 2: chiều cao, cân nặng
-  static const minHeightCm = 120.0;
-  static const maxHeightCm = 220.0;
+  static const minHeightCm = 50.0;
+  static const maxHeightCm = 250.0;
   static const defaultHeightCm = 170.0;
-  static const minWeightKg = 30.0;
-  static const maxWeightKg = 200.0;
+  static const minWeightKg = 20.0;
+  static const maxWeightKg = 300.0;
   static const defaultWeightKg = 65.0;
 
   // Bước 6: số giờ tập mỗi ngày
