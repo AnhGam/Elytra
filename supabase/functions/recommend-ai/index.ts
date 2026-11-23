@@ -2,12 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { classifyIntent, decideDish, type Intent, rankByDecision, type RecipeCandidate } from "../_shared/decision.ts";
 import {
-  askGemini,
+  askChat,
   BUDGET_NOTES,
   fallbackHowToCook,
   fallbackNutrition,
   fallbackRecommend,
   MEAL_NAMES_VI,
+  omniConfigFromEnv,
   OUT_OF_SCOPE_MESSAGE,
   type RecipeDetail,
 } from "./chat.ts";
@@ -155,6 +156,7 @@ Deno.serve(async (req: Request) => {
   const rawMessage = typeof payload.message === "string" ? payload.message.trim() : "";
   if (rawMessage.length > 500) return fail("VALIDATION_ERROR", "message tối đa 500 ký tự", "message");
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+  const omni = omniConfigFromEnv((name) => Deno.env.get(name));
   // Hạn mức AI: chỉ trừ lượt khi request THẬT SỰ sắp gọi Gemini (lỗi 400/404, goal_reached, "Ăn món này" không bị trừ),
   // tối đa 1 lượt/request. Vượt trần chung cả app → không gọi Gemini, trả lời bằng thứ tự SQL + câu mẫu.
   let aiKey: string | null = null;
@@ -268,13 +270,13 @@ Deno.serve(async (req: Request) => {
       ? "Hướng dẫn nấu món dưới đây theo từng bước, ngắn gọn, dễ làm theo. CHỈ dùng nguyên liệu và các bước có trong dữ liệu, không thêm bước hay nguyên liệu, không đổi định lượng."
       : "Giải thích thông tin dinh dưỡng của món dưới đây và món này hợp với người đang ăn kiêng hay không. CHỈ dùng số liệu có trong dữ liệu, không tự tính hay thêm số liệu khác.";
     const chat = aiKey
-      ? await askGemini(aiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
-      : { text: "", error: aiBusy ? "ai_busy" : "no key" };
+      ? await askChat(aiKey, omni, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra, trả lời bằng tiếng Việt, Markdown, tối đa 3 đoạn.\n${task}\n\nDữ liệu món:\n${facts}`, userMessage)
+      : { text: "", error: aiBusy ? "ai_busy" : "no key", model: null };
     const reply = chat.text;
     const message = reply || facts;
     await saveMessages(
       { role: "user", content: userMessage, metadata: { intent, recipe_id: recipeId } },
-      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply, chat_error: chat.error } },
+      { role: "assistant", content: message, metadata: { intent, recipe_id: recipeId, fallback: !reply, chat_error: chat.error, chat_model: chat.model } },
     );
     return json({ session_id: sessionId, intent, status: "answered", message, recipe, fallback: !reply });
   }
@@ -340,11 +342,12 @@ Deno.serve(async (req: Request) => {
   // Gemini chat chỉ viết lời giải thích cho món đã chọn
   let reply = "";
   let chatError: string | null = aiKey ? null : (aiBusy ? "ai_busy" : "no key");
+  let chatModel: string | null = null;
   if (aiKey && recipeList.length > 0) {
     const summary = recipeList.slice(0, 3).map((r, i) =>
       `${i + 1}. Món: ${r.title} | ${r.calories_per_serving} kcal | Protein: ${r.protein_g_per_serving}g | Fat: ${r.fat_g_per_serving}g | Carbs: ${r.carbs_g_per_serving}g | Lý do: ${r.match_reason}`
     ).join("\n");
-    ({ text: reply, error: chatError } = await askGemini(aiKey, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
+    ({ text: reply, error: chatError, model: chatModel } = await askChat(aiKey, omni, `Bạn là Trợ lý Dinh dưỡng của ứng dụng Elytra. Hệ thống ĐÃ CHỌN món cho người dùng; nhiệm vụ của bạn chỉ là giải thích bằng tiếng Việt thân thiện, súc tích.
 Quy tắc:
 1. Món số 1 là món hệ thống chọn. Giới thiệu món số 1 và giải thích vì sao hợp với mục tiêu calo của người dùng. Món 2-3 chỉ nhắc ngắn làm phương án khác.
 2. TUYỆT ĐỐI không nhắc món ngoài danh sách, không đổi thứ tự, không thay đổi số liệu dinh dưỡng.
@@ -369,6 +372,7 @@ Mục tiêu bữa ăn: Bữa ${MEAL_NAMES_VI[mealType]} (~${Math.round(targetCal
         intent,
         fallback: isFallback,
         chat_error: chatError,
+        chat_model: chatModel,
         meal_type: mealType,
         budget_status: budgetStatus,
         decision_mode: probs ? "model" : "sql",

@@ -44,6 +44,87 @@ export async function askGemini(
   }
 }
 
+// OmniRoute (gateway OpenAI-compatible trên máy nhóm, mở ra ngoài bằng Tailscale Funnel): model mạnh hơn, không chịu hạn mức free tier.
+// shortcut: chỉ chạy khi máy nhóm bật (cấu hình demo), máy tắt → askChat tự chuyển sang Gemini trực tiếp.
+export type OmniConfig = { url: string; key: string; model: string };
+
+export const OMNI_DEFAULT_MODEL = "agy/gemini-3-flash";
+
+export function omniConfigFromEnv(get: (name: string) => string | undefined): OmniConfig | null {
+  const url = get("OMNIROUTE_URL")?.trim().replace(/\/+$/, "");
+  const key = get("OMNIROUTE_API_KEY")?.trim();
+  if (!url || !key) return null;
+  return { url, key, model: get("OMNIROUTE_MODEL")?.trim() || OMNI_DEFAULT_MODEL };
+}
+
+export async function askOmni(
+  omni: OmniConfig,
+  systemPrompt: string,
+  userMessage: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<{ text: string; error: string | null }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetchFn(`${omni.url}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${omni.key}` },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: omni.model,
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+        temperature: 0.6,
+        max_tokens: 800,
+        stream: false,
+      }),
+    });
+    if (!res.ok) return { text: "", error: `HTTP ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}` };
+    const body = await res.json();
+    const text = String(body?.choices?.[0]?.message?.content ?? "").trim();
+    return text ? { text, error: null } : { text: "", error: `empty (finish_reason ${body?.choices?.[0]?.finish_reason ?? "none"})` };
+  } catch (e) {
+    return { text: "", error: controller.signal.aborted ? "timeout" : String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// OmniRoute lỗi đường truyền 2 lần liên tiếp (máy nhóm tắt) → bỏ qua 5 phút. 1 lần chậm lẻ (model chậm lúc đầu) không tính.
+// Biến cấp module: sống theo từng instance Edge Function (instance mới thì thử lại ngay).
+const OMNI_COOLDOWN_MS = 5 * 60 * 1000;
+let omniDownUntil = 0;
+let omniFailStreak = 0; // số lần lỗi đường truyền liên tiếp
+export function resetOmniCooldown() { omniDownUntil = 0; omniFailStreak = 0; } // cho unit test
+
+// Thứ tự: OmniRoute → Gemini trực tiếp. `model` cho biết ai đã trả lời (ghi vào metadata để theo dõi), null = cả hai lỗi → câu mẫu.
+export async function askChat(
+  apiKey: string,
+  omni: OmniConfig | null,
+  systemPrompt: string,
+  userMessage: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<{ text: string; error: string | null; model: string | null }> {
+  let omniError: string | null = null;
+  if (omni && Date.now() >= omniDownUntil) {
+    const r = await askOmni(omni, systemPrompt, userMessage, fetchFn);
+    if (r.text) { omniFailStreak = 0; return { text: r.text, error: null, model: `omniroute/${omni.model}` }; }
+    omniError = r.error;
+    // Chỉ lỗi đường truyền mới tạm bỏ qua; lỗi HTTP / trả rỗng là OmniRoute vẫn chạy → lượt sau thử lại
+    if (omniError === "timeout" || !/^(HTTP |empty)/.test(String(omniError))) {
+      omniFailStreak++;
+      if (omniFailStreak >= 2) { omniDownUntil = Date.now() + OMNI_COOLDOWN_MS; omniFailStreak = 0; }
+    } else {
+      omniFailStreak = 0;
+    }
+    console.warn("OmniRoute lỗi, chuyển sang Gemini trực tiếp:", omniError);
+  }
+  if (omni && omniError === null && Date.now() < omniDownUntil) omniError = "skipped (cooldown)";
+  const g = await askGemini(apiKey, systemPrompt, userMessage, fetchFn);
+  const error = omniError ? `omniroute: ${omniError}` : null;
+  if (g.text) return { text: g.text, error, model: CHAT_MODEL };
+  return { text: "", error: error ? `${error}; gemini: ${g.error}` : g.error, model: null };
+}
+
 // Dòng nhắc khi calo bữa đã bị chặn ngưỡng (meal_calorie_budget)
 export const BUDGET_NOTES: Record<string, string> = {
   low: "Hôm nay bạn đã ăn khá nhiều, mình chọn món nhẹ để không vượt mục tiêu.",

@@ -11,9 +11,14 @@
 | Secret | Bắt buộc | Ghi chú |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Có (cho tính năng AI) | Lấy ở Google AI Studio; thiếu thì app vẫn chạy với thứ tự SQL + câu mẫu |
+| `OMNIROUTE_URL` | Không | URL công khai của OmniRoute (Tailscale Funnel, dạng `https://<máy>.<tailnet>.ts.net`). Thiếu → chat gọi thẳng Gemini |
+| `OMNIROUTE_API_KEY` | Không | Key riêng cho Elytra trong OmniRoute (chỉ 1 tài khoản, chỉ model chat, có giới hạn lượt/ngày, `no_log`) |
+| `OMNIROUTE_MODEL` | Không | Mặc định `agy/gemini-3-flash` (đo 23/11/2026: ~2 s/câu; họ 3.8 mất 14–25 s, quá giờ chờ 5 s) |
 | `SUPABASE_URL` | Không cần đặt | Supabase tự cấp cho Edge Function |
 | `SUPABASE_ANON_KEY` | Không cần đặt | Supabase tự cấp cho Edge Function |
 | `SUPABASE_SERVICE_ROLE_KEY` | Không cần đặt | Supabase tự cấp cho Edge Function |
+
+> OmniRoute chạy trên máy nhóm: chỉ là cấu hình demo. Máy tắt → chat tự dùng Gemini trực tiếp, rồi câu mẫu; không cần sửa gì.
 
 - [ ] Đặt khóa Gemini: `supabase secrets set GEMINI_API_KEY=...`
 - [ ] Kiểm tra lại danh sách secret: `supabase secrets list`
