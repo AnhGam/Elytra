@@ -70,8 +70,17 @@ node supabase/scripts/test_community_admin_e2e.mjs
 - [ ] `security-audit.yml`: quét secret, kiểm tra bảo mật RLS/schema và `flutter analyze`.
 - [ ] `keep-supabase-alive.yml`: ping 2 ngày/lần để dự án gói miễn phí không bị tạm dừng; cần đặt 2 secret `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY` trên GitHub.
 
+## Sao lưu
+
+- Sao lưu tự động: workflow `db-backup.yml` chạy vào 2:00 sáng thứ Hai giờ VN; chạy tay tại GitHub → Actions → Weekly DB Backup → Run workflow.
+- [ ] Thiết lập 1 lần: thêm GitHub secret `SUPABASE_ACCESS_TOKEN` (tạo tại https://supabase.com/dashboard/account/tokens); tùy chọn thêm `SUPABASE_DB_PASSWORD`. Lệnh: `gh secret set SUPABASE_ACCESS_TOKEN -R AnhGam/Elytra` (dán token khi được hỏi).
+- Nơi lưu: bucket riêng tư `db-backups`, thư mục `YYYY-MM-DD_HHMM/` gồm `schema.sql.gz`, `data.sql.gz`, `auth_data.sql.gz`; giữ 8 bản mới nhất. Xem/tải tại Dashboard → Storage → `db-backups`.
+- KHÔNG gồm: file ảnh/video trong Storage; nếu project bị xóa thì mất luôn bản sao lưu (do lưu cùng project) — muốn an toàn hơn thì tải bản mới nhất về máy định kỳ.
+- Khôi phục (vào project mới hoặc sau sự cố): giải nén các file `.gz`, rồi chạy `psql "<connection string>" -f schema.sql`, sau đó `auth_data.sql`, rồi `data.sql`; connection string lấy tại Dashboard → Connect.
+- Chạy tay trên máy: cần Supabase CLI 2.122.0 (bản đã kiểm), Docker Desktop đang chạy, `supabase login`, `supabase link`, rồi `bash supabase/scripts/backup_db.sh`.
+
 ## Giới hạn gói miễn phí cần biết
 
-- [ ] Không có sao lưu tự động trên gói miễn phí (mục Sao lưu sẽ bổ sung ở Sprint 9).
+- [ ] Không có sao lưu tự động của Supabase trên gói miễn phí → dự án tự sao lưu hằng tuần (mục Sao lưu).
 - [ ] Dự án bị tạm dừng nếu 7 ngày không có truy vấn.
 - [ ] Hạn mức Gemini miễn phí chưa công bố rõ, app tự chuyển sang câu mẫu khi hết hoặc lỗi.

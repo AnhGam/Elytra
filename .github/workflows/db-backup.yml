@@ -1,0 +1,47 @@
+name: Weekly DB Backup
+
+on:
+  schedule:
+    - cron: '0 19 * * 0' # Chủ nhật 19:00 UTC = 2:00 sáng thứ Hai giờ VN
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: iwmnkygicqfesvbilmrw
+      SUPABASE_CLI: supabase
+    steps:
+      - name: Kiểm tra secret SUPABASE_ACCESS_TOKEN
+        id: guard
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "Chưa đặt secret SUPABASE_ACCESS_TOKEN, bỏ qua sao lưu."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout Code
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Supabase CLI
+        if: steps.guard.outputs.skip != 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0 # ghim bản đã kiểm lệnh storage
+
+      - name: Liên kết Supabase project
+        if: steps.guard.outputs.skip != 'true'
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Sao lưu DB lên bucket db-backups
+        if: steps.guard.outputs.skip != 'true'
+        run: bash supabase/scripts/backup_db.sh
