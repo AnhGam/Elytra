@@ -568,13 +568,14 @@ final favs = await supabase.from('user_favorite_recipes').select('recipe_id, cre
 
 | Lượt | `metadata` của lượt assistant |
 | --- | --- |
-| Gợi ý món | `{ intent, fallback, chat_error, meal_type, budget_status, decision_mode, decision_probabilities: { recipe_id: xác suất } }` |
+| Gợi ý món | `{ intent, fallback, chat_error, chat_model, meal_type, budget_status, decision_mode, decision_probabilities: { recipe_id: xác suất } }` |
 | `goal_reached` | `{ intent, meal_type, budget_status }` |
-| Cách nấu / dinh dưỡng | `{ intent, recipe_id, fallback, chat_error }` |
+| Cách nấu / dinh dưỡng | `{ intent, recipe_id, fallback, chat_error, chat_model }` |
 | Ngoài phạm vi | `{ intent }` |
 | Ăn món này | `{ logged_item_id, replayed }` (lượt user: `{ intent: "accept", accepted_recipe_id, meal_type }`) |
 
 `chat_error` (chỉ để theo dõi, app không cần đọc): lý do Gemini chat không trả lời khi `fallback = true`, vd `"timeout"`, `"HTTP 503: … high demand …"` (Google quá tải), `"HTTP 429: …"` (hết hạn mức), `"no key"`, `"ai_busy"` (vượt trần chung).
+`chat_model` (chỉ để theo dõi): model đã viết câu trả lời — `"omniroute/<model>"` (qua OmniRoute), `"gemini-flash-lite-latest"` (Gemini trực tiếp), `null` (câu mẫu).
 - App chỉ **đọc** và **xóa cả phiên** của mình; không thêm / sửa / xóa từng tin nhắn (bị RLS chặn). Chỉ `/recommend-ai` ghi (bằng quyền server, sau khi xác thực user), để dữ liệu nhận/từ chối món dùng hiệu chỉnh mô hình không bị sửa.
 
 ```dart

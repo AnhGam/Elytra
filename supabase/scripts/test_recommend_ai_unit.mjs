@@ -2,7 +2,7 @@
 // Chạy: node supabase/scripts/test_recommend_ai_unit.mjs   (Node ≥ 23 chạy thẳng .ts)
 import assert from "node:assert/strict";
 import { classifyIntent, decideDish, rankByDecision } from "../functions/_shared/decision.ts";
-import { askGemini, fallbackHowToCook, fallbackNutrition, fallbackRecommend } from "../functions/recommend-ai/chat.ts";
+import { askChat, askGemini, askOmni, fallbackHowToCook, fallbackNutrition, fallbackRecommend, omniConfigFromEnv, resetOmniCooldown } from "../functions/recommend-ai/chat.ts";
 
 const dish = (id, title, kcal) => ({ id, title, slug: id, category: "mon_man", image_url: null, servings: 1,
   prep_time_minutes: 10, cook_time_minutes: 20, calories_per_serving: kcal, protein_g_per_serving: 30,
@@ -64,6 +64,68 @@ assert.match((await askGemini("KEY", "sys", "hi", ok({ candidates: [] }))).error
 assert.equal((await askGemini("KEY", "sys", "hi", async (_u, { signal }) => {
   await new Promise((_, rej) => signal.addEventListener("abort", () => rej(new Error("aborted"))));
 })).error, "timeout", "timeout 6,5 s → câu mẫu"); // chạy hết 6,5 s thật
+
+// 5b. OmniRoute → Gemini → câu mẫu
+resetOmniCooldown();
+const omni = { url: "https://omni.test", key: "OK", model: "m1" };
+const env = { OMNIROUTE_URL: " https://omni.test/ ", OMNIROUTE_API_KEY: "OK" };
+assert.deepEqual(omniConfigFromEnv((n) => env[n]), { url: "https://omni.test", key: "OK", model: "agy/gemini-3-flash" });
+assert.equal(omniConfigFromEnv(() => undefined), null, "thiếu biến → không dùng OmniRoute");
+let omniReq;
+assert.deepEqual(await askOmni(omni, "sys", "hi", async (u, init) => { omniReq = { u, init }; return { ok: true, json: async () => ({ choices: [{ message: { content: " Xin chào " } }] }) }; }),
+  { text: "Xin chào", error: null });
+assert.equal(omniReq.u, "https://omni.test/v1/chat/completions");
+assert.equal(omniReq.init.headers.Authorization, "Bearer OK");
+assert.deepEqual(JSON.parse(omniReq.init.body).messages.map((m) => m.role), ["system", "user"]);
+const geminiOk = { candidates: [{ content: { parts: [{ text: "Từ Gemini" }] } }] };
+const route = (omniRes) => async (u) => String(u).startsWith("https://omni.test") ? omniRes() : { ok: true, json: async () => geminiOk };
+resetOmniCooldown();
+assert.deepEqual(await askChat("KEY", omni, "sys", "hi", route(() => ({ ok: true, json: async () => ({ choices: [{ message: { content: "Từ Omni" } }] }) }))),
+  { text: "Từ Omni", error: null, model: "omniroute/m1" });
+resetOmniCooldown();
+const viaGemini = await askChat("KEY", omni, "sys", "hi", route(() => ({ ok: false, status: 502, text: async () => "down" })));
+assert.equal(viaGemini.text, "Từ Gemini");
+assert.equal(viaGemini.model, "gemini-flash-lite-latest");
+assert.match(viaGemini.error, /^omniroute: HTTP 502/);
+resetOmniCooldown();
+assert.deepEqual(await askChat("KEY", null, "sys", "hi", ok(geminiOk)), { text: "Từ Gemini", error: null, model: "gemini-flash-lite-latest" }, "không cấu hình OmniRoute → như cũ");
+resetOmniCooldown();
+const bothDown = await askChat("KEY", omni, "sys", "hi", boom);
+assert.equal(bothDown.text, "");
+assert.equal(bothDown.model, null);
+assert.match(bothDown.error, /^omniroute: .*; gemini: /);
+// OmniRoute mất mạng → lỗi 2 lần liên tiếp mới bỏ qua; lỗi HTTP thì không bỏ qua
+resetOmniCooldown();
+let omniCalls = 0;
+const downRoute = async (u) => { if (String(u).startsWith("https://omni.test")) { omniCalls++; throw new Error("network"); } return { ok: true, json: async () => geminiOk }; };
+await askChat("KEY", omni, "sys", "hi", downRoute);
+await askChat("KEY", omni, "sys", "hi", downRoute);
+const skipped = await askChat("KEY", omni, "sys", "hi", downRoute);
+assert.equal(omniCalls, 2, "lỗi 2 lần liên tiếp → lượt 3 không gọi OmniRoute");
+assert.equal(skipped.text, "Từ Gemini");
+assert.equal(skipped.error, "omniroute: skipped (cooldown)");
+// 1 lần lỗi lẻ rồi thành công → không bỏ qua
+resetOmniCooldown();
+let flakyCalls = 0;
+const flaky = async (u) => {
+  if (String(u).startsWith("https://omni.test")) { flakyCalls++; if (flakyCalls === 1) throw new Error("network"); return { ok: true, json: async () => ({ choices: [{ message: { content: "Từ Omni" } }] }) }; }
+  return { ok: true, json: async () => geminiOk };
+};
+await askChat("KEY", omni, "sys", "hi", flaky);
+assert.equal((await askChat("KEY", omni, "sys", "hi", flaky)).model, "omniroute/m1", "1 lần lỗi lẻ không bỏ qua");
+resetOmniCooldown();
+let httpCalls = 0;
+const http500 = async (u) => { if (String(u).startsWith("https://omni.test")) { httpCalls++; return { ok: false, status: 500, text: async () => "x" }; } return { ok: true, json: async () => geminiOk }; };
+await askChat("KEY", omni, "sys", "hi", http500);
+await askChat("KEY", omni, "sys", "hi", http500);
+assert.equal(httpCalls, 2, "lỗi HTTP không kích hoạt bỏ qua");
+let emptyCalls = 0;
+const emptyRoute = async (u) => { if (String(u).startsWith("https://omni.test")) { emptyCalls++; return { ok: true, json: async () => ({ choices: [] }) }; } return { ok: true, json: async () => geminiOk }; };
+resetOmniCooldown();
+await askChat("KEY", omni, "sys", "hi", emptyRoute);
+await askChat("KEY", omni, "sys", "hi", emptyRoute);
+assert.equal(emptyCalls, 2, "trả rỗng không kích hoạt bỏ qua");
+resetOmniCooldown();
 
 // 6. Câu mẫu: lấy đúng số liệu, đúng thứ tự bước, không bịa
 const fb = fallbackRecommend("lunch", 700, sql, true, "low");
