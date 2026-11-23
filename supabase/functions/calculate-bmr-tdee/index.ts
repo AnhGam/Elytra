@@ -20,7 +20,7 @@ const ENUMS: Record<string, string[]> = {
   goal: ["lose_weight", "maintain", "gain_weight"],
 };
 // Khớp BodyInfoLimits trong app. Rộng hơn thì công thức ra số vô nghĩa (vd 100 tuổi, 50 cm, 20 kg -> target âm).
-const RANGES: Record<string, [number, number]> = { age: [18, 80], height_cm: [120, 220], weight_kg: [30, 200] };
+const RANGES: Record<string, [number, number]> = { age: [18, 100], height_cm: [50, 250], weight_kg: [20, 300] };
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

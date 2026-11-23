@@ -17,7 +17,7 @@ class Step1BasicInfo extends StatelessWidget {
     if (age < 30) return 'Thanh niên (18–29)';
     if (age < 45) return 'Trưởng thành (30–44)';
     if (age < 60) return 'Trung niên (45–59)';
-    return 'Cao tuổi (60–80)';
+    return 'Cao tuổi (60–${BodyInfoLimits.maxAge})';
   }
 
   @override

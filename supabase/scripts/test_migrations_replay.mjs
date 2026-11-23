@@ -488,4 +488,10 @@ const newScore = Math.min(1, Math.round((0.40 * cal + 0.30 * prot + 0.15 * fat +
 assert.ok(Math.abs(Number(r.score) - newScore) <= 0.011, `score món béo ${r.title}: got ${r.score}, expected ${newScore} (oldScore=${oldScore})`);
 assert.ok(fat < 1, `món nhiều béo (${r.title}: ${r.fat_g_per_serving}g > ${tFat}g) phải có fat_score < 1`);
 
+// Sprint 9: bucket sao lưu riêng tư, không policy nào cho app
+const bk = await one(`SELECT public, file_size_limit::bigint AS lim FROM storage.buckets WHERE id = 'db-backups'`);
+assert.equal(bk.public, false, "bucket sao lưu phải riêng tư");
+assert.equal(Number(bk.lim), 52428800);
+assert.equal((await one(`SELECT count(*)::int AS n FROM pg_policies WHERE schemaname = 'storage' AND (qual ILIKE '%db-backups%' OR with_check ILIKE '%db-backups%')`)).n, 0, "không policy nào mở bucket sao lưu");
+
 console.log("migrations replay + audit fixes: all checks passed");

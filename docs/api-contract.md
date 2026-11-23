@@ -108,9 +108,9 @@ Số liệu lấy từ RPC `calculate_nutrition_targets` (nguồn công thức d
 | Trường | Kiểu | Bắt buộc | Ràng buộc |
 | --- | --- | --- | --- |
 | `gender` | `"male"` \| `"female"` \| `"other"` | Có | `other` dùng công thức nam |
-| `age` | số nguyên | Có | 18–80 (khớp app) |
-| `height_cm` | số | Có | 120–220 (khớp app) |
-| `weight_kg` | số | Có | 30–200 (khớp app) |
+| `age` | số nguyên | Có | 18–100 (khớp app) |
+| `height_cm` | số | Có | 50–250 (khớp app) |
+| `weight_kg` | số | Có | 20–300 (khớp app) |
 | `activity_level` | `ActivityLevel` | Có | |
 | `goal` | `Goal` | Có | |
 | `save_to_profile` | boolean | Không | Mặc định `false` |
@@ -708,7 +708,7 @@ Ràng buộc `admin_save_ingredient` (`VALIDATION_ERROR`, `hint` = trường): t
 
 ## 8. Quyết định đã chốt
 
-1. **Khoảng hợp lệ của thể trạng:** tuổi 18–80; chiều cao 120–220 cm; cân nặng 30–200 kg.
+1. **Khoảng hợp lệ của thể trạng:** tuổi 18–100; chiều cao 50–250 cm; cân nặng 20–300 kg (DB cho phép tuổi từ 10, app và API chặn dưới 18 vì công thức Mifflin-St Jeor xây trên người 19–78 tuổi).
 2. **AI không bao giờ làm hỏng luồng:** Gemini Decision 1 timeout 3 s → thứ tự SQL; Gemini chat timeout 6,5 s → câu mẫu. Không có mã lỗi nào cho AI lỗi.
 3. **Danh sách món từ chối:** app giữ trong phiên và gửi `rejected_recipe_ids` mỗi lượt; server lưu thêm vào `chat_messages.rejected_recipe_ids`.
 4. **Phân trang:** `p_page` (từ 1) + `p_page_size`, kèm `total_count` (đếm bằng window function, 1 lần quét).
